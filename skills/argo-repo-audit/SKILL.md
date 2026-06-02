@@ -95,6 +95,11 @@ Read `references/security-audit.md` **in full** and audit the repository:
 
 Use the grep/awk scanning commands from `security-audit.md` to find specific issues.
 
+If the repo targets **OpenShift** (presence of `Route`, `ArgoCD` CRD, `DeploymentConfig`,
+or `SecurityContextConstraints` resources), also check the OpenShift-specific security
+section in `security-audit.md` — covers ArgoCD CRD version, Route TLS, OAuth, SCCs,
+managed-by labels, and namespace-scoped instance elevation risks.
+
 ### Phase 5: Report
 
 Produce a structured markdown report with these sections:

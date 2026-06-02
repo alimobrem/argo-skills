@@ -167,6 +167,42 @@ grep -rn -A10 "kind: Ingress" <repo-root> --include="*.yaml" --include="*.yml" |
 - [ ] Git commit signing verification enabled if available (`gpg.enabled: "true"` in argocd-cm)
 - [ ] `kustomize.buildOptions` does not include `--enable-exec` or `--enable-alpha-plugins` without review
 
+---
+
+## OpenShift-Specific Security
+
+When the repo targets OpenShift (look for `Route`, `ArgoCD` CRD, `DeploymentConfig`,
+or `SecurityContextConstraints` resources):
+
+- [ ] **ArgoCD CRD uses `argoproj.io/v1beta1`** — not the older `v1alpha1` ArgoCD CRD
+- [ ] **Route TLS termination** — should be `reencrypt` or `edge`, flag `passthrough` without justification
+- [ ] **OAuth enabled** — `spec.dex.openShiftOAuth: true` for SSO integration
+- [ ] **Resource exclusions configured** — exclude Tekton TaskRun/PipelineRun, compliance, OLM resources
+- [ ] **No DeploymentConfig with Rollouts** — Argo Rollouts does not support DeploymentConfig
+- [ ] **SCC bindings for Workflow ServiceAccounts** — workflow pods need appropriate SCC
+- [ ] **Managed-by labels on target namespaces** — `argocd.argoproj.io/managed-by` points to correct instance
+- [ ] **No namespace managed by multiple ArgoCD instances** — causes reconciliation conflicts
+- [ ] **Namespace-scoped instances not elevated** — team instances should NOT be cluster-scoped (security risk)
+- [ ] **RBAC maps actual OpenShift groups** — `policy` in ArgoCD CR references real group names from OAuth
+
+### Scanning: Find OpenShift-specific issues
+
+```bash
+# Find ArgoCD CRDs
+grep -rn "kind: ArgoCD" <repo-root> --include="*.yaml" --include="*.yml"
+
+# Find DeploymentConfig (flag if Rollouts also present)
+grep -rn "kind: DeploymentConfig" <repo-root> --include="*.yaml" --include="*.yml"
+
+# Find Routes without TLS
+grep -A5 "kind: Route" <repo-root> --include="*.yaml" --include="*.yml" | grep -L "tls:"
+
+# Find namespace-scoped instances with cluster permissions
+grep -B2 -A10 "kind: ArgoCD" <repo-root> --include="*.yaml" --include="*.yml" | grep -A10 "namespace:" | grep "clusterScoped\|cluster-admin"
+```
+
+---
+
 ### Scanning: Find mutable image tags
 
 ```bash

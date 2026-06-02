@@ -805,3 +805,4 @@ spec:
 | Sync policy, RBAC, health checks, secret management | `references/best-practices.md` | General architecture and operational best practices |
 | Agent mode, principal/agent architecture, managed/autonomous modes, hub-and-spoke | `references/agent-mode.md` | Questions about argocd-agent, multi-cluster at scale, air-gapped, edge deployments |
 | Applications in any namespace, multi-instance, multi-tenancy, Autopilot | `references/multi-tenancy.md` | Questions about multi-tenancy, team isolation, --application-namespaces, Autopilot bootstrap |
+| OpenShift GitOps Operator, ArgoCD CRD, Routes, SCCs, OAuth, managed namespaces | `references/openshift.md` | Questions about running Argo on OpenShift, operator-managed instances, OpenShift-specific patterns |
