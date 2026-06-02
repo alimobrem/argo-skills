@@ -1,0 +1,99 @@
+name: evals
+on:
+  workflow_dispatch:
+    inputs:
+      skill:
+        description: 'Skill to eval (argo-knowledge, argo-repo-audit, argo-cluster-debug, or all)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - argo-knowledge
+          - argo-repo-audit
+          - argo-cluster-debug
+      model:
+        description: 'Model to use'
+        required: true
+        default: 'claude-sonnet-4-6'
+        type: choice
+        options:
+          - claude-opus-4-6
+          - claude-sonnet-4-6
+          - claude-haiku-4-5
+
+permissions:
+  contents: read
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - skill: argo-knowledge
+            needs_cluster: false
+          - skill: argo-repo-audit
+            needs_cluster: false
+          - skill: argo-cluster-debug
+            needs_cluster: true
+    steps:
+      - name: Filter by input
+        id: filter
+        env:
+          INPUT_SKILL: ${{ inputs.skill }}
+          MATRIX_SKILL: ${{ matrix.skill }}
+        run: |
+          if [ "$INPUT_SKILL" != "all" ] && [ "$INPUT_SKILL" != "$MATRIX_SKILL" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Skip cluster-debug without cluster
+        if: steps.filter.outputs.skip == 'false' && matrix.needs_cluster == true
+        run: |
+          echo "::warning::Skipping ${{ matrix.skill }} — requires a live Kubernetes cluster"
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        if: steps.filter.outputs.skip == 'false' && matrix.needs_cluster == false
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        if: steps.filter.outputs.skip == 'false' && matrix.needs_cluster == false
+        run: |
+          curl -sL https://github.com/yannh/kubeconform/releases/download/v0.7.0/kubeconform-linux-amd64.tar.gz | \
+            tar xzf - -C /usr/local/bin
+          curl -sL https://github.com/mikefarah/yq/releases/download/v4.44.1/yq_linux_amd64 -o /usr/local/bin/yq && \
+            chmod +x /usr/local/bin/yq
+          curl -sL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.8.0/kustomize_v5.8.0_linux_amd64.tar.gz | \
+            tar xzf - -C /usr/local/bin
+
+      - name: Install Claude Code
+        if: steps.filter.outputs.skip == 'false' && matrix.needs_cluster == false
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          npm install -g @anthropic-ai/claude-code
+
+      - name: Run evals
+        if: steps.filter.outputs.skip == 'false' && matrix.needs_cluster == false
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SKILL: ${{ matrix.skill }}
+          MODEL: ${{ inputs.model }}
+        run: |
+          claude --model "$MODEL" --print --dangerously-skip-permissions \
+            "Read skills/$SKILL/evals/evals.json. For each eval:
+             1. Spawn a sub-agent that reads skills/$SKILL/SKILL.md first, then answers the eval prompt following the skill workflow.
+             2. Score the output against the expectations array.
+             Report a scorecard: eval id, expectations passed/total, and any failures." \
+            2>&1 | tee "eval-results-${SKILL}.txt"
+
+      - name: Upload results
+        if: steps.filter.outputs.skip == 'false' && matrix.needs_cluster == false
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results-${{ matrix.skill }}
+          path: eval-results-*.txt
