@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: build-pipeline
+  namespace: argo
+spec:
+  entrypoint: build
+  templates:
+    - name: build
+      dag:
+        tasks:
+          - name: checkout
+            template: git-clone
+          - name: test
+            template: run-tests
+            dependencies:
+              - checkout
+          - name: build-image
+            template: docker-build
+            dependencies:
+              - test
+          - name: deploy
+            template: deploy-app
+            dependencies:
+              - build-image
+    - name: git-clone
+      container:
+        image: alpine/git
+        command: [git, clone, "https://github.com/acme-corp/app.git"]
+    - name: run-tests
+      container:
+        image: golang:1.22
+        command: [go, test, ./...]
+    - name: docker-build
+      container:
+        image: docker:24-dind
+        command: [docker, build, -t, "ghcr.io/acme-corp/app:latest", .]
+    - name: deploy-app
+      container:
+        image: bitnami/kubectl
+        command: [kubectl, apply, -f, deploy/]

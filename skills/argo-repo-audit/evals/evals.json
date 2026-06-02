@@ -1,0 +1,81 @@
+{
+  "evals": [
+    {
+      "name": "app-of-apps-audit",
+      "description": "Full audit of an app-of-apps pattern repository",
+      "prompt": "Audit the Argo CD GitOps repository at tests/argo-repo-audit/app-of-apps/ using the argo-repo-audit skill.",
+      "expectations": [
+        "Runs discover.sh against tests/argo-repo-audit/app-of-apps/",
+        "Correctly identifies the app-of-apps pattern",
+        "Detects 2 environments: staging and production",
+        "Counts Application resources accurately from discovery output",
+        "Counts AppProject resources accurately from discovery output",
+        "Reads references/best-practices.md in full",
+        "Reads references/security-audit.md in full",
+        "Assesses sync policy configuration for each Application",
+        "Checks AppProject sourceRepos for wildcard usage",
+        "Checks AppProject destinations for wildcard usage",
+        "Produces a structured report with Summary, Validation, Best Practices, Security, and Recommendations sections",
+        "Recommendations are prioritized as Critical, Warning, or Info",
+        "Reports overall status as PASS, WARN, or FAIL based on findings"
+      ]
+    },
+    {
+      "name": "applicationset-audit",
+      "description": "Full audit of an ApplicationSet-based repository",
+      "prompt": "Audit the Argo CD GitOps repository at tests/argo-repo-audit/applicationset/ using the argo-repo-audit skill.",
+      "expectations": [
+        "Runs discover.sh against tests/argo-repo-audit/applicationset/",
+        "Correctly identifies the ApplicationSet pattern",
+        "Detects ApplicationSet generator type (git, list, cluster, matrix, etc.)",
+        "Checks for progressive sync (rollingSync) configuration",
+        "Checks for preserveResourcesOnDeletion setting",
+        "Checks goTemplate usage vs fasttemplate",
+        "Reads references/best-practices.md in full",
+        "Assesses ApplicationSet-specific best practices",
+        "Evaluates template placeholder resolution",
+        "Produces a structured report with all required sections",
+        "Flags missing progressive sync as a Warning if deploying to multiple clusters",
+        "Recommendations include ApplicationSet-specific guidance"
+      ]
+    },
+    {
+      "name": "mixed-issues-audit",
+      "description": "Full audit of a repository with deliberate security and best-practice issues",
+      "prompt": "Audit the Argo CD GitOps repository at tests/argo-repo-audit/mixed-issues/ using the argo-repo-audit skill.",
+      "expectations": [
+        "Runs discover.sh against tests/argo-repo-audit/mixed-issues/",
+        "Detects Argo Rollouts resources (Rollout, AnalysisTemplate)",
+        "Detects Argo Workflows resources (Workflow, WorkflowTemplate, CronWorkflow)",
+        "Reads references/security-audit.md and finds wildcard sourceRepos in AppProject",
+        "Reads references/security-audit.md and finds wildcard destinations in AppProject",
+        "Flags plain-text Secret manifests as Critical security issue",
+        "Checks Rollout AnalysisTemplate for success/failure conditions",
+        "Checks Workflow resources for activeDeadlineSeconds and resource limits",
+        "Flags missing sync policy on Applications",
+        "Flags overly permissive clusterResourceWhitelist",
+        "Produces a structured report with Critical findings in Recommendations",
+        "Reports overall status as FAIL due to security issues",
+        "Assesses Rollout-specific best practices from best-practices.md",
+        "Assesses Workflow-specific best practices from best-practices.md"
+      ]
+    },
+    {
+      "name": "validate-only-app-of-apps",
+      "description": "Validation-only run without full audit",
+      "prompt": "Run only the validation scripts on the repository at tests/argo-repo-audit/app-of-apps/. Just validate YAML syntax and Kubernetes schemas, do not run a full audit.",
+      "expectations": [
+        "Runs validate.sh against tests/argo-repo-audit/app-of-apps/",
+        "Does NOT run the full audit phases (no best practices or security review)",
+        "Reports YAML syntax validation results",
+        "Reports Kubernetes schema validation results",
+        "Reports Kustomize overlay build results if overlays exist",
+        "Shows pass/fail summary",
+        "Correctly handles Argo CRDs (Application, AppProject) with schemas from assets/schemas/",
+        "Reports validation as PASSED if all files are valid",
+        "Does not produce a full audit report",
+        "Skips any SOPS-encrypted secrets if present"
+      ]
+    }
+  ]
+}

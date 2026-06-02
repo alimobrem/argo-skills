@@ -1,0 +1,27 @@
+{
+  "name": "argocd",
+  "owner": {
+    "name": "The Argo Skills authors",
+    "email": "argo-skills@example.com"
+  },
+  "metadata": {
+    "description": "AI skills for GitOps engineering with the Argo ecosystem and Kubernetes",
+    "version": "0.0.1"
+  },
+  "plugins": [
+    {
+      "name": "argo-skills",
+      "description": "Collection of skills for Argo CD, Rollouts, Workflows, and Events — knowledge, manifest generation, repository auditing, and cluster debugging",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/argo-knowledge",
+        "./skills/argo-repo-audit",
+        "./skills/argo-cluster-debug"
+      ],
+      "agents": [
+        "./agents/claude-code/argocd.md"
+      ]
+    }
+  ]
+}

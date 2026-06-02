@@ -1,0 +1,6 @@
+{
+  "clusterName": "production",
+  "clusterUrl": "https://production.example.com",
+  "environment": "production",
+  "replicas": "3"
+}

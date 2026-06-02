@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: backend
+  namespace: argocd
+spec:
+  project: team-insecure
+  source:
+    repoURL: https://github.com/example/backend.git
+    targetRevision: main
+    path: deploy
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: backend
+  syncPolicy:
+    automated:
+      selfHeal: false
+      prune: false
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backend-db-credentials
+  namespace: backend
+type: Opaque
+stringData:
+  username: admin
+  password: supersecretpassword123
+  connection-string: postgresql://admin:supersecretpassword123@db.example.com:5432/backend

@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: redis
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://charts.bitnami.com/bitnami
+    chart: redis
+    targetRevision: '*'
+    helm:
+      values: |
+        auth:
+          password: "supersecretpassword123"
+        master:
+          persistence:
+            enabled: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default

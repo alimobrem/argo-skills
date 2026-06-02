@@ -1,0 +1,43 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: infra-per-cluster
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchLabels:
+                  argocd.argoproj.io/secret-type: cluster
+              values:
+                environment: '{{ index .metadata.labels "env" }}'
+          - list:
+              elements:
+                - component: monitoring
+                  chart: kube-prometheus-stack
+                  version: "65.*"
+                - component: logging
+                  chart: loki-stack
+                  version: "2.*"
+  template:
+    metadata:
+      name: '{{ .name }}-{{ .component }}'
+      namespace: argocd
+    spec:
+      project: infrastructure
+      source:
+        repoURL: https://prometheus-community.github.io/helm-charts
+        chart: '{{ .chart }}'
+        targetRevision: '{{ .version }}'
+      destination:
+        server: '{{ .server }}'
+        namespace: '{{ .component }}'
+      syncPolicy:
+        automated:
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

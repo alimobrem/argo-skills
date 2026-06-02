@@ -1,0 +1,51 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: cluster-apps
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions:
+    - missingkey=error
+  generators:
+    - git:
+        repoURL: https://github.com/acme-corp/gitops-apps.git
+        revision: main
+        directories:
+          - path: apps/*
+          - path: apps/excluded-*
+            exclude: true
+  template:
+    metadata:
+      name: '{{ .path.basename }}'
+      namespace: argocd
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/acme-corp/gitops-apps.git
+        targetRevision: main
+        path: '{{ .path.path }}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{ .path.basename }}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+  strategy:
+    type: RollingSync
+    rollingSync:
+      steps:
+        - matchExpressions:
+            - key: envLabel
+              operator: In
+              values:
+                - staging
+        - matchExpressions:
+            - key: envLabel
+              operator: In
+              values:
+                - production
+          maxUpdate: 25%

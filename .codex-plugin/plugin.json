@@ -1,0 +1,25 @@
+{
+  "author": {
+    "email": "argo-skills@example.com",
+    "name": "The Argo Skills authors",
+    "url": "https://github.com/argoproj"
+  },
+  "description": "Skills to transform AI Agents into Argo GitOps Engineers",
+  "homepage": "https://github.com/your-org/argo-skills",
+  "interface": {
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "category": "Developer Tools",
+    "displayName": "Argo GitOps Skills",
+    "longDescription": "Collection of reusable AI skills for the Argo ecosystem — Argo CD, Rollouts, Workflows, and Events. Covers manifest generation, repository auditing, and cluster debugging.",
+    "shortDescription": "Skills to transform AI Agents into Argo GitOps Engineers",
+    "websiteURL": "https://argoproj.github.io/"
+  },
+  "license": "Apache-2.0",
+  "name": "argo-skills",
+  "repository": "https://github.com/your-org/argo-skills",
+  "skills": "./skills/",
+  "version": "0.0.1"
+}

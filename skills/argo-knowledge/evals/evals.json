@@ -1,0 +1,103 @@
+{
+  "skill_name": "argo-knowledge",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Generate an Argo CD Application that deploys a Helm chart called 'web-frontend' from https://charts.example.com at version 3.2.1 to the 'frontend' namespace on the in-cluster. Enable automated sync with prune and self-heal. Set Helm values for replicaCount=3 and image.tag=v2.0.0. Create the namespace if it doesn't exist.",
+      "expected_output": "A complete Application YAML with Helm source, automated sync policy, and the specified values.",
+      "files": [],
+      "expectations": [
+        "Output contains apiVersion: argoproj.io/v1alpha1",
+        "Output contains kind: Application",
+        "Output contains namespace: argocd in metadata",
+        "Output contains chart: web-frontend under spec.source",
+        "Output contains repoURL: https://charts.example.com under spec.source",
+        "Output contains targetRevision: 3.2.1 under spec.source",
+        "Output contains server: https://kubernetes.default.svc under spec.destination",
+        "Output contains namespace: frontend under spec.destination",
+        "Output contains automated sync policy with prune: true and selfHeal: true",
+        "Output contains CreateNamespace=true in syncOptions",
+        "Output contains replicaCount set to 3 via helm valuesObject or parameters",
+        "Output contains image.tag set to v2.0.0 via helm valuesObject or parameters"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Create an ApplicationSet that uses the git directory generator to discover all service directories under 'services/*' in the repo https://github.com/org/platform.git on branch 'main'. Exclude any directory starting with 'experimental-'. Use Go templates. Deploy each discovered service to the in-cluster with automated sync, prune, selfHeal, and CreateNamespace. Enable progressive syncs with a RollingSync strategy: first deploy to apps labeled env=staging (100%), then to apps labeled env=production (25% at a time). Also set preserveResourcesOnDeletion to true.",
+      "expected_output": "A complete ApplicationSet YAML with git directory generator, exclusion filter, Go template syntax, progressive syncs, and preserveResourcesOnDeletion.",
+      "files": [],
+      "expectations": [
+        "Output contains apiVersion: argoproj.io/v1alpha1",
+        "Output contains kind: ApplicationSet",
+        "Output contains goTemplate: true",
+        "Output contains git directory generator with repoURL: https://github.com/org/platform.git",
+        "Output contains directories path: services/*",
+        "Output contains an exclude entry for experimental-* directories",
+        "Output uses Go template syntax with dot notation like {{.path.basename}} or {{.path.path}}",
+        "Output contains strategy.type: RollingSync",
+        "Output contains rollingSync.steps with staging step at maxUpdate 100%",
+        "Output contains rollingSync.steps with production step at maxUpdate 25%",
+        "Output contains preserveResourcesOnDeletion: true",
+        "Output contains automated sync with prune: true and selfHeal: true"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Generate an Argo Rollout with canary strategy for a service called 'payment-api' in the 'payments' namespace. The image is registry.example.com/payment-api:v3.0.0 with 5 replicas. The canary steps should be: 10% weight, pause 2 minutes, 30% weight with an inline analysis step, 60% weight, pause 5 minutes, then 100%. Use Istio for traffic routing with VirtualService 'payment-vsvc' and route 'primary'. Also generate the AnalysisTemplate named 'error-rate' that queries Prometheus at http://prometheus.monitoring:9090 to check that the error rate stays below 1% (success rate >= 0.99). The metric should run every 30 seconds for 10 measurements with a failure limit of 3.",
+      "expected_output": "A Rollout YAML with canary strategy, Istio traffic routing, and a separate AnalysisTemplate YAML with Prometheus provider.",
+      "files": [],
+      "expectations": [
+        "Output contains apiVersion: argoproj.io/v1alpha1 and kind: Rollout",
+        "Output contains replicas: 5",
+        "Output contains image: registry.example.com/payment-api:v3.0.0",
+        "Output contains strategy.canary with steps array",
+        "Output contains setWeight: 10 as the first step",
+        "Output contains a pause step with duration of 2m or 2 minutes",
+        "Output contains setWeight: 30 followed by an analysis step referencing templateName: error-rate",
+        "Output contains Istio trafficRouting with virtualServices referencing payment-vsvc and route primary",
+        "Output contains a separate AnalysisTemplate with kind: AnalysisTemplate and name: error-rate",
+        "Output AnalysisTemplate has prometheus provider with address http://prometheus.monitoring:9090",
+        "Output AnalysisTemplate metric has interval: 30s and count: 10",
+        "Output AnalysisTemplate metric has failureLimit: 3 and successCondition checking >= 0.99 or equivalent"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Set up Argo CD notifications to send Slack messages when an application sync fails. Configure the argocd-notifications-cm ConfigMap and argocd-notifications-secret Secret. The Slack bot token should be referenced from the secret. Create a template called 'app-sync-failed' that includes the application name, project, error message, and a link to the ArgoCD UI (use context variable argocdUrl). The template should use a Slack attachment with red color. Create a trigger called 'on-sync-failed' that fires when the operation phase is Error or Failed. Show the annotation to add to an Application to subscribe to this trigger on the 'platform-alerts' Slack channel.",
+      "expected_output": "ConfigMap, Secret, and annotation example for Slack sync failure notifications.",
+      "files": [],
+      "expectations": [
+        "Output contains a ConfigMap named argocd-notifications-cm in namespace argocd",
+        "Output contains service.slack configuration referencing $slack-token",
+        "Output contains a Secret named argocd-notifications-secret with slack-token key",
+        "Output contains template.app-sync-failed with message referencing .app.metadata.name",
+        "Output template references .app.status.operationState.message for error details",
+        "Output template includes slack attachments with red color (e.g., #E96D76 or #FF0000 or similar red hex)",
+        "Output template includes a link using .context.argocdUrl",
+        "Output contains trigger.on-sync-failed with when condition checking phase in Error or Failed",
+        "Output trigger sends the app-sync-failed template",
+        "Output shows annotation notifications.argoproj.io/subscribe.on-sync-failed.slack: platform-alerts"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Generate an Argo Events setup with: 1) A GitHub EventSource called 'github-events' that listens for push events on the 'my-org/backend' repo with webhook on port 12000 endpoint /github, using a token and webhook secret from a Secret named 'github-creds'. 2) A JetStream EventBus named 'default' with 3 replicas and persistent storage. 3) A Sensor called 'ci-trigger' that filters for pushes to refs/heads/main only, and triggers an Argo Workflow submission. The triggered workflow should have a generateName 'ci-build-', accept parameters for repo-url and git-sha, and run a single container step. The sensor should map the event's repository clone_url to repo-url and the after commit SHA to git-sha.",
+      "expected_output": "Three YAML documents: EventSource, EventBus, and Sensor with dependency filters and Argo Workflow trigger.",
+      "files": [],
+      "expectations": [
+        "Output contains apiVersion: argoproj.io/v1alpha1 and kind: EventSource with name github-events",
+        "Output EventSource has github source type with owner my-org and repository name backend",
+        "Output EventSource webhook config has endpoint /github and port 12000",
+        "Output EventSource references github-creds Secret for apiToken and webhookSecret",
+        "Output contains kind: EventBus with name default and jetstream config with replicas: 3",
+        "Output EventBus has persistence configuration with volumeSize",
+        "Output contains kind: Sensor with name ci-trigger",
+        "Output Sensor has dependency filter on data path body.ref matching refs/heads/main",
+        "Output Sensor trigger type is argoWorkflow with operation submit",
+        "Output triggered Workflow has generateName: ci-build-",
+        "Output Sensor maps body.repository.clone_url to repo-url parameter",
+        "Output Sensor maps body.after to git-sha parameter"
+      ]
+    }
+  ]
+}

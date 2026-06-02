@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+spec:
+  description: Platform team applications
+  sourceRepos:
+    - https://github.com/acme-corp/gitops-apps.git
+    - https://charts.bitnami.com/bitnami
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: apps-*
+    - server: https://kubernetes.default.svc
+      namespace: platform
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  namespaceResourceBlacklist:
+    - group: ''
+      kind: ResourceQuota
+    - group: ''
+      kind: LimitRange
+  orphanedResources:
+    warn: true
+  roles:
+    - name: developer
+      description: Developer access
+      policies:
+        - p, proj:platform:developer, applications, get, platform/*, allow
+        - p, proj:platform:developer, applications, sync, platform/*, allow
+      groups:
+        - platform-devs
+  syncWindows:
+    - kind: deny
+      schedule: '0 22 * * 5'
+      duration: 36h
+      applications:
+        - '*'

@@ -1,0 +1,87 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: data-pipeline
+  namespace: workflows
+spec:
+  entrypoint: pipeline
+  templates:
+    - name: pipeline
+      steps:
+        - - name: extract
+            template: extract-data
+        - - name: transform
+            template: transform-data
+        - - name: load
+            template: load-data
+    - name: extract-data
+      container:
+        image: example/etl:latest
+        command: [python, extract.py]
+    - name: transform-data
+      container:
+        image: example/etl:latest
+        command: [python, transform.py]
+    - name: load-data
+      container:
+        image: example/etl:latest
+        command: [python, load.py]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: reusable-etl
+  namespace: workflows
+spec:
+  entrypoint: etl
+  templates:
+    - name: etl
+      container:
+        image: example/etl:v2.1.0
+        command: [python, run.py]
+        resources:
+          requests:
+            cpu: 500m
+            memory: 256Mi
+          limits:
+            cpu: "1"
+            memory: 512Mi
+  retryStrategy:
+    limit: 3
+    retryPolicy: OnError
+    backoff:
+      duration: 10s
+      factor: 2
+      maxDuration: 2m
+---
+apiVersion: argoproj.io/v1alpha1
+kind: CronWorkflow
+metadata:
+  name: nightly-etl
+  namespace: workflows
+spec:
+  schedule: "0 2 * * *"
+  timezone: "America/New_York"
+  concurrencyPolicy: Forbid
+  workflowSpec:
+    entrypoint: etl
+    serviceAccountName: etl-sa
+    activeDeadlineSeconds: 3600
+    templates:
+      - name: etl
+        container:
+          image: example/etl:v2.1.0
+          command: [python, run.py]
+          resources:
+            requests:
+              cpu: 500m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+    ttlStrategy:
+      secondsAfterCompletion: 86400
+      secondsAfterSuccess: 43200
+      secondsAfterFailure: 172800
+    podGC:
+      strategy: OnPodCompletion
