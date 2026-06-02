@@ -1,0 +1,53 @@
+name: update-schemas
+on:
+  schedule:
+    - cron: '17 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install yq
+        run: |
+          curl -sL https://github.com/mikefarah/yq/releases/download/v4.44.1/yq_linux_amd64 -o /usr/local/bin/yq
+          chmod +x /usr/local/bin/yq
+
+      - name: Download latest schemas
+        run: make download-schemas
+
+      - name: Check for changes
+        id: diff
+        run: |
+          if git diff --quiet skills/argo-repo-audit/assets/schemas/; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create pull request
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="update-schemas-$(date +%Y%m%d)"
+          git checkout -b "$BRANCH"
+          git add skills/argo-repo-audit/assets/schemas/
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update Argo CRD schemas"
+          git push origin "$BRANCH"
+          gh pr create \
+            --title "Update Argo CRD schemas" \
+            --body "Automated weekly schema update from upstream Argo CRD releases." \
+            --base main \
+            --head "$BRANCH"

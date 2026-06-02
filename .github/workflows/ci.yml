@@ -1,0 +1,54 @@
+name: ci
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          curl -sL https://github.com/yannh/kubeconform/releases/download/v0.7.0/kubeconform-linux-amd64.tar.gz | \
+            tar xzf - -C /usr/local/bin
+          curl -sL https://github.com/mikefarah/yq/releases/download/v4.44.1/yq_linux_amd64 -o /usr/local/bin/yq && \
+            chmod +x /usr/local/bin/yq
+          curl -sL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.8.0/kustomize_v5.8.0_linux_amd64.tar.gz | \
+            tar xzf - -C /usr/local/bin
+
+      - name: Run discovery on test fixtures
+        run: |
+          for fixture in tests/argo-repo-audit/*/; do
+            echo "=== $(basename $fixture) ==="
+            bash skills/argo-repo-audit/scripts/discover.sh -d "$fixture"
+            echo
+          done
+
+      - name: Run validation on test fixtures
+        run: |
+          for fixture in tests/argo-repo-audit/*/; do
+            echo "=== $(basename $fixture) ==="
+            bash skills/argo-repo-audit/scripts/validate.sh -d "$fixture" || true
+            echo
+          done
+
+      - name: Validate JSON files
+        run: |
+          find . -name '*.json' -not -path './skills/argo-repo-audit/assets/schemas/*' | while read f; do
+            python3 -m json.tool "$f" > /dev/null || { echo "Invalid JSON: $f"; exit 1; }
+          done
+
+      - name: Validate SKILL.md frontmatter
+        run: |
+          for f in skills/*/SKILL.md; do
+            head -1 "$f" | grep -q '^---' || { echo "Missing frontmatter: $f"; exit 1; }
+            echo "OK: $f"
+          done
