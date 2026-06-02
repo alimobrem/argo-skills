@@ -77,22 +77,22 @@
     },
     {
       "id": 5,
-      "prompt": "Generate an Argo Events setup for a CI pipeline triggered by GitLab merge request events. Create: 1) A GitLab EventSource called 'gitlab-mr' listening for merge_request events on project ID '12345' at endpoint /gitlab-mr on port 13000, with access token and webhook secret from Secret 'gitlab-creds'. The EventSource should filter for only 'merge' action (merged MRs). 2) An EventBus using Kafka (not NATS/JetStream) with an external Kafka cluster at kafka.infra:9092 with SASL authentication from Secret 'kafka-auth'. 3) A Sensor called 'deploy-on-merge' with a dependency filter using an expr (CEL expression) to check that the target branch is 'main': body.object_attributes.target_branch == 'main'. The trigger should create a Kubernetes Job (not an Argo Workflow) in the 'ci' namespace using the merged commit SHA as a parameter. Use trigger conditions to require the dependency.",
-      "expected_output": "GitLab EventSource with merge_request filter, Kafka EventBus with SASL, Sensor with CEL expr filter and K8s Job trigger.",
+      "prompt": "I'm deploying Argo CD on OpenShift using the OpenShift GitOps Operator. Generate: 1) An ArgoCD custom resource (the operator CRD, not raw Argo CD manifests) in the openshift-gitops namespace with HA disabled, Route enabled with reencrypt TLS, OpenShift OAuth via Dex, RBAC that maps 'cluster-admins' group to admin role with default readonly policy, resource exclusions for Tekton TaskRun/PipelineRun and OLM InstallPlan, and notifications enabled. 2) A namespace-scoped ArgoCD instance for the 'platform-team' namespace with a Route and sourceNamespaces set. 3) Show the label needed on a target namespace 'platform-staging' so the namespace-scoped instance can manage it. 4) Explain what happens differently on OpenShift vs vanilla Kubernetes regarding SCCs when running Argo Rollouts pods.",
+      "expected_output": "ArgoCD CRD (argoproj.io/v1beta1) with OpenShift-specific configuration, namespace-scoped instance, managed-by label, and SCC explanation.",
       "files": [],
       "expectations": [
-        "EventSource kind with name gitlab-mr and gitlab source type (not github)",
-        "GitLab source has projectID: '12345' or projectID: 12345",
-        "GitLab source has events list containing merge_request",
-        "EventSource references gitlab-creds Secret for accessToken and secretToken",
-        "EventBus uses kafka type (not jetstream, not nats)",
-        "Kafka EventBus config references kafka.infra:9092 as broker URL",
-        "Kafka auth references kafka-auth Secret for SASL credentials",
-        "Sensor dependency filter uses expr or exprFilters with CEL syntax (not data path filter)",
-        "CEL expression checks body.object_attributes.target_branch == 'main'",
-        "Sensor trigger type is k8s (Kubernetes resource) not argoWorkflow",
-        "Trigger creates a Job in namespace ci",
-        "Trigger references the merged commit SHA from the event payload (body.object_attributes.last_commit.id or similar)"
+        "Uses apiVersion argoproj.io/v1beta1 kind ArgoCD (not v1alpha1, not raw Deployment manifests)",
+        "Cluster-scoped instance in openshift-gitops namespace (not argocd)",
+        "spec.server.route.enabled true with tls.termination reencrypt",
+        "spec.dex.openShiftOAuth true for OAuth integration",
+        "RBAC policy maps cluster-admins to role:admin",
+        "RBAC defaultPolicy is role:readonly",
+        "resourceExclusions includes tekton.dev TaskRun and PipelineRun",
+        "resourceExclusions includes operators.coreos.com InstallPlan",
+        "spec.notifications.enabled true",
+        "Namespace-scoped instance in platform-team namespace with route and sourceNamespaces",
+        "Target namespace label argocd.argoproj.io/managed-by pointing to the instance namespace",
+        "Explains that OpenShift uses SecurityContextConstraints (SCCs) instead of PodSecurityPolicies and Rollout pods need appropriate SCC bindings"
       ]
     },
     {
