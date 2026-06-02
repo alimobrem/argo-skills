@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Pre-commit hook: scan staged files for PII and secrets before allowing commit.
+# Install: cp .github/hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+# Works on macOS (BSD grep) and Linux (GNU grep) — uses grep -E, not grep -P.
+
+RED='\033[0;31m'
+YELLOW='\033[0;33m'
+NC='\033[0m'
+
+ERRORS=0
+
+# Patterns: label + POSIX extended regex (grep -Ei compatible)
+# Each entry is "LABEL:::REGEX"
+PATTERNS=(
+  # Secrets and credentials
+  "AWS Access Key:::AKIA[0-9A-Z]{16}"
+  "AWS Secret Key:::(aws_secret_access_key|aws_secret_key)[[:space:]]*[=:][[:space:]]*[A-Za-z0-9/+=]{40}"
+  "GitHub Token:::gh[pousr]_[A-Za-z0-9_]{36,}"
+  "Generic Private Key:::-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----"
+  "Generic API Key:::(api[_-]?key|apikey)[[:space:]]*[=:][[:space:]]*[A-Za-z0-9_-]{20,}"
+  "Generic Secret Assignment:::(password|passwd|secret|token)[[:space:]]*[=:][[:space:]]*['\"][^'\"]{8,}['\"]"
+  "Bearer Token:::bearer[[:space:]]+[A-Za-z0-9._~+/=-]{20,}"
+  "Basic Auth Header:::authorization:[[:space:]]*basic[[:space:]]+[A-Za-z0-9+/=]{10,}"
+
+  # PII
+  "Email Address:::[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"
+  "SSN:::[0-9]{3}-[0-9]{2}-[0-9]{4}"
+  "Credit Card:::(4[0-9]{12}([0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13})"
+)
+
+# Known-safe patterns to suppress false positives (one per line, grep -E compatible)
+ALLOWLIST=(
+  "example\\.com"
+  "example\\.org"
+  "k8s\\.example\\.com"
+  "kubernetes\\.default\\.svc"
+  "noreply@anthropic\\.com"
+  "argo-skills@example\\.com"
+  "cncf-flux-dev@lists\\.cncf\\.io"
+  "supersecretpassword123"
+  "xxxxx"
+  "PATTERNS="
+  "ALLOWLIST="
+  "pre-commit hook"
+  "placeholder"
+  "\\.spec\\.secretRef"
+  "secretName:"
+  "secretRef:"
+  "kind: Secret"
+  "kind: SealedSecret"
+  "kind: ExternalSecret"
+  "stringData:"
+  "ENC\\["
+  "sops:"
+  "pull-secret"
+  "secret-type"
+  "webhook-secret"
+  "signing-secret"
+  "secret-key"
+  "passwordSecret:"
+  "secretToken:"
+  "secretKey:"
+  "credentialSecret:"
+  "\\$\\{.*\\}"
+  "spec\\.values:"
+  "<[a-z-]+>"
+  "password:"
+  "token:"
+)
+
+# Build combined allowlist regex
+ALLOW_REGEX=""
+for a in "${ALLOWLIST[@]}"; do
+  if [[ -z "$ALLOW_REGEX" ]]; then
+    ALLOW_REGEX="$a"
+  else
+    ALLOW_REGEX="${ALLOW_REGEX}|${a}"
+  fi
+done
+
+# Get staged files (exclude deleted)
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=d -- \
+  '*.yaml' '*.yml' '*.json' '*.md' '*.toml' '*.sh' '*.txt' '*.env' \
+  2>/dev/null || true)
+
+if [[ -z "$STAGED_FILES" ]]; then
+  exit 0
+fi
+
+for entry in "${PATTERNS[@]}"; do
+  LABEL="${entry%%:::*}"
+  REGEX="${entry##*:::}"
+
+  while IFS= read -r file; do
+    [[ -z "$file" ]] && continue
+
+    # Search staged content (not working tree)
+    MATCHES=$(git show ":$file" 2>/dev/null | grep -niE "$REGEX" 2>/dev/null || true)
+
+    if [[ -n "$MATCHES" ]]; then
+      # Filter out allowlisted lines
+      FILTERED=$(echo "$MATCHES" | grep -viE "$ALLOW_REGEX" 2>/dev/null || true)
+
+      if [[ -n "$FILTERED" ]]; then
+        while IFS= read -r match; do
+          [[ -z "$match" ]] && continue
+          echo -e "${RED}BLOCKED${NC} [${YELLOW}${LABEL}${NC}] ${file}:${match}"
+          ERRORS=$((ERRORS + 1))
+        done <<< "$FILTERED"
+      fi
+    fi
+  done <<< "$STAGED_FILES"
+done
+
+if [[ $ERRORS -gt 0 ]]; then
+  echo ""
+  echo -e "${RED}Commit blocked:${NC} Found ${ERRORS} potential PII/secret(s) in staged files."
+  echo "If these are intentional (test fixtures, docs), add the pattern to ALLOWLIST"
+  echo "in .github/hooks/pre-commit and retry."
+  exit 1
+fi
