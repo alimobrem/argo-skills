@@ -90,16 +90,18 @@ Use when: user asks if Argo CD is installed, reports general Argo CD failures, o
    kubectl get pods -n argocd -o wide
    ```
 
-4. Verify core components are running. All must be `Running` with `READY` containers:
-   | Component | Label Selector |
-   |-----------|---------------|
-   | argocd-server | `app.kubernetes.io/name=argocd-server` |
-   | argocd-repo-server | `app.kubernetes.io/name=argocd-repo-server` |
-   | argocd-application-controller | `app.kubernetes.io/name=argocd-application-controller` |
-   | argocd-applicationset-controller | `app.kubernetes.io/name=argocd-applicationset-controller` |
-   | argocd-redis | `app.kubernetes.io/name=argocd-redis` |
-   | argocd-dex-server | `app.kubernetes.io/name=argocd-dex-server` |
-   | argocd-notifications-controller | `app.kubernetes.io/name=argocd-notifications-controller` |
+4. Verify core components are running. All required components must be `Running` with `READY` containers:
+   | Component | Label Selector | Required |
+   |-----------|---------------|----------|
+   | argocd-server | `app.kubernetes.io/name=argocd-server` | Yes |
+   | argocd-repo-server | `app.kubernetes.io/name=argocd-repo-server` | Yes |
+   | argocd-application-controller | `app.kubernetes.io/name=argocd-application-controller` | Yes |
+   | argocd-applicationset-controller | `app.kubernetes.io/name=argocd-applicationset-controller` | Yes |
+   | argocd-redis | `app.kubernetes.io/name=argocd-redis` | Yes |
+   | argocd-dex-server | `app.kubernetes.io/name=argocd-dex-server` | Yes |
+   | argocd-notifications-controller | `app.kubernetes.io/name=argocd-notifications-controller` | No (optional) |
+
+   **Note:** `argocd-notifications-controller` is not deployed in all installations. Its absence should not be treated as a failure.
 
 5. If argocd CLI is available, check version compatibility:
    ```bash
@@ -187,11 +189,18 @@ Use when: user reports Application sync failure, health degradation, OutOfSync, 
      ```
    - kubectl: inspect `.status.resources` and compare `status` field per resource. Look for resources with `status: OutOfSync`.
 
-7. Check the source configuration:
+7. Check the source configuration. Applications may use either `spec.source` (single-source) or `spec.sources[]` (multi-source, GA since v2.6). Check both:
    ```bash
+   # Check if multi-source
+   kubectl get application <name> -n argocd -o jsonpath='{.spec.sources}' 2>/dev/null | grep -q '\[' && echo "multi-source" || echo "single-source"
+
+   # Single-source
    kubectl get application <name> -n argocd -o jsonpath='{.spec.source}' | python3 -m json.tool
+
+   # Multi-source — iterate all sources
+   kubectl get application <name> -n argocd -o jsonpath='{range .spec.sources[*]}repoURL={.repoURL} targetRevision={.targetRevision} path={.path} chart={.chart}{"\n"}{end}'
    ```
-   Verify: `repoURL` is accessible, `targetRevision` exists, `path` is correct, Helm `valueFiles` exist.
+   For multi-source Applications, each source can fail independently — verify `repoURL`, `targetRevision`, `path`, and Helm `valueFiles` for every entry in `spec.sources[]`.
 
 8. If repo-server is failing to render manifests, check repo-server logs:
    ```bash
@@ -402,6 +411,7 @@ Use when: user reports Workflow failure, stuck steps, or errors.
    | Failed | One or more steps failed |
    | Error | System error (not step failure) |
    | Omitted | Step skipped by when condition |
+   | Skipped | Node skipped because `when` expression evaluated to false or a dependency failed |
 
 3. If the Workflow is Failed or Error, identify the failed node(s) from `.status.nodes`:
    ```bash
@@ -485,7 +495,7 @@ Use when: user reports events not flowing, Sensor not triggering, or EventSource
    ```
    Verify the EventBus pods are running:
    ```bash
-   kubectl get pods -n <namespace> -l controller=eventbus-controller
+   kubectl get pods -n <namespace> -l controller=eventbus
    ```
    For NATS-based EventBus:
    ```bash
@@ -543,7 +553,9 @@ Use when: user reports events not flowing, Sensor not triggering, or EventSource
     - For `k8s` triggers: verify the RBAC for the Sensor ServiceAccount to create the target resource
       ```bash
       kubectl get sa -n <namespace> -l sensor-name=<name>
-      kubectl auth can-i create workflows --as=system:serviceaccount:<namespace>:<sa-name> -n <namespace>
+      # Note: -n <target-namespace> is the namespace where the resource will be created,
+      # not necessarily the ServiceAccount's namespace. The --as flag uses the SA's namespace.
+      kubectl auth can-i create workflows --as=system:serviceaccount:<sa-namespace>:<sa-name> -n <target-namespace>
       ```
     - For `http` triggers: verify the URL, TLS, and payload
     - For `aws-lambda`, `slack`, etc.: check credentials in referenced Secrets

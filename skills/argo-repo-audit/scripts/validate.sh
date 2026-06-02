@@ -127,7 +127,7 @@ is_helm_chart_dir() {
 
 is_sops_encrypted() {
   local file="$1"
-  grep -q "sops:" "$file" 2>/dev/null && grep -q "encrypted_regex\|lastmodified\|mac:" "$file" 2>/dev/null
+  grep -q "sops:" "$file" 2>/dev/null && grep -q "encrypted_regex\|lastmodified\|mac:\|pgp:\|azure_kv:\|gcp_kms:\|hc_vault:" "$file" 2>/dev/null
 }
 
 rel_path() {

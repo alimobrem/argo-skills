@@ -40,6 +40,7 @@ spec:
     - name: success-rate
       interval: 30s
       successCondition: result[0] >= 0.95
+      failureCondition: "result[0] < 0.90"
       provider:
         prometheus:
           address: http://prometheus.monitoring:9090

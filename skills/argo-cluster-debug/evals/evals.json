@@ -14,7 +14,7 @@
         },
         {
           "id": "read-troubleshooting-ref",
-          "description": "Reads references/troubleshooting.md before starting the debugging workflow",
+          "description": "Reads references/troubleshooting.md when encountering a specific failure pattern",
           "required": true
         },
         {
@@ -81,7 +81,7 @@
         },
         {
           "id": "read-troubleshooting-ref",
-          "description": "Reads references/troubleshooting.md before starting the debugging workflow",
+          "description": "Reads references/troubleshooting.md when encountering a specific failure pattern",
           "required": true
         },
         {
@@ -148,7 +148,7 @@
         },
         {
           "id": "read-troubleshooting-ref",
-          "description": "Reads references/troubleshooting.md before starting the debugging workflow",
+          "description": "Reads references/troubleshooting.md when encountering a specific failure pattern",
           "required": true
         },
         {
@@ -199,6 +199,120 @@
         {
           "id": "status-report",
           "description": "Produces a structured report with Summary (cluster context, versions, component statuses), any issues found, and recommendations",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "workflow-build-pipeline-failing",
+      "name": "Debug failing Argo Workflow at docker-build step",
+      "prompt": "My Argo Workflow build-pipeline in the argo namespace keeps failing at the docker-build step. Debug it.",
+      "expectations": [
+        {
+          "id": "check-tools",
+          "description": "Checks availability of argo CLI and kubectl before starting",
+          "required": true
+        },
+        {
+          "id": "get-workflow",
+          "description": "Retrieves the Workflow resource with 'argo get build-pipeline -n argo' or 'kubectl get workflow build-pipeline -n argo -o yaml'",
+          "required": true
+        },
+        {
+          "id": "check-workflow-phase",
+          "description": "Inspects .status.phase to confirm the Workflow is in Failed state",
+          "required": true
+        },
+        {
+          "id": "identify-failed-nodes",
+          "description": "Examines .status.nodes to identify the docker-build node and its Failed/Error phase and message",
+          "required": true
+        },
+        {
+          "id": "get-failed-node-logs",
+          "description": "Retrieves logs for the failed docker-build pod using 'argo logs' or 'kubectl logs' for both main and wait containers",
+          "required": true
+        },
+        {
+          "id": "check-resource-limits",
+          "description": "Inspects container resource limits/requests in the Workflow template for the docker-build step to check for OOMKilled or resource pressure",
+          "required": true
+        },
+        {
+          "id": "check-pod-events",
+          "description": "Checks Kubernetes events for the failed pod to identify ImagePullBackOff, scheduling failures, or security violations",
+          "required": true
+        },
+        {
+          "id": "check-serviceaccount",
+          "description": "Verifies the Workflow's ServiceAccount exists and has necessary RBAC permissions",
+          "required": true
+        },
+        {
+          "id": "check-template-ref",
+          "description": "If using templateRef or workflowTemplateRef, retrieves and inspects the referenced WorkflowTemplate or ClusterWorkflowTemplate",
+          "required": true
+        },
+        {
+          "id": "root-cause-report",
+          "description": "Produces a structured report with Summary, Resource Analysis, Dependency Chain, Root Cause, and Recommendations sections",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "eventsource-not-receiving",
+      "name": "Debug EventSource not receiving events",
+      "prompt": "The EventSource github-webhook in the events namespace isn't receiving events. Debug it.",
+      "expectations": [
+        {
+          "id": "check-tools",
+          "description": "Checks availability of kubectl before starting",
+          "required": true
+        },
+        {
+          "id": "check-eventsource-status",
+          "description": "Retrieves the EventSource resource and inspects .status.conditions for Deployed, DependenciesProvided, and SourceReady",
+          "required": true
+        },
+        {
+          "id": "check-eventbus",
+          "description": "Verifies the EventBus exists and its pods are running in the events namespace",
+          "required": true
+        },
+        {
+          "id": "check-eventsource-pods",
+          "description": "Lists EventSource pods with '-l eventsource-name=github-webhook' and checks for CrashLoopBackOff or errors",
+          "required": true
+        },
+        {
+          "id": "check-eventsource-logs",
+          "description": "Retrieves EventSource pod logs to check for webhook registration, connection, or authentication errors",
+          "required": true
+        },
+        {
+          "id": "check-service-ingress",
+          "description": "Verifies the Service and Ingress/Route exist for the webhook EventSource and are correctly configured",
+          "required": true
+        },
+        {
+          "id": "check-sensor",
+          "description": "Retrieves associated Sensor(s) that reference this EventSource and checks their status conditions",
+          "required": true
+        },
+        {
+          "id": "check-sensor-logs",
+          "description": "Inspects Sensor pod logs for event receipt or subscription errors",
+          "required": true
+        },
+        {
+          "id": "check-connectivity",
+          "description": "Analyzes network connectivity — verifies the webhook endpoint is reachable, checks for firewall or DNS issues, and validates webhook secret configuration",
+          "required": true
+        },
+        {
+          "id": "root-cause-report",
+          "description": "Produces a structured report with Summary, Resource Analysis, Dependency Chain (EventSource -> EventBus -> Sensor -> Trigger), Root Cause, and Recommendations",
           "required": true
         }
       ]

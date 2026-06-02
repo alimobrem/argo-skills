@@ -226,9 +226,12 @@ spec:
           - path: addons/*
           - path: addons/experimental-*
             exclude: true
+  preserveResourcesOnDeletion: true
   template:
     metadata:
       name: 'addon-{{.path.basename}}'
+      labels:
+        envLabel: staging
     spec:
       project: cluster-addons
       source:
@@ -274,6 +277,7 @@ spec:
   goTemplate: true
   goTemplateOptions:
     - missingkey=error
+  preserveResourcesOnDeletion: true
   generators:
     - matrix:
         generators:

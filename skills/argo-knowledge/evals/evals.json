@@ -37,7 +37,7 @@
         "Output contains strategy.type: RollingSync",
         "Output contains rollingSync.steps with staging step at maxUpdate 100%",
         "Output contains rollingSync.steps with production step at maxUpdate 25%",
-        "Output contains preserveResourcesOnDeletion: true",
+        "Output contains preserveResourcesOnDeletion: true as a top-level spec field (sibling of generators/template/strategy), not nested under strategy",
         "Output contains automated sync with prune: true and selfHeal: true"
       ]
     },
@@ -58,7 +58,7 @@
         "Output contains a separate AnalysisTemplate with kind: AnalysisTemplate and name: error-rate",
         "Output AnalysisTemplate has prometheus provider with address http://prometheus.monitoring:9090",
         "Output AnalysisTemplate metric has interval: 30s and count: 10",
-        "Output AnalysisTemplate metric has failureLimit: 3 and successCondition checking >= 0.99 or equivalent"
+        "Output AnalysisTemplate metric has failureLimit: 3 and successCondition referencing result[0] >= 0.99 or equivalent"
       ]
     },
     {

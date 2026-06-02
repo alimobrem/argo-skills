@@ -120,8 +120,11 @@ kubectl get pods -n argocd -l app.kubernetes.io/name=argocd-repo-server
 # Check repo-server resource usage
 kubectl top pods -n argocd -l app.kubernetes.io/name=argocd-repo-server
 
-# Check repo connectivity
-kubectl exec -n argocd deploy/argocd-repo-server -- git ls-remote <repo-url>
+# Check repo connectivity (repo-server no longer ships git binary since v2.5+)
+# Option 1: Use argocd CLI if available
+argocd repo list
+# Option 2: Check repo-server logs for fetch errors
+kubectl logs -n argocd -l app.kubernetes.io/name=argocd-repo-server --tail=200 | grep -i -E 'repo|fetch|clone|error'
 
 # Check timeout config
 kubectl get configmap argocd-cm -n argocd -o jsonpath='{.data.reposerver\.timeout\.seconds}'
@@ -261,9 +264,10 @@ for k,v in data.items():
 "
 ```
 
-**Custom health check location (v2.14+):**
-- `argocd-cm` ConfigMap under `data["resource.customizations.health.<group_kind>"]`
-- Or in `argocd-cm` under `data["resource.customizations"]` as a YAML block
+**Custom health check location (v2.x):**
+- `argocd-cm` ConfigMap with separate keys per resource kind: `data["resource.customizations.health.<group>_<kind>"]`
+- Example: `resource.customizations.health.certmanager.io_Certificate` or `resource.customizations.health.argoproj.io_Rollout`
+- The old `data["resource.customizations"]` YAML block format is deprecated in v2.x — each customization type (health, actions, ignoreDifferences) uses its own dot-separated key
 
 ---
 
@@ -363,7 +367,7 @@ kubectl get applications -n argocd -l 'app.kubernetes.io/managed-by=applications
 **Debug:**
 ```bash
 # Get current step index and steps
-kubectl get rollout <name> -n <namespace> -o jsonpath='Step {.status.currentStepIndex}: {.spec.strategy.canary.steps[?(@)]}'
+kubectl get rollout <name> -n <namespace> -o jsonpath='Step {.status.currentStepIndex}: {.spec.strategy.canary.steps[*]}'
 
 # Check pause conditions
 kubectl get rollout <name> -n <namespace> -o jsonpath='{.status.pauseConditions}'
@@ -487,8 +491,9 @@ kubectl describe resourcequota -n <namespace>
 # Check ServiceAccount
 kubectl get sa <sa-name> -n <namespace>
 
-# Check synchronization
-kubectl get workflow <name> -n <namespace> -o jsonpath='{.status.synchronization}'
+# Check synchronization (use the specific sub-field, the parent returns empty)
+kubectl get workflow <name> -n <namespace> -o jsonpath='{.status.synchronization.semaphore}'
+kubectl get workflow <name> -n <namespace> -o jsonpath='{.status.synchronization.mutex}'
 ```
 
 ### Workflow Failed — OOMKilled
@@ -644,14 +649,14 @@ kubectl run curl-test --rm -i --restart=Never --image=curlimages/curl -- curl -v
 **Debug:**
 ```bash
 # Check EventBus pods
-kubectl get pods -n <namespace> -l controller=eventbus-controller
-kubectl describe pods -n <namespace> -l controller=eventbus-controller
+kubectl get pods -n <namespace> -l controller=eventbus
+kubectl describe pods -n <namespace> -l controller=eventbus
 
 # Check NATS logs
 kubectl logs -n <namespace> <eventbus-pod> --tail=200
 
 # Check PVCs for JetStream
-kubectl get pvc -n <namespace> -l controller=eventbus-controller
+kubectl get pvc -n <namespace> -l controller=eventbus
 
 # Check EventBus status
 kubectl get eventbus -n <namespace> -o yaml
@@ -723,7 +728,7 @@ When the break point is unclear, trace the full pipeline:
 ```bash
 # 1. EventBus health
 kubectl get eventbus -n <namespace>
-kubectl get pods -n <namespace> -l controller=eventbus-controller
+kubectl get pods -n <namespace> -l controller=eventbus
 
 # 2. EventSource health and event publishing
 kubectl get eventsource -n <namespace>
@@ -800,7 +805,7 @@ Quick reference for the most-used debug commands across all Argo components.
 | `kubectl get eventbus -n <ns>` | List EventBus |
 | `kubectl logs -n <ns> -l eventsource-name=<name> --tail=100` | EventSource logs |
 | `kubectl logs -n <ns> -l sensor-name=<name> --tail=100` | Sensor logs |
-| `kubectl get pods -n <ns> -l controller=eventbus-controller` | EventBus pods |
+| `kubectl get pods -n <ns> -l controller=eventbus` | EventBus pods |
 | `kubectl logs -n <ns> -l controller=eventsource-controller --tail=100` | EventSource controller logs |
 | `kubectl logs -n <ns> -l controller=sensor-controller --tail=100` | Sensor controller logs |
 

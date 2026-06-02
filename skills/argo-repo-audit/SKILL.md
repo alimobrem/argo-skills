@@ -155,7 +155,7 @@ Handle these scenarios gracefully:
 | SOPS-encrypted secrets | Skip from validation (detect by `.sops.yaml` or `sops:` metadata), note as "encrypted — OK" |
 | Helm chart directories | Auto-skip directories containing `Chart.yaml` — they are rendered by Argo CD at sync time |
 | postBuild substitution variables | Note that `${VAR}` patterns in Kustomize overlays may cause kubeconform failures — report as info, not error |
-| Third-party CRDs | Show as "skipped (missing schema)" in kubeconform output — not an error |
+| Third-party CRDs | Silently skipped by kubeconform (`-ignore-missing-schemas`) — not an error |
 
 ## Argo CRD Reference
 
