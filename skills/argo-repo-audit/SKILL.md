@@ -5,7 +5,7 @@ description: >
   runs Kubernetes schema validation, reviews AppProject RBAC and security restrictions, checks sync
   policies and operational best practices, and produces a prioritized GitOps report. Use when users
   ask to audit, analyze, validate, review, or security-check an Argo CD GitOps repo.
-license: Apache-2.0
+license: MIT
 compatibility: Requires awk, yq, kustomize, kubeconform
 ---
 

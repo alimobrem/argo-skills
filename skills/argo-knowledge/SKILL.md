@@ -9,7 +9,7 @@ description: >
   designing GitOps repository patterns. Also use when the user asks about Argo best practices,
   common mistakes, or needs to choose between Argo approaches (e.g., app-of-apps vs
   ApplicationSet, canary vs blue-green, steps vs DAG workflows).
-license: Apache-2.0
+license: MIT
 ---
 
 # Argo Knowledge Base

@@ -8,7 +8,7 @@ description: >
   and Sensor connectivity. Prefers argocd/argo CLIs when available, falls back to
   kubectl for CRD inspection. Use when users report failing, stuck, or degraded
   Argo resources on a cluster.
-license: Apache-2.0
+license: MIT
 compatibility: Requires kubectl; optionally argocd, argo (workflows CLI), kubectl-argo-rollouts
 ---
 

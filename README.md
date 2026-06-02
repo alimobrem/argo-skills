@@ -1,6 +1,7 @@
 # Argo Agent Skills
 
-[![license](https://img.shields.io/github/license/your-org/argo-skills.svg)](https://github.com/your-org/argo-skills/blob/main/LICENSE)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 A collection of reusable skills that give AI Agents expertise in the Argo ecosystem —
 Argo CD, Argo Rollouts, Argo Workflows, and Argo Events — for generating manifests,
@@ -14,7 +15,7 @@ cluster installations.
 Add the marketplace and install the skills:
 
 ```shell
-/plugin marketplace add your-org/argo-skills
+/plugin marketplace add alimobrem/argo-skills
 /plugin install argo-skills@argocd
 ```
 
@@ -28,7 +29,7 @@ Add to `$REPO_ROOT/.agents/plugins/marketplace.json` or `~/.agents/plugins/marke
   "category": "Developer Tools",
   "source": {
     "source": "url",
-    "url": "https://github.com/your-org/argo-skills.git",
+    "url": "https://github.com/alimobrem/argo-skills.git",
     "ref": "main"
   },
   "policy": {
@@ -139,3 +140,44 @@ Why is my canary Rollout stuck at step 2?
 ```text
 My Argo Workflow build-pipeline keeps failing. Debug it.
 ```
+
+## Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+By submitting a pull request, you agree that your contributions will be licensed
+under the [MIT License](LICENSE).
+
+### Development
+
+```shell
+# Install prerequisites (macOS)
+brew bundle
+
+# Download Argo CRD schemas for validation
+make download-schemas
+
+# Run discovery script tests
+make test-discover
+
+# Run validation script tests
+make test-validate
+```
+
+### Adding a New Skill
+
+See [AGENTS.md](AGENTS.md) for the repo layout, skill conventions, and eval runner instructions.
+
+## Code of Conduct
+
+This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md).
+By participating, you are expected to uphold this code.
+
+## Security
+
+If you discover a security vulnerability, please report it responsibly.
+See [SECURITY.md](SECURITY.md) for details.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).

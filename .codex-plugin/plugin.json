@@ -17,7 +17,7 @@
     "shortDescription": "Skills to transform AI Agents into Argo GitOps Engineers",
     "websiteURL": "https://argoproj.github.io/"
   },
-  "license": "Apache-2.0",
+  "license": "MIT",
   "name": "argo-skills",
   "repository": "https://github.com/your-org/argo-skills",
   "skills": "./skills/",
