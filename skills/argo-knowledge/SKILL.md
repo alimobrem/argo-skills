@@ -803,3 +803,5 @@ spec:
 | Image updater annotations, strategies, write-back | `references/image-updater.md` | Questions about automated image updates |
 | App-of-apps, monorepo, multi-repo patterns | `references/repo-patterns.md` | Questions about repository structure and GitOps patterns |
 | Sync policy, RBAC, health checks, secret management | `references/best-practices.md` | General architecture and operational best practices |
+| Agent mode, principal/agent architecture, managed/autonomous modes, hub-and-spoke | `references/agent-mode.md` | Questions about argocd-agent, multi-cluster at scale, air-gapped, edge deployments |
+| Applications in any namespace, multi-instance, multi-tenancy, Autopilot | `references/multi-tenancy.md` | Questions about multi-tenancy, team isolation, --application-namespaces, Autopilot bootstrap |
