@@ -141,6 +141,64 @@ Why is my canary Rollout stuck at step 2?
 My Argo Workflow build-pipeline keeps failing. Debug it.
 ```
 
+## Benchmarks
+
+Eval results for each skill on `claude-opus-4-6`. Knowledge evals compare with-skill vs baseline (no skill loaded). Audit and debug evals test outcome quality on real repos and live clusters.
+
+<table>
+<tr>
+<td>
+
+**argo-knowledge** — [full results](benchmarks/argo-knowledge.md)
+
+| Eval | Skill | Base | Delta |
+|------|-------|------|-------|
+| Multi-source App | 100% | 100% | — |
+| Merge generator | 90% | 90% | — |
+| Blue-green + Job | 90% | 90% | — |
+| Slack + GitHub App | 100% | 100% | — |
+| OpenShift GitOps | 100% | 100% | — |
+| Multi-tenant RBAC | 100% | 92% | **+8%** |
+| argocd-agent | 100% | 30% | **+70%** |
+| **Overall** | **97%** | **86%** | **+11%** |
+
+</td>
+<td>
+
+**argo-repo-audit** — [full results](benchmarks/argo-repo-audit.md)
+
+| Eval | Score |
+|------|-------|
+| App-of-apps audit | 100% |
+| Mixed-issues audit | 100% |
+| **Overall** | **100%** |
+
+Catches: wildcard AppProjects, plain-text
+secrets, hardcoded passwords, missing sync
+policies, HEAD revisions, weak AnalysisTemplates
+
+</td>
+<td>
+
+**argo-cluster-debug** — [full results](benchmarks/argo-cluster-debug.md)
+
+| Eval | Score |
+|------|-------|
+| Install check | 100% |
+| Multi-tenant audit | 88% |
+| ApplicationSet dive | 100% |
+| Rollout analysis | 100% |
+| Config review | 100% |
+| Sync waves/hooks | 100% |
+| **Overall** | **97.5%** |
+
+</td>
+</tr>
+</table>
+
+> Evals test **outcomes** (issues found, report quality), not process (which tools were used).
+> Run evals locally with `make eval` or via GitHub Actions (`evals` workflow).
+
 ## Contributing
 
 Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
