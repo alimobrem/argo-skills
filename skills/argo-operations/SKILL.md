@@ -242,8 +242,10 @@ Load `references/day2-operations.md` for detailed procedures.
    argocd version 2>/dev/null || kubectl get pods -n argocd -o jsonpath='{.items[0].spec.containers[0].image}'
    ```
 2. Identify what needs to change and the target state.
-3. **For upgrades:** always recommend backing up Applications and AppProjects first,
-   and mention checking release notes for breaking changes between versions.
+3. **For upgrades — always include these two items in your response:**
+   - "Recommend backing up Applications and AppProjects before proceeding (run backup export)"
+   - "Check the release notes at https://github.com/argoproj/argo-cd/releases for breaking changes between current and target versions"
+   These are non-negotiable for any upgrade operation regardless of install method.
 4. Generate the upgrade/migration/scaling commands.
 5. **Preview** — show the diff between current and target state.
 6. **Confirm** — wait for user approval.
