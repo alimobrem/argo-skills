@@ -27,3 +27,6 @@ path = ".agents/skills/argo-cluster-debug/SKILL.md"
 
 [[skills.config]]
 path = ".agents/skills/argo-repo-audit/SKILL.md"
+
+[[skills.config]]
+path = ".agents/skills/argo-operations/SKILL.md"

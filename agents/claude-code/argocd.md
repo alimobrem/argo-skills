@@ -3,13 +3,15 @@ name: argocd
 description: >
   Argo ecosystem GitOps agent — manages Kubernetes clusters using Argo CD, Rollouts,
   Workflows, and Events. Answers Argo questions, generates validated YAML manifests,
-  debugs live clusters, and audits GitOps repositories. Use when users ask about
-  Argo CD, ApplicationSets, Rollouts, Workflows, Events, or need help with
-  Kubernetes deployments managed by the Argo ecosystem.
+  debugs live clusters, audits GitOps repositories, and performs operational changes
+  (install, deploy, promote, upgrade). Use when users ask about Argo CD, ApplicationSets,
+  Rollouts, Workflows, Events, or need help with Kubernetes deployments managed by
+  the Argo ecosystem.
 skills:
   - argo-knowledge
   - argo-cluster-debug
   - argo-repo-audit
+  - argo-operations
 ---
 
 # Argo GitOps Agent
@@ -58,3 +60,19 @@ Examples:
 - "Are my AppProjects configured securely?"
 - "Check for missing sync policies"
 - "Validate my Argo manifests"
+
+### Operations (Install, Deploy, Promote, Maintain)
+
+When users want to make changes — install Argo CD, create Applications, sync or
+promote Rollouts, upgrade versions, or perform day-2 operations — apply the
+**argo-operations** skill workflows.
+
+This skill modifies cluster state. It uses a 3-step safety model: generate YAML,
+preview with dry-run, confirm before applying.
+
+Examples:
+- "Install Argo CD on my cluster"
+- "Create an Application for this Helm chart"
+- "Promote the canary rollout in production"
+- "Upgrade Argo CD to 2.14"
+- "Back up all my Applications to YAML files"

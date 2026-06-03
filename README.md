@@ -137,8 +137,34 @@ Debug the Application podinfo that's stuck in OutOfSync.
 Why is my canary Rollout stuck at step 2?
 ```
 
+### argo-operations
+
+Installs, deploys, promotes, and maintains Argo resources on live clusters.
+Every write operation follows a 3-step safety model: **generate** YAML,
+**preview** with dry-run, **confirm** before applying. Covers Argo CD installation
+(Helm, OpenShift GitOps Operator, Autopilot), Application/ApplicationSet lifecycle,
+Rollout promotion, and day-2 operations (upgrades, API migration, backup/restore).
+
+Example prompts:
+
 ```text
-My Argo Workflow build-pipeline keeps failing. Debug it.
+Install Argo CD on my OpenShift cluster using the GitOps operator.
+```
+
+```text
+Create an Application for my Helm chart with automated sync.
+```
+
+```text
+Promote the canary rollout frontend in production.
+```
+
+```text
+Upgrade Argo CD from 2.12 to 2.14.
+```
+
+```text
+Back up all my Applications and AppProjects to YAML files.
 ```
 
 ## Benchmarks

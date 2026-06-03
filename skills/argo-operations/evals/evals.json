@@ -1,0 +1,86 @@
+{
+  "skill_name": "argo-operations",
+  "evals": [
+    {
+      "id": 1,
+      "name": "Install Argo CD on OpenShift via GitOps Operator",
+      "prompt": "Install Argo CD on my OpenShift cluster using the GitOps operator. I want the Route enabled with reencrypt TLS, OpenShift OAuth via Dex, RBAC that maps 'cluster-admins' group to admin role with default readonly policy, resource exclusions for Tekton TaskRun/PipelineRun, and notifications enabled.",
+      "expectations": [
+        "Generates an openshift-gitops-operator Subscription resource for the redhat-operators CatalogSource in the openshift-operators namespace",
+        "Generates an ArgoCD CR with apiVersion argoproj.io/v1beta1 in the openshift-gitops namespace",
+        "ArgoCD CR has spec.server.route.enabled: true with tls.termination: reencrypt",
+        "ArgoCD CR has dex.openShiftOAuth: true for OAuth integration",
+        "ArgoCD CR has rbac.defaultPolicy: role:readonly and policy mapping cluster-admins to role:admin",
+        "ArgoCD CR has resourceExclusions for tekton.dev TaskRun and PipelineRun",
+        "ArgoCD CR has notifications.enabled: true",
+        "Shows a dry-run or preview of what will be created before applying",
+        "Explicitly asks for user confirmation before applying any resource",
+        "Includes a verification step to check pods are running after apply"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Create Application for OCI Helm chart with automated sync",
+      "prompt": "Create an Application for my Helm chart at oci://registry.example.com/myapp version 2.x in the production namespace with automated sync, selfHeal, and prune enabled. The project is 'platform' and the cluster is in-cluster. Set CreateNamespace and ServerSideApply sync options.",
+      "expectations": [
+        "Generates an Application with apiVersion argoproj.io/v1alpha1 in the argocd namespace",
+        "Source uses repoURL: oci://registry.example.com with chart field for the OCI chart",
+        "targetRevision uses a semver constraint matching 2.x (e.g., '2.x', '>=2.0.0 <3.0.0', or '2.*')",
+        "Destination namespace is production with server https://kubernetes.default.svc",
+        "spec.project is set to platform",
+        "syncPolicy has automated with prune: true and selfHeal: true",
+        "syncOptions includes CreateNamespace=true and ServerSideApply=true",
+        "Shows a dry-run preview (kubectl apply --dry-run=server or --dry-run=client) of the Application",
+        "Explicitly asks for user confirmation before applying",
+        "Includes post-apply verification checking sync status"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Promote canary rollout in production",
+      "prompt": "Promote the canary rollout frontend in the production namespace.",
+      "expectations": [
+        "Checks the current rollout status BEFORE promoting (kubectl argo rollouts get/status or kubectl get rollout)",
+        "Shows the current phase, step index, and what step the rollout is on",
+        "Explains what promoting will do (advance to the next step or increase canary weight)",
+        "Shows the promote command that will be executed",
+        "Explicitly asks for user confirmation before promoting",
+        "Executes kubectl argo rollouts promote frontend -n production after confirmation",
+        "Includes a monitoring/verification step after promotion",
+        "Does NOT use --full unless the user explicitly requests full promotion"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Upgrade Argo CD from 2.12 to 2.14",
+      "prompt": "Upgrade Argo CD from 2.12 to 2.14 on my cluster. It was installed with Helm.",
+      "expectations": [
+        "Checks the current Argo CD version first (argocd version or image inspection)",
+        "Mentions checking release notes for breaking changes between 2.12 and 2.14",
+        "Recommends backing up Applications and AppProjects before upgrading",
+        "Generates CRD update commands (kubectl apply --server-side for application/appproject/applicationset CRDs)",
+        "Applies CRDs before the Helm upgrade (correct ordering)",
+        "Generates helm upgrade command with the target version and --dry-run for preview",
+        "Explicitly asks for user confirmation before applying the upgrade",
+        "Includes post-upgrade verification (rollout status, argocd version)",
+        "Does NOT skip CRD updates (Helm does not update CRDs on upgrade)"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Backup all Argo CD resources",
+      "prompt": "Back up all my Argo CD Applications and AppProjects to YAML files.",
+      "expectations": [
+        "Exports Applications using kubectl get applications -n argocd -o yaml or iterates individually",
+        "Exports AppProjects using kubectl get appprojects -n argocd -o yaml or iterates individually",
+        "Saves each resource type to separate files or a structured backup directory",
+        "Reports the count of exported resources for both Applications and AppProjects",
+        "Also exports or offers to export ConfigMaps (argocd-cm, argocd-rbac-cm)",
+        "Also exports or offers to export credential Secrets (repo and cluster) with a security warning",
+        "Warns that Secret backup files contain sensitive data and should be encrypted",
+        "Does NOT modify or delete any resources (read-only backup operation)",
+        "Does NOT require user confirmation for read-only export (but may confirm the backup directory)"
+      ]
+    }
+  ]
+}
