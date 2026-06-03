@@ -24,6 +24,10 @@ audit repos, and diagnose problems without changes. This skill **acts**.
 
 **Every write operation follows a 3-step protocol: Generate, Preview, Confirm.**
 
+**Read-only operations** (backup/export, status checks, version queries) do NOT require
+confirmation — just execute them and report results. The safety model applies only to
+operations that modify cluster or repo state.
+
 ### Step 1: Generate
 
 Produce the YAML manifest or CLI command for the requested operation. Show it to the
@@ -238,17 +242,24 @@ Load `references/day2-operations.md` for detailed procedures.
    argocd version 2>/dev/null || kubectl get pods -n argocd -o jsonpath='{.items[0].spec.containers[0].image}'
    ```
 2. Identify what needs to change and the target state.
-3. Generate the upgrade/migration/scaling commands.
-4. **Preview** — show the diff between current and target state.
-5. **Confirm** — wait for user approval.
-6. Apply in stages (CRDs first, then components) and verify after each stage.
+3. **For upgrades:** always recommend backing up Applications and AppProjects first,
+   and mention checking release notes for breaking changes between versions.
+4. Generate the upgrade/migration/scaling commands.
+5. **Preview** — show the diff between current and target state.
+6. **Confirm** — wait for user approval.
+7. Apply in stages (CRDs first, then components) and verify after each stage.
+
+**For backup operations:** export Applications, AppProjects, and relevant ConfigMaps
+(argocd-cm, argocd-rbac-cm). Also offer to export credential Secrets (repo creds,
+cluster secrets) with a clear security warning that exported Secrets contain sensitive
+data. This is a read-only operation — no confirmation needed.
 
 **Covers:**
 - Upgrade Argo CD (Helm, operator, image bump)
 - Migrate deprecated APIs (`argocd admin migrate`)
 - Scale components (controller replicas, repo-server, redis sentinel)
 - HA setup (redis sentinel, multiple controller replicas)
-- Backup/restore (export all Applications, AppProjects, Secrets)
+- Backup/restore (export Applications, AppProjects, ConfigMaps, Secrets with warnings)
 - Credential rotation (Git SSH keys, PATs, GitHub Apps, cluster tokens)
 - Disaster recovery (re-bootstrap from Git)
 - Enable/disable features (notifications, image updater, SSO)
