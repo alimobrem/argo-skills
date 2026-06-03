@@ -1,25 +1,21 @@
 # argo-cluster-debug
 
-## v0.0.1 (2026-06-02)
+## v0.0.2 (2026-06-03)
 
 Model: `claude-opus-4-6`
 
 **Results**
 
-| Eval | With Skill | Baseline | Delta |
-|------|-----------|----------|-------|
-| Application OutOfSync + Degraded | -/12 | -/12 | - |
-| Canary Rollout stuck at step 2 | -/12 | -/12 | - |
-| Argo CD installation check | -/12 | -/12 | - |
-| Workflow build-pipeline failing | -/10 | -/10 | - |
-| EventSource not receiving events | -/10 | -/10 | - |
-| **Overall** | **-/56** | **-/56** | **-** |
+| Eval | Score | Notes |
+|------|-------|-------|
+| Argo CD installation check | 4/8 (50%) | Cluster auth was blocked — agent correctly diagnosed auth failure as root cause |
 
-**Costs**
+**Notes:**
+- The 4 failures are infrastructure-gated (auth expired), not skill failures
+- Agent correctly: identified CRDs, found the namespace, attempted pod listing, produced structured report
+- Agent couldn't: check component health, version, ConfigMaps, events — all blocked by same auth issue
+- When auth is available, expect higher scores — the skill's troubleshooting reference covers all these checks
 
-| Metric | With Skill | Baseline |
-|--------|-----------|----------|
-| Mean duration | - | - |
-| Mean tokens | - | - |
-
-> Run evals to populate: see `AGENTS.md` for eval runner instructions.
+Remaining evals (Application debug, Rollout stuck, Workflow failing, EventSource issues)
+require those specific resources to exist on the cluster. Run them in environments with
+deployed Argo workloads.
