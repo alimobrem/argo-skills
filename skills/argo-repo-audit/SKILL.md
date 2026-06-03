@@ -26,15 +26,20 @@ Audit and validate Argo CD GitOps repositories by scanning local files — no li
 
 Execute phases sequentially. Each phase builds on the previous.
 
+**CRITICAL: You MUST run the bundled scripts and read the reference files as specified.
+Do NOT skip scripts and analyze YAML manually — the scripts handle edge cases
+(multi-document YAML, .gitignore, Terraform/Helm exclusion) that manual analysis misses.
+Do NOT skip reading reference files — they contain checklists you must assess against.**
+
 ### Phase 1: Discovery
 
-Run the discovery script to inventory all resources in the repository:
+**You MUST run this script** — do not skip it and scan YAML files manually:
 
 ```bash
-skills/argo-repo-audit/scripts/discover.sh -d <repo-root>
+bash skills/argo-repo-audit/scripts/discover.sh -d <repo-root>
 ```
 
-With the JSON output:
+Capture and include the JSON output in your analysis. With the output:
 
 1. **Classify the repo pattern** by reading `references/repo-patterns.md` and matching heuristics:
    - **App of Apps**: Application resources whose `spec.source.path` points to directories containing other Application YAMLs
@@ -53,10 +58,10 @@ With the JSON output:
 
 ### Phase 2: Manifest Validation
 
-Run the validation script:
+**You MUST run this script** — do not skip it:
 
 ```bash
-skills/argo-repo-audit/scripts/validate.sh -d <repo-root>
+bash skills/argo-repo-audit/scripts/validate.sh -d <repo-root>
 ```
 
 This performs three validation passes:
@@ -68,7 +73,7 @@ The script auto-skips SOPS-encrypted Secrets, Terraform directories, and Helm ch
 
 ### Phase 3: Best Practices Assessment
 
-Read `references/best-practices.md` **in full** and assess the repository against each applicable category:
+**You MUST read** `references/best-practices.md` **in full before assessing.** Do not assess from memory — the checklist contains specific items you need to check. Read the file, then assess against each applicable category:
 
 - **Sync policies** — automated sync, selfHeal, prune, retry configuration
 - **ApplicationSet configuration** — progressive syncs (rollingSync), generators, preserveResourcesOnDeletion
@@ -83,7 +88,7 @@ Skip categories that have zero matching resources in the discovery output.
 
 ### Phase 4: Security Review
 
-Read `references/security-audit.md` **in full** and audit the repository:
+**You MUST read** `references/security-audit.md` **in full before auditing.** Do not audit from memory — the checklist contains scanning commands you must run. Read the file, then audit:
 
 - **AppProject restrictions** — sourceRepos, destinations, clusterResourceWhitelist, namespaceResourceBlacklist, orphaned resource monitoring
 - **RBAC** — SSO integration, project roles, default policy, admin access restrictions

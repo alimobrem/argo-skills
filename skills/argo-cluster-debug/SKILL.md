@@ -44,7 +44,7 @@ Debug and troubleshoot the full Argo ecosystem on live Kubernetes clusters.
 
 5. **For kubectl-based inspection, always get the resource with `-o yaml` and analyze status conditions.** The `.status.conditions` array is the primary diagnostic signal for every Argo CRD. Parse conditions, timestamps, and messages.
 
-6. **Read `references/troubleshooting.md` in full** before starting any debugging workflow. It contains symptom-to-cause mappings that accelerate diagnosis.
+6. **You MUST read `references/troubleshooting.md`** before starting any debugging workflow. It contains symptom-to-cause mappings that accelerate diagnosis. Do not skip this — read the file.
 
 ## Cluster Context
 
@@ -65,6 +65,11 @@ Debug and troubleshoot the full Argo ecosystem on live Kubernetes clusters.
 ## Debugging Workflows
 
 Execute the workflow that matches the user's problem. Each workflow is self-contained.
+
+**CRITICAL: You MUST execute EVERY step in the workflow sequentially. Do NOT skip steps
+because you think you have enough information. Do NOT stop after finding one issue —
+complete the full workflow to catch cascading problems. Every `kubectl` and CLI command
+shown MUST be run, not approximated. Include the command output in your analysis.**
 
 ---
 
