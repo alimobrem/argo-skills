@@ -220,6 +220,24 @@ policies, HEAD revisions, weak AnalysisTemplates
 
 </td>
 </tr>
+<tr>
+<td colspan="3">
+
+**argo-operations** — [full results](benchmarks/argo-operations.md)
+
+| Eval | Score |
+|------|-------|
+| OpenShift GitOps config | 70% |
+| OCI Helm Application | 100% |
+| Canary rollout promote | 75% |
+| Argo CD upgrade | 89% |
+| Backup resources | 100% |
+| **Overall** | **87%** |
+
+Safety model: dry-run preview + user confirmation on every write. Read-only ops skip confirmation.
+
+</td>
+</tr>
 </table>
 
 > Evals test **outcomes** (issues found, report quality), not process (which tools were used).
