@@ -2,112 +2,107 @@
 name: argo-repo-audit
 description: >
   Audit and validate Argo CD GitOps repositories by scanning local repo files (not live clusters) —
-  runs Kubernetes schema validation, reviews AppProject RBAC and security restrictions, checks sync
-  policies and operational best practices, and produces a prioritized GitOps report. Use when users
-  ask to audit, analyze, validate, review, or security-check an Argo CD GitOps repo.
+  reviews AppProject RBAC and security restrictions, checks sync policies and operational best
+  practices, optionally runs schema validation, and produces a prioritized GitOps report. Use when
+  users ask to audit, analyze, validate, review, or security-check an Argo CD GitOps repo.
 license: MIT
-compatibility: Requires awk, yq, kustomize, kubeconform
+compatibility: Optional tools for deeper validation — awk, yq, kustomize, kubeconform
 ---
 
 # Argo Repo Audit
 
 Audit and validate Argo CD GitOps repositories by scanning local files — no live cluster required.
 
-## Prerequisites
+## How This Skill Works
 
-| Tool | Minimum Version | Purpose |
-|------|----------------|---------|
-| awk | any | Discovery script (no yq needed) |
-| yq | 4.50+ | YAML syntax validation |
-| kustomize | 5.8+ | Kustomize overlay builds |
-| kubeconform | 0.7+ | Kubernetes schema validation |
+The audit has two layers:
+
+1. **Checklist-driven analysis** (primary) — load comprehensive checklists from reference files
+   and work through each item against the repo's YAML files. This is where most findings come from.
+
+2. **Automated validation** (optional, deeper) — run bundled scripts for schema validation and
+   resource discovery. Use when the tools are available; skip gracefully if not.
 
 ## Workflow
 
-Execute phases sequentially. Each phase builds on the previous.
-
-**CRITICAL: You MUST run the bundled scripts and read the reference files as specified.
-Do NOT skip scripts and analyze YAML manually — the scripts handle edge cases
-(multi-document YAML, .gitignore, Terraform/Helm exclusion) that manual analysis misses.
-Do NOT skip reading reference files — they contain checklists you must assess against.**
-
 ### Phase 1: Discovery
 
-**You MUST run this script** — do not skip it and scan YAML files manually:
+Inventory all Argo and Kubernetes resources in the repository.
 
+**Option A — If `awk` is available**, run the discovery script for structured counts:
 ```bash
 bash skills/argo-repo-audit/scripts/discover.sh -d <repo-root>
 ```
 
-Capture and include the JSON output in your analysis. With the output:
+**Option B — Otherwise**, scan YAML files directly:
+- Find all `.yaml`/`.yml` files (skip `.git/`, `Chart.yaml` dirs, `.tf` dirs)
+- Extract `apiVersion` and `kind` from each document
+- Count Argo resources (`argoproj.io`) by kind
+- Count Kubernetes resources by kind
+- Note Kustomize overlays (`kustomize.config.k8s.io`)
 
-1. **Classify the repo pattern** by reading `references/repo-patterns.md` and matching heuristics:
+With the inventory:
+
+1. **Classify the repo pattern** using the heuristics in `references/repo-patterns.md`:
    - **App of Apps**: Application resources whose `spec.source.path` points to directories containing other Application YAMLs
    - **ApplicationSet**: Presence of ApplicationSet resources with generators
-   - **Monorepo**: Single repo with path-based Applications and multiple environment overlays
+   - **Monorepo**: Single repo with path-based Applications and environment overlays
    - **Multi-Repo**: Applications referencing different `repoURL` values
-   - **Environment Branch**: Applications with same `repoURL` but different `targetRevision` per environment
+   - **Environment Branch**: Same `repoURL` but different `targetRevision` per environment
 
-2. **Detect clusters and environments** from:
-   - Directory naming (`clusters/`, `envs/`, `environments/`)
-   - Application `spec.destination.server` and `spec.destination.name` values
-   - ApplicationSet generator parameters
-   - Overlay directory names (`staging/`, `production/`, `dev/`)
+2. **Detect clusters and environments** from directory names, `spec.destination` values,
+   ApplicationSet generator parameters, and overlay directories.
 
-3. **Note mixed tooling** — Terraform directories, Flux resources, or Helm-only charts co-existing with Argo resources.
+3. **Note mixed tooling** — Terraform, Flux, or Helm-only charts co-existing with Argo resources.
 
 ### Phase 2: Manifest Validation
 
-**You MUST run this script** — do not skip it:
-
+**If `yq`, `kustomize`, and `kubeconform` are available**, run the validation script:
 ```bash
 bash skills/argo-repo-audit/scripts/validate.sh -d <repo-root>
 ```
 
-This performs three validation passes:
-1. **YAML syntax** — parse every YAML file with `yq`
-2. **Kubernetes schema** — validate manifests against schemas with `kubeconform` (uses Argo CRD schemas from `assets/schemas/`)
-3. **Kustomize builds** — build each overlay and pipe through `kubeconform`
+This performs YAML syntax checks, Kubernetes schema validation (using Argo CRD schemas
+from `assets/schemas/`), and Kustomize overlay builds.
 
-The script auto-skips SOPS-encrypted Secrets, Terraform directories, and Helm chart directories.
+**If tools are not available**, skip this phase and note it in the report:
+"Schema validation skipped — install yq, kustomize, kubeconform for deeper validation."
 
 ### Phase 3: Best Practices Assessment
 
-**You MUST read** `references/best-practices.md` **in full before assessing.** Do not assess from memory — the checklist contains specific items you need to check. Read the file, then assess against each applicable category:
+**Read `references/best-practices.md` and work through each checklist item** against the
+repo files. For each item, read the relevant YAML files and check compliance.
 
+Focus on categories that match the discovery results:
 - **Sync policies** — automated sync, selfHeal, prune, retry configuration
-- **ApplicationSet configuration** — progressive syncs (rollingSync), generators, preserveResourcesOnDeletion
+- **ApplicationSet configuration** — progressive syncs, generators, preserveResourcesOnDeletion, goTemplate
 - **Resource tracking method** — annotation vs label-based tracking
 - **Health checks** — custom health checks for CRDs
 - **Ignore differences** — fields managed by controllers (HPA replicas, mutating webhooks)
-- **Sync waves and hooks** — ordering via `argocd.argoproj.io/sync-wave` and PreSync/PostSync hooks
-- **Rollout configurations** — if Argo Rollouts resources are present, check AnalysisTemplates, canary steps, traffic management
-- **Workflow resource limits** — if Argo Workflows resources are present, check activeDeadlineSeconds, retry strategies, pod GC
+- **Sync waves and hooks** — ordering via sync-wave annotations and PreSync/PostSync hooks
+- **Rollout configurations** — AnalysisTemplates, canary steps, traffic management
+- **Workflow resource limits** — activeDeadlineSeconds, retry strategies, pod GC
 
-Skip categories that have zero matching resources in the discovery output.
+Skip categories with zero matching resources.
 
 ### Phase 4: Security Review
 
-**You MUST read** `references/security-audit.md` **in full before auditing.** Do not audit from memory — the checklist contains scanning commands you must run. Read the file, then audit:
+**Read `references/security-audit.md` and work through each checklist item.** This file
+contains specific things to look for and grep commands to find them. Check:
 
-- **AppProject restrictions** — sourceRepos, destinations, clusterResourceWhitelist, namespaceResourceBlacklist, orphaned resource monitoring
-- **RBAC** — SSO integration, project roles, default policy, admin access restrictions
-- **Secrets management** — check for plain-text Secrets (should be sealed-secrets, external-secrets, SOPS, or Vault)
-- **Cluster credentials** — ensure argocd-cluster-secret is not in plain text
-- **Source repo allowlisting** — wildcards (`*`) in sourceRepos
-- **Destination restrictions** — wildcards (`*`) in destinations
+- **AppProject restrictions** — sourceRepos, destinations, clusterResourceWhitelist
+- **RBAC** — SSO integration, project roles, default policy, admin access
+- **Secrets management** — plain-text Secrets (should be sealed-secrets, external-secrets, SOPS, or Vault)
+- **Cluster credentials** — argocd-cluster-secret not in plain text
+- **Source/destination wildcards** — `*` in sourceRepos or destinations
 - **Network policies** — ingress TLS, GRPC configuration
 
-Use the grep/awk scanning commands from `security-audit.md` to find specific issues.
-
-If the repo targets **OpenShift** (presence of `Route`, `ArgoCD` CRD, `DeploymentConfig`,
-or `SecurityContextConstraints` resources), also check the OpenShift-specific security
-section in `security-audit.md` — covers ArgoCD CRD version, Route TLS, OAuth, SCCs,
-managed-by labels, and namespace-scoped instance elevation risks.
+If the repo targets **OpenShift** (presence of `Route`, `ArgoCD` CRD, `DeploymentConfig`),
+also check the OpenShift-specific section in `security-audit.md`.
 
 ### Phase 5: Report
 
-Produce a structured markdown report with these sections:
+Produce a structured markdown report:
 
 #### 1. Summary
 
@@ -122,26 +117,23 @@ Produce a structured markdown report with these sections:
 
 #### 2. Directory Structure
 
-Show the relevant directory tree with annotations for what each section contains.
+Relevant directory tree with annotations.
 
 #### 3. Validation Results
 
-Table of validation findings:
-- File path
-- Kind
-- Issue
-- Severity (Error / Warning)
+If validation was run, table of findings (file, kind, issue, severity).
+If skipped, note why.
 
 #### 4. Best Practices
 
-For each applicable category from Phase 3:
+For each applicable category:
 - Status (Pass / Fail / N/A)
 - Findings with file paths and line references
 - Recommendation if failing
 
 #### 5. Security
 
-For each applicable check from Phase 4:
+For each applicable check:
 - Status (Pass / Fail / N/A)
 - Evidence (file path, line, value)
 - Risk level (Critical / High / Medium / Low)
@@ -149,27 +141,23 @@ For each applicable check from Phase 4:
 #### 6. Recommendations
 
 Prioritized list:
-
 - **Critical** — Security vulnerabilities, plain-text secrets, wildcard permissions in production
 - **Warning** — Missing best practices that increase operational risk
 - **Info** — Suggestions for improved maintainability or performance
 
 ## Edge Cases
 
-Handle these scenarios gracefully:
-
 | Scenario | Behavior |
 |----------|----------|
-| Not an Argo repo (no `argoproj.io` CRDs found) | Report as "No Argo resources detected" and skip Phases 3-4 |
-| Mixed tooling (Argo + Terraform, Argo + Flux) | Note in summary, audit only Argo resources, flag potential conflicts |
-| SOPS-encrypted secrets | Skip from validation (detect by `.sops.yaml` or `sops:` metadata), note as "encrypted — OK" |
-| Helm chart directories | Auto-skip directories containing `Chart.yaml` — they are rendered by Argo CD at sync time |
-| postBuild substitution variables | Note that `${VAR}` patterns in Kustomize overlays may cause kubeconform failures — report as info, not error |
-| Third-party CRDs | Silently skipped by kubeconform (`-ignore-missing-schemas`) — not an error |
+| Not an Argo repo (no `argoproj.io` CRDs) | Report "No Argo resources detected", skip Phases 3-4 |
+| Mixed tooling (Argo + Terraform, Argo + Flux) | Note in summary, audit only Argo resources |
+| SOPS-encrypted secrets | Detect by `sops:` metadata, note as "encrypted — OK" |
+| Helm chart directories | Skip directories with `Chart.yaml` — rendered by Argo at sync time |
+| Third-party CRDs | Skipped by kubeconform — not an error |
 
 ## Argo CRD Reference
 
-All CRDs use `apiVersion: argoproj.io/v1alpha1` unless noted:
+All CRDs use `apiVersion: argoproj.io/v1alpha1`:
 
 | Kind | Project | Description |
 |------|---------|-------------|

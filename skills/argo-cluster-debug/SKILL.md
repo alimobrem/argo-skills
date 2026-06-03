@@ -25,26 +25,22 @@ Debug and troubleshoot the full Argo ecosystem on live Kubernetes clusters.
 | argo | No | Workflow logs, node inspection |
 | kubectl-argo-rollouts | No | Rollout status, step details, promotion |
 
-## General Rules
+## How This Skill Works
 
-1. **Check tool availability at start.** Before any debugging, probe which CLIs are present:
-   ```bash
-   command -v argocd &>/dev/null && echo "argocd: available" || echo "argocd: not found"
-   command -v argo &>/dev/null && echo "argo: available" || echo "argo: not found"
-   command -v kubectl-argo-rollouts &>/dev/null && echo "kubectl-argo-rollouts: available" || echo "kubectl-argo-rollouts: not found"
-   command -v kubectl &>/dev/null && echo "kubectl: available" || echo "kubectl: not found"
-   ```
-   Adapt all subsequent commands to available tools. If kubectl is missing, stop and report — it is mandatory.
+The debug skill provides **systematic workflows** — each is a sequence of checks that
+traces the problem from surface symptoms to root cause. The value is in the completeness
+of the investigation, not just finding the first error.
 
-2. **Prefer specialized CLIs.** Use `argocd` for Application operations, `argo` for Workflow inspection, `kubectl argo rollouts` for Rollout status. These provide parsed, human-readable output. Fall back to `kubectl get <resource> -o yaml` when the specialized CLI is unavailable.
+**Before starting any workflow:**
+1. Check which CLIs are available (argocd, argo, kubectl-argo-rollouts, kubectl)
+2. Confirm the current cluster context
+3. Load `references/troubleshooting.md` — it maps symptoms to causes and saves time
 
-3. **Never modify cluster state unless explicitly requested.** All commands must be read-only (get, describe, logs). Do not sync, promote, retry, restart, or delete anything unless the user explicitly asks for it.
-
-4. **When creating or updating resources, generate YAML and show to user first.** Never apply directly. Present the YAML, explain the change, and wait for confirmation.
-
-5. **For kubectl-based inspection, always get the resource with `-o yaml` and analyze status conditions.** The `.status.conditions` array is the primary diagnostic signal for every Argo CRD. Parse conditions, timestamps, and messages.
-
-6. **You MUST read `references/troubleshooting.md`** before starting any debugging workflow. It contains symptom-to-cause mappings that accelerate diagnosis. Do not skip this — read the file.
+**General rules:**
+- Prefer specialized CLIs when available (richer output), fall back to `kubectl get -o yaml`
+- Read-only by default — never sync, promote, or delete unless explicitly asked
+- Analyze `.status.conditions` as the primary diagnostic signal for every Argo CRD
+- Complete the full workflow — don't stop after finding one issue, cascading problems are common
 
 ## Cluster Context
 
@@ -65,11 +61,7 @@ Debug and troubleshoot the full Argo ecosystem on live Kubernetes clusters.
 ## Debugging Workflows
 
 Execute the workflow that matches the user's problem. Each workflow is self-contained.
-
-**CRITICAL: You MUST execute EVERY step in the workflow sequentially. Do NOT skip steps
-because you think you have enough information. Do NOT stop after finding one issue —
-complete the full workflow to catch cascading problems. Every `kubectl` and CLI command
-shown MUST be run, not approximated. Include the command output in your analysis.**
+Work through the steps in order — each step builds context for the next.
 
 ---
 

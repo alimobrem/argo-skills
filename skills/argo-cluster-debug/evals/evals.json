@@ -1,320 +1,77 @@
 {
-  "skill": "argo-cluster-debug",
-  "version": "1.0.0",
+  "skill_name": "argo-cluster-debug",
   "evals": [
     {
-      "id": "app-outofsync-degraded",
-      "name": "Debug OutOfSync and Degraded Application",
+      "id": 1,
+      "name": "Application OutOfSync and Degraded",
       "prompt": "My Application podinfo in the apps namespace is showing OutOfSync and Degraded. Debug it.",
       "expectations": [
-        {
-          "id": "check-tools",
-          "description": "Checks availability of argocd, argo, kubectl-argo-rollouts, and kubectl CLIs before starting",
-          "required": true
-        },
-        {
-          "id": "read-troubleshooting-ref",
-          "description": "Reads references/troubleshooting.md when encountering a specific failure pattern",
-          "required": true
-        },
-        {
-          "id": "verify-cluster-context",
-          "description": "Confirms the current kubectl context or asks the user to specify one",
-          "required": true
-        },
-        {
-          "id": "get-application",
-          "description": "Retrieves the Application resource with 'argocd app get podinfo -o yaml' or 'kubectl get application podinfo -n argocd -o yaml'",
-          "required": true
-        },
-        {
-          "id": "check-sync-status",
-          "description": "Inspects .status.sync.status and .status.health.status fields, identifying OutOfSync and Degraded states",
-          "required": true
-        },
-        {
-          "id": "check-conditions",
-          "description": "Examines .status.conditions for ComparisonError, SyncError, or other diagnostic conditions",
-          "required": true
-        },
-        {
-          "id": "check-operation-state",
-          "description": "Inspects .status.operationState for last sync result, phase, and error messages",
-          "required": true
-        },
-        {
-          "id": "diff-analysis",
-          "description": "Runs 'argocd app diff podinfo' or inspects .status.resources for out-of-sync resources to identify what differs",
-          "required": true
-        },
-        {
-          "id": "inspect-managed-resources",
-          "description": "Lists managed resources from .status.resources and inspects unhealthy ones with kubectl get/describe",
-          "required": true
-        },
-        {
-          "id": "check-pod-logs",
-          "description": "Gets pod logs for any unhealthy managed resources (Deployments/StatefulSets with failing pods)",
-          "required": true
-        },
-        {
-          "id": "check-events",
-          "description": "Checks Kubernetes events for the unhealthy resources using kubectl get events or kubectl describe",
-          "required": true
-        },
-        {
-          "id": "root-cause-report",
-          "description": "Produces a structured report with Summary, Resource Analysis, Dependency Chain, Root Cause, and Recommendations sections",
-          "required": true
-        }
+        "Retrieves the Application resource and shows its sync and health status",
+        "Identifies the sync status as OutOfSync and health as Degraded",
+        "Checks status conditions for errors (ComparisonError, SyncError)",
+        "Checks operation state for last sync result and error messages",
+        "Identifies which resources are out of sync or unhealthy",
+        "Inspects the unhealthy managed resources (Deployments, Pods)",
+        "Checks pod logs or events for failing containers",
+        "Produces a report with root cause and recommendations"
       ]
     },
     {
-      "id": "rollout-canary-stuck",
-      "name": "Debug canary Rollout stuck at step 2",
+      "id": 2,
+      "name": "Canary Rollout stuck at step 2",
       "prompt": "The canary rollout for frontend in production namespace is stuck at step 2. Figure out why.",
       "expectations": [
-        {
-          "id": "check-tools",
-          "description": "Checks availability of kubectl-argo-rollouts plugin and kubectl CLIs",
-          "required": true
-        },
-        {
-          "id": "read-troubleshooting-ref",
-          "description": "Reads references/troubleshooting.md when encountering a specific failure pattern",
-          "required": true
-        },
-        {
-          "id": "get-rollout-status",
-          "description": "Gets the Rollout status using 'kubectl argo rollouts get rollout frontend -n production' or 'kubectl get rollout frontend -n production -o yaml'",
-          "required": true
-        },
-        {
-          "id": "check-phase",
-          "description": "Identifies the Rollout phase (Paused, Progressing, Degraded, etc.) from the status",
-          "required": true
-        },
-        {
-          "id": "identify-current-step",
-          "description": "Reads .status.currentStepIndex and .spec.strategy.canary.steps to identify what step 2 is (pause, analysis, setWeight, etc.)",
-          "required": true
-        },
-        {
-          "id": "check-pause-conditions",
-          "description": "Checks .status.pauseConditions to determine if it's a manual pause or analysis-driven pause",
-          "required": true
-        },
-        {
-          "id": "check-analysisrun",
-          "description": "Lists and inspects AnalysisRuns associated with the Rollout to check if an analysis step is running or failed",
-          "required": true
-        },
-        {
-          "id": "check-metric-results",
-          "description": "Inspects AnalysisRun .status.metricResults for per-metric phase, measurements, and error messages",
-          "required": true
-        },
-        {
-          "id": "check-traffic-management",
-          "description": "Inspects traffic routing configuration (Istio VirtualService, NGINX Ingress annotations, etc.) if traffic management is configured",
-          "required": true
-        },
-        {
-          "id": "check-replicasets",
-          "description": "Compares stable vs canary ReplicaSets and their pod status",
-          "required": true
-        },
-        {
-          "id": "check-canary-pods",
-          "description": "Gets pod status for canary ReplicaSet pods to check for CrashLoopBackOff, ImagePullBackOff, etc.",
-          "required": true
-        },
-        {
-          "id": "root-cause-report",
-          "description": "Produces a structured report with Summary, Resource Analysis, Root Cause, and Recommendations following the report format",
-          "required": true
-        }
+        "Retrieves the Rollout and identifies its current phase",
+        "Identifies the current step index and what step 2 is",
+        "Checks pause conditions (manual pause vs analysis-driven)",
+        "Inspects associated AnalysisRuns if analysis is involved",
+        "Checks metric results and measurements in the AnalysisRun",
+        "Inspects traffic routing configuration if configured",
+        "Compares stable vs canary ReplicaSets and pod status",
+        "Produces a report with root cause and recommendations"
       ]
     },
     {
-      "id": "argocd-installation-check",
-      "name": "Check Argo CD installation health",
+      "id": 3,
+      "name": "Argo CD installation health check",
       "prompt": "Check if Argo CD is properly installed on my cluster and report the status.",
       "expectations": [
-        {
-          "id": "check-tools",
-          "description": "Checks availability of argocd CLI and kubectl before starting",
-          "required": true
-        },
-        {
-          "id": "read-troubleshooting-ref",
-          "description": "Reads references/troubleshooting.md when encountering a specific failure pattern",
-          "required": true
-        },
-        {
-          "id": "verify-cluster-context",
-          "description": "Confirms or displays the current kubectl context",
-          "required": true
-        },
-        {
-          "id": "check-crds",
-          "description": "Checks for argoproj.io CRDs using 'kubectl get crd | grep argoproj.io'",
-          "required": true
-        },
-        {
-          "id": "check-namespace-pods",
-          "description": "Lists all pods in the argocd namespace with 'kubectl get pods -n argocd -o wide'",
-          "required": true
-        },
-        {
-          "id": "verify-core-components",
-          "description": "Verifies each core component is running: argocd-server, argocd-repo-server, argocd-application-controller, argocd-applicationset-controller, argocd-redis, argocd-dex-server",
-          "required": true
-        },
-        {
-          "id": "check-version",
-          "description": "Runs 'argocd version' if CLI available, or checks image tags on deployments to determine version",
-          "required": true
-        },
-        {
-          "id": "check-configmap",
-          "description": "Inspects argocd-cm ConfigMap for server configuration",
-          "required": true
-        },
-        {
-          "id": "check-rbac-configmap",
-          "description": "Inspects argocd-rbac-cm ConfigMap for RBAC configuration",
-          "required": true
-        },
-        {
-          "id": "check-crashloop-logs",
-          "description": "If any component is not Running/Ready, retrieves its logs for diagnosis",
-          "required": true
-        },
-        {
-          "id": "check-events",
-          "description": "Checks Kubernetes events in the argocd namespace for recent issues",
-          "required": true
-        },
-        {
-          "id": "status-report",
-          "description": "Produces a structured report with Summary (cluster context, versions, component statuses), any issues found, and recommendations",
-          "required": true
-        }
+        "Checks for argoproj.io CRDs on the cluster",
+        "Identifies the Argo CD namespace (argocd or openshift-gitops)",
+        "Lists pods and their status in the Argo CD namespace",
+        "Checks core component health (server, repo-server, application-controller)",
+        "Reports the Argo CD version",
+        "Inspects configuration (argocd-cm or ArgoCD CR)",
+        "Reports any unhealthy components with diagnostic details",
+        "Produces a structured status report"
       ]
     },
     {
-      "id": "workflow-build-pipeline-failing",
-      "name": "Debug failing Argo Workflow at docker-build step",
+      "id": 4,
+      "name": "Workflow build-pipeline failing",
       "prompt": "My Argo Workflow build-pipeline in the argo namespace keeps failing at the docker-build step. Debug it.",
       "expectations": [
-        {
-          "id": "check-tools",
-          "description": "Checks availability of argo CLI and kubectl before starting",
-          "required": true
-        },
-        {
-          "id": "get-workflow",
-          "description": "Retrieves the Workflow resource with 'argo get build-pipeline -n argo' or 'kubectl get workflow build-pipeline -n argo -o yaml'",
-          "required": true
-        },
-        {
-          "id": "check-workflow-phase",
-          "description": "Inspects .status.phase to confirm the Workflow is in Failed state",
-          "required": true
-        },
-        {
-          "id": "identify-failed-nodes",
-          "description": "Examines .status.nodes to identify the docker-build node and its Failed/Error phase and message",
-          "required": true
-        },
-        {
-          "id": "get-failed-node-logs",
-          "description": "Retrieves logs for the failed docker-build pod using 'argo logs' or 'kubectl logs' for both main and wait containers",
-          "required": true
-        },
-        {
-          "id": "check-resource-limits",
-          "description": "Inspects container resource limits/requests in the Workflow template for the docker-build step to check for OOMKilled or resource pressure",
-          "required": true
-        },
-        {
-          "id": "check-pod-events",
-          "description": "Checks Kubernetes events for the failed pod to identify ImagePullBackOff, scheduling failures, or security violations",
-          "required": true
-        },
-        {
-          "id": "check-serviceaccount",
-          "description": "Verifies the Workflow's ServiceAccount exists and has necessary RBAC permissions",
-          "required": true
-        },
-        {
-          "id": "check-template-ref",
-          "description": "If using templateRef or workflowTemplateRef, retrieves and inspects the referenced WorkflowTemplate or ClusterWorkflowTemplate",
-          "required": true
-        },
-        {
-          "id": "root-cause-report",
-          "description": "Produces a structured report with Summary, Resource Analysis, Dependency Chain, Root Cause, and Recommendations sections",
-          "required": true
-        }
+        "Retrieves the Workflow and identifies its phase as Failed",
+        "Identifies the failed node (docker-build) from status.nodes",
+        "Gets logs for the failed pod",
+        "Checks for common failure patterns (OOMKilled, ImagePullBackOff, permission denied)",
+        "Checks resource limits on the docker-build template",
+        "Checks ServiceAccount permissions",
+        "Produces a report with root cause and recommendations"
       ]
     },
     {
-      "id": "eventsource-not-receiving",
-      "name": "Debug EventSource not receiving events",
+      "id": 5,
+      "name": "EventSource not receiving events",
       "prompt": "The EventSource github-webhook in the events namespace isn't receiving events. Debug it.",
       "expectations": [
-        {
-          "id": "check-tools",
-          "description": "Checks availability of kubectl before starting",
-          "required": true
-        },
-        {
-          "id": "check-eventsource-status",
-          "description": "Retrieves the EventSource resource and inspects .status.conditions for Deployed, DependenciesProvided, and SourceReady",
-          "required": true
-        },
-        {
-          "id": "check-eventbus",
-          "description": "Verifies the EventBus exists and its pods are running in the events namespace",
-          "required": true
-        },
-        {
-          "id": "check-eventsource-pods",
-          "description": "Lists EventSource pods with '-l eventsource-name=github-webhook' and checks for CrashLoopBackOff or errors",
-          "required": true
-        },
-        {
-          "id": "check-eventsource-logs",
-          "description": "Retrieves EventSource pod logs to check for webhook registration, connection, or authentication errors",
-          "required": true
-        },
-        {
-          "id": "check-service-ingress",
-          "description": "Verifies the Service and Ingress/Route exist for the webhook EventSource and are correctly configured",
-          "required": true
-        },
-        {
-          "id": "check-sensor",
-          "description": "Retrieves associated Sensor(s) that reference this EventSource and checks their status conditions",
-          "required": true
-        },
-        {
-          "id": "check-sensor-logs",
-          "description": "Inspects Sensor pod logs for event receipt or subscription errors",
-          "required": true
-        },
-        {
-          "id": "check-connectivity",
-          "description": "Analyzes network connectivity — verifies the webhook endpoint is reachable, checks for firewall or DNS issues, and validates webhook secret configuration",
-          "required": true
-        },
-        {
-          "id": "root-cause-report",
-          "description": "Produces a structured report with Summary, Resource Analysis, Dependency Chain (EventSource -> EventBus -> Sensor -> Trigger), Root Cause, and Recommendations",
-          "required": true
-        }
+        "Retrieves the EventSource and checks its status conditions",
+        "Verifies the EventBus exists and its pods are running",
+        "Checks EventSource pod status and logs",
+        "Checks if the webhook Service/Ingress/Route is configured",
+        "Checks associated Sensor status",
+        "Analyzes connectivity (webhook reachable, firewall, DNS)",
+        "Produces a report with root cause and recommendations"
       ]
     }
   ]
