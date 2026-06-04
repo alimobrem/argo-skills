@@ -132,6 +132,26 @@
         "States that Application status syncs back to control plane for observability when connected",
         "Does NOT suggest storing cluster credentials on the control plane"
       ]
+    },
+    {
+      "id": 8,
+      "prompt": "I want to set up environment promotion for my app across dev, staging, and production using gitops-promoter. The app repo is on GitHub (org: acme-corp, repo: payments). I want automatic promotion from dev to staging (gated on Argo CD app health), but manual approval for production (gated on both app health and a performance-test check). Also add a security-scan proposed commit status that must pass before merging into any environment. Generate all the resources needed: ScmProvider, GitRepository, PromotionStrategy, and an ArgoCD CommitStatus to report app health. Use a GitHub App for authentication.",
+      "expected_output": "Complete gitops-promoter setup with ScmProvider (GitHub App), GitRepository, PromotionStrategy with 3 environments and commit status gating, and ArgocdCommitStatus for health reporting.",
+      "files": [],
+      "expectations": [
+        "Uses apiVersion promoter.argoproj.io/v1alpha1 for all promoter CRDs",
+        "ScmProvider with github field containing appID and installationID",
+        "ScmProvider references a Secret for githubAppPrivateKey",
+        "GitRepository with github field containing owner: acme-corp and name: payments",
+        "GitRepository references the ScmProvider via scmProviderRef",
+        "PromotionStrategy with 3 environments: environment/development, environment/staging, environment/production",
+        "Production environment has autoMerge: false for manual approval",
+        "Dev and staging have autoMerge: true (explicit or default)",
+        "activeCommitStatuses includes argocd-app-health at the strategy level",
+        "Production environment has additional activeCommitStatus for performance-test",
+        "proposedCommitStatuses includes security-scan at the strategy level",
+        "ArgocdCommitStatus resource referencing the GitRepository and selecting the app"
+      ]
     }
   ]
 }

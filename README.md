@@ -266,74 +266,42 @@ Destructive operations (delete, prune, rollback) require typing the resource nam
 
 ## Benchmarks
 
-Eval results on `claude-opus-4-6`. Knowledge evals compare with-skill vs baseline.
-Audit, debug, and operations evals test outcome quality on real repos and live OpenShift clusters.
+All evals run on `claude-opus-4-6` against real repos and a live OpenShift cluster.
+Evals test **outcomes** (issues found, report quality), not process (which tools were used).
 
 <table>
+<thead>
 <tr>
-<td>
-
-**[argo-knowledge](benchmarks/argo-knowledge.md)**
-
-| Eval | Skill | Base | Delta |
-|------|-------|------|-------|
-| Multi-source App | 100% | 100% | — |
-| Merge generator | 90% | 90% | — |
-| Blue-green + Job | 90% | 90% | — |
-| Slack + GitHub App | 100% | 100% | — |
-| OpenShift GitOps | 100% | 100% | — |
-| Multi-tenant RBAC | 100% | 92% | **+8%** |
-| argocd-agent | 100% | 30% | **+70%** |
-| **Overall** | **97%** | **86%** | **+11%** |
-
-</td>
-<td>
-
-**[argo-repo-audit](benchmarks/argo-repo-audit.md)**
-
-| Eval | Score |
-|------|-------|
-| App-of-apps audit | 100% |
-| Mixed-issues audit | 100% |
-| **Overall** | **100%** |
-
-</td>
+<th width="200">Skill</th>
+<th width="80">Score</th>
+<th>Highlights</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="benchmarks/argo-knowledge.md"><b>argo-knowledge</b></a></td>
+<td><b>97%</b><br><sub>vs 86% baseline</sub></td>
+<td>+70% on argocd-agent (baseline doesn't know the project), +8% on multi-tenant RBAC. Core Argo APIs match baseline — skill differentiates on newer features.</td>
 </tr>
 <tr>
-<td>
-
-**[argo-cluster-debug](benchmarks/argo-cluster-debug.md)**
-
-| Eval | Score |
-|------|-------|
-| Install check | 100% |
-| Multi-tenant audit | 88% |
-| ApplicationSet dive | 100% |
-| Rollout analysis | 100% |
-| Config review | 100% |
-| Sync waves/hooks | 100% |
-| **Overall** | **97.5%** |
-
-</td>
-<td>
-
-**[argo-operations](benchmarks/argo-operations.md)**
-
-| Eval | Score |
-|------|-------|
-| OpenShift config | 70% |
-| OCI Helm App | 100% |
-| Canary promote | 75% |
-| Argo CD upgrade | 89% |
-| Backup resources | 100% |
-| **Overall** | **87%** |
-
-</td>
+<td><a href="benchmarks/argo-repo-audit.md"><b>argo-repo-audit</b></a></td>
+<td><b>100%</b></td>
+<td>Catches all Critical issues: wildcard AppProjects, plain-text Secrets, hardcoded passwords, missing sync policies, HEAD revisions, weak AnalysisTemplates.</td>
 </tr>
+<tr>
+<td><a href="benchmarks/argo-cluster-debug.md"><b>argo-cluster-debug</b></a></td>
+<td><b>97.5%</b></td>
+<td>Advanced evals on live OpenShift: multi-tenant ArgoCD audit, ApplicationSet deep dive, Rollout analysis (flagged trivial AnalysisTemplates), config review, sync wave ordering. 187 tool calls.</td>
+</tr>
+<tr>
+<td><a href="benchmarks/argo-operations.md"><b>argo-operations</b></a></td>
+<td><b>87%</b></td>
+<td>Safety model fully compliant: dry-run preview + user confirmation on every write. Correctly detects existing installations and adapts (OLM vs Helm, healthy rollouts).</td>
+</tr>
+</tbody>
 </table>
 
-> Evals test **outcomes** (issues found, report quality), not process (which tools were used).
-> Run locally with `make eval` or via GitHub Actions (`evals` workflow).
+<sub>Run locally with <code>make eval</code> or via GitHub Actions (<code>evals</code> workflow).</sub>
 
 ## Contributing
 

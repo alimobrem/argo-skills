@@ -80,6 +80,23 @@
         "Does NOT modify or delete any cluster resources",
         "Handles the backup as a read-only operation (no confirmation needed for export)"
       ]
+    },
+    {
+      "id": 6,
+      "name": "Set up gitops-promoter for environment promotion",
+      "prompt": "Set up gitops-promoter on my cluster for environment promotion of our payments app. The repo is on GitHub at acme-corp/payments. I want three environments: dev (auto-promote), staging (auto-promote), and production (manual approval). Gate on Argo CD app health for all environments, and add a security-scan check before merging into any environment.",
+      "expectations": [
+        "Generates or references installation of gitops-promoter (kubectl apply or helm install)",
+        "Generates a Secret for GitHub App credentials",
+        "Generates an ScmProvider with github config (appID, installationID)",
+        "Generates a GitRepository referencing the ScmProvider with owner and repo name",
+        "Generates a PromotionStrategy with 3 environments (dev, staging, production branches)",
+        "Production has autoMerge: false, dev and staging auto-merge",
+        "activeCommitStatuses includes argocd-app-health",
+        "proposedCommitStatuses includes security-scan",
+        "Shows dry-run or preview before applying",
+        "Asks for user confirmation before applying"
+      ]
     }
   ]
 }
