@@ -5,21 +5,42 @@
 
 A collection of reusable skills that give AI Agents expertise in the Argo ecosystem —
 Argo CD, Argo Rollouts, Argo Workflows, and Argo Events — for generating manifests,
-answering questions, auditing repository structure and security, and debugging live
-cluster installations.
+answering questions, auditing repository structure and security, debugging live clusters,
+and performing operational changes.
+
+<details>
+<summary><b>Quick Start</b></summary>
+
+```shell
+# Claude Code
+/plugin marketplace add alimobrem/argo-skills
+/plugin install argo-skills@argocd
+
+# Then try:
+# "Audit the current repo for GitOps best practices"
+# "Check if Argo CD is healthy on my cluster"
+# "Generate an ApplicationSet with git directory generator"
+```
+
+</details>
 
 ## Install
 
-### Using Claude Code
-
-Add the marketplace and install the skills:
+<details>
+<summary><b>Claude Code</b></summary>
 
 ```shell
 /plugin marketplace add alimobrem/argo-skills
 /plugin install argo-skills@argocd
 ```
 
-### Using Codex
+After install, the `argocd` agent appears in `/agents` and the 4 skills auto-trigger
+based on context. Run `/reload-plugins` if they don't appear immediately.
+
+</details>
+
+<details>
+<summary><b>Codex</b></summary>
 
 Add to `$REPO_ROOT/.agents/plugins/marketplace.json` or `~/.agents/plugins/marketplace.json`:
 
@@ -39,7 +60,10 @@ Add to `$REPO_ROOT/.agents/plugins/marketplace.json` or `~/.agents/plugins/marke
 }
 ```
 
-### Using GitHub Copilot
+</details>
+
+<details>
+<summary><b>GitHub Copilot</b></summary>
 
 Copy the agent file to your repository:
 
@@ -48,134 +72,187 @@ mkdir -p .github/copilot
 cp agents/github-copilot/argocd.agent.md .github/copilot/
 ```
 
-## Prerequisites
+</details>
 
-The skills rely on the following tools being available in the environment:
+<details>
+<summary><b>Prerequisites</b></summary>
 
-- `kubectl` for Kubernetes cluster interaction
-- `kustomize` for building kustomize overlays
-- `kubeconform` for validating Kubernetes manifests against OpenAPI schemas
-- `yq` for YAML parsing and validation
-- `argocd` for Argo CD CLI operations (optional, enhances cluster debugging)
-- `argo` for Argo Workflows CLI operations (optional)
-- `kubectl-argo-rollouts` for Argo Rollouts CLI operations (optional)
+Required:
+- `kubectl` or `oc` for Kubernetes/OpenShift cluster interaction
 
-A [Brewfile](Brewfile) is provided for easy installation on macOS:
+Optional (enhances capabilities):
+- `kustomize` — Kustomize overlay builds
+- `kubeconform` — schema validation against Argo CRDs
+- `yq` — YAML parsing
+- `argocd` — richer Application debugging and sync operations
+- `argo` — Workflow inspection
+- `kubectl-argo-rollouts` — Rollout status and promotion
 
+Install all on macOS:
 ```shell
 brew bundle
 ```
 
-## Available Skills
+</details>
 
-The skills are designed to work together and the agent automatically selects the right one
-based on context: `argo-knowledge` for answering questions and generating manifests,
-`argo-repo-audit` for validating and auditing repository contents,
-and `argo-cluster-debug` for troubleshooting live clusters.
+## Usage Guide
 
-### argo-knowledge
+### How the Skills Work Together
 
-Answers questions about the full Argo ecosystem and generates correct YAML manifests
-for all Argo custom resources. Bundled with reference documentation covering Applications,
-ApplicationSets, AppProjects, Rollouts, Workflows, Events, notifications, image updater,
-repository patterns, and best practices.
+The agent automatically selects the right skill based on what you ask:
 
-Example prompts:
-
-```text
-How do I set up an ApplicationSet with a git directory generator and progressive syncs?
+```
+ Ask a question ──────────► argo-knowledge    "How do I..."
+ Audit a repo ────────────► argo-repo-audit   "Audit this repo"
+ Debug a cluster ─────────► argo-cluster-debug "Why is X failing?"
+ Make a change ───────────► argo-operations    "Install/create/promote/upgrade..."
 ```
 
+You don't need to invoke skills manually — just describe what you need.
+
+### Knowledge — Ask Questions & Generate YAML
+
+Use when you need to understand Argo concepts or generate manifests.
+
 ```text
-Generate a Rollout with canary strategy, Istio traffic management,
-and a Prometheus-based AnalysisTemplate.
+# Generate manifests
+Generate a multi-source Application that combines a Helm chart from
+oci://registry.example.com/myapp with values from a Git repo.
+
+# Architecture guidance
+What's the best way to structure a multi-cluster GitOps repo?
+Should I use app-of-apps or ApplicationSet?
+
+# Newer features
+How do I set up argocd-agent for 200 edge clusters behind firewalls?
+How do I run Applications in any namespace for multi-tenancy?
+
+# OpenShift-specific
+Generate an ArgoCD CR for the OpenShift GitOps operator with OAuth and Routes.
 ```
 
+<details>
+<summary>Reference docs included</summary>
+
+| Topic | Reference |
+|-------|-----------|
+| Application spec, sync policies, health checks, multi-cluster | `applications.md` |
+| ApplicationSet generators, progressive syncs, templates | `applicationsets.md` |
+| AppProject RBAC, source/destination restrictions, sync windows | `app-projects.md` |
+| Rollout canary/blue-green, traffic management, AnalysisTemplate | `rollouts.md` |
+| Workflow DAG/steps, parameters, artifacts, CronWorkflow | `workflows.md` |
+| EventSource types, EventBus, Sensor triggers, filters | `events.md` |
+| Notification services, templates, triggers, subscriptions | `notifications.md` |
+| Image updater annotations, strategies, write-back | `image-updater.md` |
+| Repository patterns (app-of-apps, ApplicationSet, monorepo) | `repo-patterns.md` |
+| Best practices (sync, RBAC, health, secrets) | `best-practices.md` |
+| argocd-agent hub-and-spoke architecture | `agent-mode.md` |
+| Multi-tenancy, apps-in-any-namespace, Autopilot | `multi-tenancy.md` |
+| OpenShift GitOps Operator, ArgoCD CRD, Routes, SCCs, OAuth | `openshift.md` |
+
+</details>
+
+### Repo Audit — Security & Best Practice Review
+
+Use when you want to validate a GitOps repo before deploying or during a review.
+
 ```text
-What's the best way to structure a multi-cluster GitOps repo with Argo CD?
-```
-
-### argo-repo-audit
-
-Audits Argo GitOps repositories for structure, security, and operational best practices.
-Validates manifests against schemas, reviews AppProject restrictions, RBAC configuration,
-sync policies, secrets management, and generates a structured report with prioritized
-recommendations.
-
-Example prompts:
-
-```text
+# Full audit
 Audit the current repo and provide a GitOps report.
-```
 
-```text
-Validate my repo without auditing it.
-```
-
-```text
+# Targeted checks
 Check for security issues in my AppProject configurations.
+Are there any hardcoded secrets in Helm values?
+Do my Applications have proper sync retry configuration?
+
+# Validation only
+Just validate YAML syntax and schemas, don't do a full audit.
 ```
 
-### argo-cluster-debug
+**What it catches:**
 
-Debugs and troubleshoots the Argo ecosystem on live Kubernetes clusters. Inspects
-Application sync status, diagnoses Rollout failures, traces Workflow step errors,
-and debugs EventSource/Sensor connectivity. Prefers `argocd`/`argo` CLIs when available,
-falls back to `kubectl` for CRD inspection.
+| Severity | Examples |
+|----------|---------|
+| Critical | Wildcard `*` in AppProject sourceRepos/destinations, plain-text Secrets, hardcoded passwords in Helm values, `clusterResourceWhitelist: */*` |
+| Warning | Missing syncPolicy, `targetRevision: HEAD` in production, no retry/backoff, missing `activeDeadlineSeconds` on Workflows |
+| Info | Missing `ignoreDifferences` for HPA-managed replicas, no progressive sync on multi-cluster ApplicationSets |
 
-Example prompts:
+### Cluster Debug — Troubleshoot Live Issues
+
+Use when something is broken or you want a health check.
 
 ```text
-Check the Argo CD installation on my cluster.
+# Health check
+Check if Argo CD is properly installed on my cluster.
+
+# Application issues
+Why is my Application podinfo stuck in OutOfSync?
+Debug the degraded Application in the production namespace.
+
+# Rollout issues
+The canary rollout for frontend is stuck at step 2. Why?
+Are my AnalysisTemplates actually testing anything meaningful?
+
+# Multi-tenant review
+Compare all ArgoCD instances on this cluster and check for security gaps.
+
+# Deep investigation
+Inspect all Rollouts on this cluster and give me a health report.
+Review the Argo CD configuration for security concerns.
 ```
 
-```text
-Debug the Application podinfo that's stuck in OutOfSync.
-```
+### Operations — Install, Deploy, Promote, Maintain
+
+Use when you want to make changes. Every write follows a safety model:
+**Generate** YAML → **Preview** with dry-run → **Confirm** before applying.
 
 ```text
-Why is my canary Rollout stuck at step 2?
-```
-
-### argo-operations
-
-Installs, deploys, promotes, and maintains Argo resources on live clusters.
-Every write operation follows a 3-step safety model: **generate** YAML,
-**preview** with dry-run, **confirm** before applying. Covers Argo CD installation
-(Helm, OpenShift GitOps Operator, Autopilot), Application/ApplicationSet lifecycle,
-Rollout promotion, and day-2 operations (upgrades, API migration, backup/restore).
-
-Example prompts:
-
-```text
+# Setup
 Install Argo CD on my OpenShift cluster using the GitOps operator.
-```
+Create an AppProject for the frontend team with restricted access.
+Add the staging cluster to Argo CD.
 
-```text
+# Deploy
 Create an Application for my Helm chart with automated sync.
-```
+Create an ApplicationSet with git directory generator and progressive syncs.
+Set up Slack notifications for sync failures.
 
-```text
+# Promote
 Promote the canary rollout frontend in production.
-```
+Sync the Application with server-side apply.
+Abort the failing rollout and retry.
 
-```text
-Upgrade Argo CD from 2.12 to 2.14.
-```
-
-```text
+# Maintain
+Upgrade Argo CD to the latest version.
 Back up all my Applications and AppProjects to YAML files.
+Rotate the Git credentials for the infra repo.
 ```
+
+<details>
+<summary>Safety model details</summary>
+
+| Step | What happens |
+|------|-------------|
+| Generate | Produces YAML manifest or CLI command, shows it in a code block |
+| Preview | Runs `--dry-run=client`, `kubectl diff`, or `argocd app diff` to show what changes |
+| Confirm | Asks "Apply this? (yes/no)" — does NOT proceed without explicit approval |
+
+Read-only operations (backup, status checks) skip confirmation.
+
+Destructive operations (delete, prune, rollback) require typing the resource name to confirm.
+
+</details>
 
 ## Benchmarks
 
-Eval results for each skill on `claude-opus-4-6`. Knowledge evals compare with-skill vs baseline (no skill loaded). Audit and debug evals test outcome quality on real repos and live clusters.
+Eval results on `claude-opus-4-6`. Knowledge evals compare with-skill vs baseline.
+Audit, debug, and operations evals test outcome quality on real repos and live OpenShift clusters.
 
 <table>
 <tr>
 <td>
 
-**argo-knowledge** — [full results](benchmarks/argo-knowledge.md)
+**[argo-knowledge](benchmarks/argo-knowledge.md)**
 
 | Eval | Skill | Base | Delta |
 |------|-------|------|-------|
@@ -191,7 +268,7 @@ Eval results for each skill on `claude-opus-4-6`. Knowledge evals compare with-s
 </td>
 <td>
 
-**argo-repo-audit** — [full results](benchmarks/argo-repo-audit.md)
+**[argo-repo-audit](benchmarks/argo-repo-audit.md)**
 
 | Eval | Score |
 |------|-------|
@@ -199,14 +276,12 @@ Eval results for each skill on `claude-opus-4-6`. Knowledge evals compare with-s
 | Mixed-issues audit | 100% |
 | **Overall** | **100%** |
 
-Catches: wildcard AppProjects, plain-text
-secrets, hardcoded passwords, missing sync
-policies, HEAD revisions, weak AnalysisTemplates
-
 </td>
+</tr>
+<tr>
 <td>
 
-**argo-cluster-debug** — [full results](benchmarks/argo-cluster-debug.md)
+**[argo-cluster-debug](benchmarks/argo-cluster-debug.md)**
 
 | Eval | Score |
 |------|-------|
@@ -219,38 +294,32 @@ policies, HEAD revisions, weak AnalysisTemplates
 | **Overall** | **97.5%** |
 
 </td>
-</tr>
-<tr>
-<td colspan="3">
+<td>
 
-**argo-operations** — [full results](benchmarks/argo-operations.md)
+**[argo-operations](benchmarks/argo-operations.md)**
 
 | Eval | Score |
 |------|-------|
-| OpenShift GitOps config | 70% |
-| OCI Helm Application | 100% |
-| Canary rollout promote | 75% |
+| OpenShift config | 70% |
+| OCI Helm App | 100% |
+| Canary promote | 75% |
 | Argo CD upgrade | 89% |
 | Backup resources | 100% |
 | **Overall** | **87%** |
-
-Safety model: dry-run preview + user confirmation on every write. Read-only ops skip confirmation.
 
 </td>
 </tr>
 </table>
 
 > Evals test **outcomes** (issues found, report quality), not process (which tools were used).
-> Run evals locally with `make eval` or via GitHub Actions (`evals` workflow).
+> Run locally with `make eval` or via GitHub Actions (`evals` workflow).
 
 ## Contributing
 
 Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-By submitting a pull request, you agree that your contributions will be licensed
-under the [MIT License](LICENSE).
-
-### Development
+<details>
+<summary><b>Development</b></summary>
 
 ```shell
 # Install prerequisites (macOS)
@@ -259,27 +328,26 @@ brew bundle
 # Download Argo CRD schemas for validation
 make download-schemas
 
-# Run discovery script tests
+# Run tests
 make test-discover
-
-# Run validation script tests
 make test-validate
+
+# Run evals
+make eval
 ```
 
-### Adding a New Skill
-
 See [AGENTS.md](AGENTS.md) for the repo layout, skill conventions, and eval runner instructions.
+
+</details>
 
 ## Code of Conduct
 
 This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md).
-By participating, you are expected to uphold this code.
 
 ## Security
 
-If you discover a security vulnerability, please report it responsibly.
-See [SECURITY.md](SECURITY.md) for details.
+See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+[MIT License](LICENSE)
