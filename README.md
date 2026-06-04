@@ -266,8 +266,8 @@ Destructive operations (delete, prune, rollback) require typing the resource nam
 
 ## Benchmarks
 
-All evals run on `claude-opus-4-6` against real repos and a live OpenShift cluster.
 Evals test **outcomes** (issues found, report quality), not process (which tools were used).
+Tested on real repos and a live OpenShift cluster.
 
 <table>
 <thead>
@@ -280,8 +280,8 @@ Evals test **outcomes** (issues found, report quality), not process (which tools
 <tbody>
 <tr>
 <td><a href="benchmarks/argo-knowledge.md"><b>argo-knowledge</b></a></td>
-<td><b>97%</b><br><sub>vs 86% baseline</sub></td>
-<td>+70% on argocd-agent (baseline doesn't know the project), +8% on multi-tenant RBAC. Core Argo APIs match baseline — skill differentiates on newer features.</td>
+<td><b>98%</b><br><sub>vs 86% baseline</sub></td>
+<td>+70% on argocd-agent, +17% on gitops-promoter, +8% on multi-tenant RBAC. Skill differentiates on newer features not saturated in training data.</td>
 </tr>
 <tr>
 <td><a href="benchmarks/argo-repo-audit.md"><b>argo-repo-audit</b></a></td>
@@ -291,17 +291,43 @@ Evals test **outcomes** (issues found, report quality), not process (which tools
 <tr>
 <td><a href="benchmarks/argo-cluster-debug.md"><b>argo-cluster-debug</b></a></td>
 <td><b>97.5%</b></td>
-<td>Advanced evals on live OpenShift: multi-tenant ArgoCD audit, ApplicationSet deep dive, Rollout analysis (flagged trivial AnalysisTemplates), config review, sync wave ordering. 187 tool calls.</td>
+<td>Advanced evals on live OpenShift: multi-tenant ArgoCD audit, ApplicationSet deep dive, Rollout analysis (flagged trivial AnalysisTemplates), config review, sync wave ordering.</td>
 </tr>
 <tr>
 <td><a href="benchmarks/argo-operations.md"><b>argo-operations</b></a></td>
 <td><b>87%</b></td>
-<td>Safety model fully compliant: dry-run preview + user confirmation on every write. Correctly detects existing installations and adapts (OLM vs Helm, healthy rollouts).</td>
+<td>Safety model fully compliant: dry-run preview + user confirmation on every write. Context-aware — detects existing installations and adapts.</td>
 </tr>
 </tbody>
 </table>
 
-<sub>Run locally with <code>make eval</code> or via GitHub Actions (<code>evals</code> workflow).</sub>
+### Cross-Model: Sonnet with skill beats Opus without
+
+<table>
+<thead>
+<tr>
+<th width="250"></th>
+<th width="120">Opus + Skill</th>
+<th width="120">Opus Baseline</th>
+<th width="120">Sonnet + Skill</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><b>argo-knowledge</b> (8 evals)</td>
+<td><b>98%</b></td>
+<td>86%</td>
+<td><b>95%</b></td>
+</tr>
+</tbody>
+</table>
+
+> **Sonnet + skill (95%) > Opus without skill (86%).**
+> The skill effectively upgrades a cheaper, faster model to exceed the expensive model's
+> baseline accuracy on Argo-specific tasks — a strong case for cost-conscious teams.
+
+<sub>Run locally with <code>make eval</code> or via GitHub Actions (<code>evals</code> workflow).
+Full results per model in <a href="benchmarks/">benchmarks/</a>.</sub>
 
 ## Contributing
 
