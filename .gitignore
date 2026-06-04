@@ -4,3 +4,4 @@ dist/
 .local/
 *-workspace/
 workspace/
+.playwright-mcp/

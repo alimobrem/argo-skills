@@ -163,6 +163,10 @@ Generate an ArgoCD CR for the OpenShift GitOps operator with OAuth and Routes.
 
 ### Repo Audit — Security & Best Practice Review
 
+<p align="center">
+  <img src="assets/screenshots/audit-preview.svg" alt="Audit Report Preview" width="820"/>
+</p>
+
 Use when you want to validate a GitOps repo before deploying or during a review.
 
 ```text
@@ -187,6 +191,10 @@ Just validate YAML syntax and schemas, don't do a full audit.
 | Info | Missing `ignoreDifferences` for HPA-managed replicas, no progressive sync on multi-cluster ApplicationSets |
 
 ### Cluster Debug — Troubleshoot Live Issues
+
+<p align="center">
+  <img src="assets/screenshots/debug-preview.svg" alt="Debug Report Preview" width="820"/>
+</p>
 
 Use when something is broken or you want a health check.
 
