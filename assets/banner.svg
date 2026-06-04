@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 220" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="900" y2="220" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0d1117"/>
+      <stop offset="100%" stop-color="#161b22"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#EF7B4D"/>
+      <stop offset="100%" stop-color="#E96D3F"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#EF7B4D" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#EF7B4D" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="220" rx="12" fill="url(#bg)"/>
+
+  <!-- Subtle top glow -->
+  <rect width="900" height="110" rx="12" fill="url(#glow)"/>
+
+  <!-- Argo ship wheel icon -->
+  <g transform="translate(60, 110)">
+    <!-- Outer ring -->
+    <circle cx="0" cy="0" r="52" stroke="#EF7B4D" stroke-width="3" fill="none" opacity="0.9"/>
+    <!-- Inner ring -->
+    <circle cx="0" cy="0" r="20" stroke="#EF7B4D" stroke-width="2.5" fill="none" opacity="0.7"/>
+    <!-- Center dot -->
+    <circle cx="0" cy="0" r="6" fill="#EF7B4D" opacity="0.9"/>
+    <!-- Spokes (8) -->
+    <line x1="0" y1="-20" x2="0" y2="-52" stroke="#EF7B4D" stroke-width="2.5" opacity="0.8"/>
+    <line x1="14.1" y1="-14.1" x2="36.8" y2="-36.8" stroke="#EF7B4D" stroke-width="2.5" opacity="0.8"/>
+    <line x1="20" y1="0" x2="52" y2="0" stroke="#EF7B4D" stroke-width="2.5" opacity="0.8"/>
+    <line x1="14.1" y1="14.1" x2="36.8" y2="36.8" stroke="#EF7B4D" stroke-width="2.5" opacity="0.8"/>
+    <line x1="0" y1="20" x2="0" y2="52" stroke="#EF7B4D" stroke-width="2.5" opacity="0.8"/>
+    <line x1="-14.1" y1="14.1" x2="-36.8" y2="36.8" stroke="#EF7B4D" stroke-width="2.5" opacity="0.8"/>
+    <line x1="-20" y1="0" x2="-52" y2="0" stroke="#EF7B4D" stroke-width="2.5" opacity="0.8"/>
+    <line x1="-14.1" y1="-14.1" x2="-36.8" y2="-36.8" stroke="#EF7B4D" stroke-width="2.5" opacity="0.8"/>
+    <!-- Handle nubs -->
+    <circle cx="0" cy="-55" r="5" fill="#EF7B4D" opacity="0.7"/>
+    <circle cx="38.9" cy="-38.9" r="5" fill="#EF7B4D" opacity="0.7"/>
+    <circle cx="55" cy="0" r="5" fill="#EF7B4D" opacity="0.7"/>
+    <circle cx="38.9" cy="38.9" r="5" fill="#EF7B4D" opacity="0.7"/>
+    <circle cx="0" cy="55" r="5" fill="#EF7B4D" opacity="0.7"/>
+    <circle cx="-38.9" cy="38.9" r="5" fill="#EF7B4D" opacity="0.7"/>
+    <circle cx="-55" cy="0" r="5" fill="#EF7B4D" opacity="0.7"/>
+    <circle cx="-38.9" cy="-38.9" r="5" fill="#EF7B4D" opacity="0.7"/>
+  </g>
+
+  <!-- Title -->
+  <text x="145" y="95" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="48" font-weight="700" fill="#f0f6fc">
+    Argo Agent Skills
+  </text>
+
+  <!-- Subtitle -->
+  <text x="145" y="130" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="18" fill="#8b949e">
+    AI-powered GitOps engineering for the Argo ecosystem
+  </text>
+
+  <!-- Skill pills -->
+  <g transform="translate(145, 150)">
+    <!-- knowledge -->
+    <rect x="0" y="0" width="100" height="28" rx="14" fill="#EF7B4D" opacity="0.15" stroke="#EF7B4D" stroke-width="1" stroke-opacity="0.4"/>
+    <text x="50" y="19" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#EF7B4D" text-anchor="middle">knowledge</text>
+
+    <!-- repo-audit -->
+    <rect x="112" y="0" width="100" height="28" rx="14" fill="#3FB950" opacity="0.15" stroke="#3FB950" stroke-width="1" stroke-opacity="0.4"/>
+    <text x="162" y="19" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#3FB950" text-anchor="middle">repo-audit</text>
+
+    <!-- cluster-debug -->
+    <rect x="224" y="0" width="114" height="28" rx="14" fill="#58A6FF" opacity="0.15" stroke="#58A6FF" stroke-width="1" stroke-opacity="0.4"/>
+    <text x="281" y="19" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#58A6FF" text-anchor="middle">cluster-debug</text>
+
+    <!-- operations -->
+    <rect x="350" y="0" width="100" height="28" rx="14" fill="#D2A8FF" opacity="0.15" stroke="#D2A8FF" stroke-width="1" stroke-opacity="0.4"/>
+    <text x="400" y="19" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#D2A8FF" text-anchor="middle">operations</text>
+  </g>
+
+  <!-- Platform badges -->
+  <g transform="translate(145, 192)">
+    <text font-family="system-ui, sans-serif" font-size="11" fill="#484f58">
+      <tspan>Works with</tspan>
+    </text>
+    <text x="72" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="#8b949e">
+      <tspan>Claude Code</tspan>
+      <tspan fill="#484f58"> · </tspan>
+      <tspan>GitHub Copilot</tspan>
+      <tspan fill="#484f58"> · </tspan>
+      <tspan>Codex</tspan>
+    </text>
+  </g>
+</svg>

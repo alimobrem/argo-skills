@@ -1,12 +1,21 @@
-# Argo Agent Skills
+<p align="center">
+  <img src="assets/banner.svg" alt="Argo Agent Skills" width="900"/>
+</p>
 
-[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
+  <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome"></a>
+  <img src="https://img.shields.io/badge/Argo%20CD-v2.14+-EF7B4D.svg" alt="Argo CD">
+  <img src="https://img.shields.io/badge/Rollouts-v1.8+-EF7B4D.svg" alt="Argo Rollouts">
+  <img src="https://img.shields.io/badge/OpenShift%20GitOps-1.19+-EE0000.svg" alt="OpenShift GitOps">
+</p>
 
-A collection of reusable skills that give AI Agents expertise in the Argo ecosystem —
-Argo CD, Argo Rollouts, Argo Workflows, and Argo Events — for generating manifests,
-answering questions, auditing repository structure and security, debugging live clusters,
-and performing operational changes.
+<p align="center">
+  <b>Give your AI agent deep expertise in Argo CD, Rollouts, Workflows, and Events.</b><br>
+  Generate manifests, audit repos, debug clusters, and manage operations — all from your terminal.
+</p>
+
+---
 
 <details>
 <summary><b>Quick Start</b></summary>
