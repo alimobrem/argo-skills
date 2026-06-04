@@ -220,6 +220,10 @@ Review the Argo CD configuration for security concerns.
 
 ### Operations — Install, Deploy, Promote, Maintain
 
+<p align="center">
+  <img src="assets/screenshots/operations-preview.svg" alt="Operations Preview" width="820"/>
+</p>
+
 Use when you want to make changes. Every write follows a safety model:
 **Generate** YAML → **Preview** with dry-run → **Confirm** before applying.
 
