@@ -121,6 +121,7 @@ for a cluster you cannot validate against.
 | "Debug/troubleshoot/why is X broken" | Redirect to `argo-cluster-debug` | — |
 | "What is/how does/explain" | Redirect to `argo-knowledge` | — |
 | "Audit/review my repo" | Redirect to `argo-repo-audit` | — |
+| "Set up environment promotion/promoter" | Phase 2: Deploy | `argo-knowledge/references/gitops-promoter.md` |
 
 Load the matching reference file before starting. Max 1-2 reference files per request.
 
