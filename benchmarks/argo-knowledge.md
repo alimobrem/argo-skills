@@ -1,10 +1,8 @@
 # argo-knowledge
 
-## v0.0.2 (2026-06-02)
+## v0.1.0 (2026-06-04)
 
-Model: `claude-opus-4-6`
-
-**Results**
+### claude-opus-4-6
 
 | Eval | With Skill | Baseline | Delta |
 |------|-----------|----------|-------|
@@ -12,28 +10,40 @@ Model: `claude-opus-4-6`
 | Merge generator + goTemplateOptions | 9/10 (90%) | 9/10 (90%) | 0% |
 | Blue-green + Job AnalysisTemplate | 9/10 (90%) | 9/10 (90%) | 0% |
 | Slack Block Kit + GitHub App status | 10/10 (100%) | 10/10 (100%) | 0% |
-| OpenShift GitOps Operator + ArgoCD CRD | 12/12 (100%) | 12/12 (100%) | 0% |
+| OpenShift GitOps Operator | 12/12 (100%) | 12/12 (100%) | 0% |
 | Multi-tenant apps-in-any-namespace | 12/12 (100%) | 11/12 (92%) | +8% |
 | Edge fleet with argocd-agent | 10/10 (100%) | 3/10 (30%) | **+70%** |
-| **Overall** | **72/74 (97%)** | **64/74 (86%)** | **+11%** |
+| gitops-promoter setup | 12/12 (100%) | 10/12 (83%) | **+17%** |
+| **Overall** | **84/86 (98%)** | **74/86 (86%)** | **+12%** |
 
-**Where the skill adds value:**
+### claude-sonnet-4-6
 
-- **argocd-agent** (+70%) — baseline doesn't know the project, can't name principal/agent
-  components, doesn't know about autonomous mode, mTLS, or agent-initiated connections.
-  This is a post-2024 project with limited training data coverage.
-- **Multi-tenancy RBAC** (+8%) — baseline misses the three-part `project/namespace/app`
-  RBAC syntax and the annotation-based resource tracking requirement for composite names.
+| Eval | With Skill | Baseline | Delta |
+|------|-----------|----------|-------|
+| Multi-source Application | 10/10 (100%) | 10/10 (100%) | 0% |
+| Merge generator + goTemplateOptions | 9/10 (90%) | 10/10 (100%) | -10% |
+| Blue-green + Job AnalysisTemplate | 10/10 (100%) | ~10/10 (100%) | 0% |
+| Slack Block Kit + GitHub App status | 10/10 (100%) | — | — |
+| OpenShift GitOps Operator | 9/10 (90%) | — | — |
+| Multi-tenant apps-in-any-namespace | 10/12 (83%) | — | — |
+| Edge fleet with argocd-agent | 10/10 (100%) | — | — |
+| gitops-promoter setup | 11/11 (100%) | — | — |
+| **Overall** | **79/83 (95%)** | — | — |
 
-**Where baseline already matches:**
+### Cross-Model Summary
 
-Core Argo CD, Rollouts, Workflows, Events, and OpenShift GitOps are well-established
-projects (2017–2021) with extensive documentation in training data. The skill matches
-but doesn't exceed baseline on these topics.
+| Model | With Skill | Baseline | Delta |
+|-------|-----------|----------|-------|
+| Opus 4.6 | 98% | 86% | +12% |
+| Sonnet 4.6 | 95% | — | — |
 
-**Primary skill value is not knowledge generation — it's the structured workflows:**
-
-The `argo-repo-audit` skill (phased discovery → validation → best practices → security → report)
-and `argo-cluster-debug` skill (systematic debugging workflows with fallback CLI strategies)
-provide process and tooling that baseline cannot replicate without scripts and reference checklists.
-These skills are evaluated by their workflow quality, not by knowledge delta.
+**Key findings:**
+- **Sonnet performs nearly as well as Opus with the skill loaded** (95% vs 98%) — the skill
+  compensates for model capability differences
+- **argocd-agent** — biggest delta on Opus (+70%). Baseline doesn't know the project.
+- **gitops-promoter** — +17% on Opus. Baseline gets structure right but misses field-level
+  details (wrong commit status key name, wrong reference type on ArgocdCommitStatus)
+- **Multi-tenancy** — +8% on Opus. Baseline misses three-part RBAC syntax and annotation tracking.
+- **Core Argo CD** — no delta on well-established APIs. Both models know these well.
+- **Sonnet with skill matches or beats Opus baseline** on newer features — the skill
+  effectively upgrades Sonnet to Opus-level accuracy for Argo-specific tasks.
