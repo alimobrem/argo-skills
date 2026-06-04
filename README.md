@@ -106,6 +106,8 @@ brew bundle
 
 ## Usage Guide
 
+> **Full guide with all example prompts:** [docs/USER_GUIDE.md](docs/USER_GUIDE.md)
+
 ### How the Skills Work Together
 
 The agent automatically selects the right skill based on what you ask:
