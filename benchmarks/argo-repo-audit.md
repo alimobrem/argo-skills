@@ -1,10 +1,8 @@
 # argo-repo-audit
 
-## v0.1.0 (2026-07-01)
+## v0.2.0 (2026-07-01)
 
-Model: `claude-opus-4-6`
-
-**Results**
+### claude-opus-4-6
 
 | Eval | Type | Score |
 |------|------|-------|
@@ -20,31 +18,34 @@ Model: `claude-opus-4-6`
 | Detect no-deadline workflow | False negative | 4/4 (100%) |
 | Detect hardcoded Helm password | False negative | 4/4 (100%) |
 | Clean repo zero findings | False positive | 9/9 (100%) |
-| **Overall** | | **61/61 (100%)** |
+| Subtle RBAC privilege escalation | Hard: subtle | 6/6 (100%) |
+| **Overall** | | **67/67 (100%)** |
+
+### claude-sonnet-4-6
+
+| Eval | Type | Score |
+|------|------|-------|
+| Subtle RBAC privilege escalation | Hard: subtle | 6/6 (100%) |
+| **Overall** | | **6/6 (100%)** |
+
+### Cross-model notes
+
+- **Subtle RBAC:** Both models caught ClusterRole/ClusterRoleBinding privilege escalation AND exec permission. Both provided attack YAML showing how the escalation works. No false positives on the properly-configured sourceRepos/destinations.
+- The subtle RBAC eval was designed to produce failures — the AppProject looks well-configured at first glance. Both models looked past the surface.
 
 ### Accuracy validation
 
-8 new evals test detection accuracy in isolation:
+13 evals test detection accuracy:
 
-**False negative tests (7):** Each fixture has ONE planted bug. The skill detected every
+**False negative tests (7):** Each fixture has ONE planted bug. Both models detected every
 bug with correct severity classification — Critical for security issues (wildcards,
 plain-text secrets, hardcoded passwords), Warning for operational risks (missing sync
 policy, HEAD in prod, weak analysis, no deadline).
 
-**False positive test (1):** Clean repo follows every best practice — restricted AppProject,
-pinned tags, SealedSecret, AnalysisTemplate with failureCondition+failureLimit, Istio
-traffic routing. The skill correctly reported PASS with zero Critical/Warning findings.
-Notably, the SealedSecret's encrypted `password:` field was correctly identified as
-ciphertext, not a false positive.
+**False positive test (1):** Clean repo follows every best practice. Both models correctly
+reported PASS with zero Critical/Warning findings. SealedSecret ciphertext not false-flagged.
 
-### Prior results (v0.0.2)
-
-| Eval | Score |
-|------|-------|
-| App-of-apps audit | 11/11 (100%) |
-| Mixed-issues audit | 12/12 (100%) |
-| **Overall** | **23/23 (100%)** |
+**Hard eval (1):** Subtle RBAC privilege escalation — AppProject looks restricted but allows
+ClusterRole/ClusterRoleBinding creation (escalation path) and exec into pods.
 
 Evals test outcomes (issues found, report quality) not process (which tools were used).
-The skill's value is in the comprehensive checklists from `references/best-practices.md`
-and `references/security-audit.md` — the model works through them against the repo files.
