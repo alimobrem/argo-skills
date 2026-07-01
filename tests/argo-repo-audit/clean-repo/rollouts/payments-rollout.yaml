@@ -1,0 +1,47 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: payments-api
+  namespace: payments-prod
+spec:
+  replicas: 5
+  strategy:
+    canary:
+      steps:
+        - setWeight: 10
+        - pause: {duration: 120s}
+        - setWeight: 30
+        - analysis:
+            templates:
+              - templateName: payments-success-rate
+        - setWeight: 60
+        - pause: {duration: 300s}
+        - setWeight: 100
+      trafficRouting:
+        istio:
+          virtualServices:
+            - name: payments-api-vs
+          destinationRule:
+            name: payments-api-dr
+            stableSubsetName: stable
+            canarySubsetName: canary
+  selector:
+    matchLabels:
+      app: payments-api
+  template:
+    metadata:
+      labels:
+        app: payments-api
+    spec:
+      containers:
+        - name: payments-api
+          image: quay.io/acme/payments-api:v4.2.1
+          ports:
+            - containerPort: 8443
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi

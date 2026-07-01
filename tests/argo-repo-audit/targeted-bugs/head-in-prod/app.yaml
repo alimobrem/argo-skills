@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: payments-prod
+  namespace: argocd
+  annotations:
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: payments-alerts
+spec:
+  project: payments
+  source:
+    repoURL: https://github.com/acme/payments.git
+    targetRevision: HEAD
+    path: overlays/production
+  destination:
+    server: https://prod-cluster.internal:6443
+    namespace: payments
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 3

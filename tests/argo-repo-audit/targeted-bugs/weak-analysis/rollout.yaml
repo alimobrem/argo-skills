@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: checkout-svc
+  namespace: checkout
+spec:
+  replicas: 5
+  strategy:
+    canary:
+      steps:
+        - setWeight: 20
+        - pause: {duration: 60s}
+        - setWeight: 50
+        - analysis:
+            templates:
+              - templateName: success-rate
+        - setWeight: 100
+  selector:
+    matchLabels:
+      app: checkout-svc
+  template:
+    metadata:
+      labels:
+        app: checkout-svc
+    spec:
+      containers:
+        - name: checkout
+          image: quay.io/acme/checkout-svc:v2.0.0
+          ports:
+            - containerPort: 8080

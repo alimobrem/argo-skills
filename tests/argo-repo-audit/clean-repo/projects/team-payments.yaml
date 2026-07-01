@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: team-payments
+  namespace: argocd
+spec:
+  description: Payments team — restricted to payments repos and namespaces
+  sourceRepos:
+    - https://github.com/acme/payments-api.git
+    - https://github.com/acme/payments-config.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: payments-dev
+    - server: https://kubernetes.default.svc
+      namespace: payments-staging
+    - server: https://kubernetes.default.svc
+      namespace: payments-prod
+  clusterResourceWhitelist: []
+  namespaceResourceBlacklist:
+    - group: ""
+      kind: ResourceQuota
+    - group: ""
+      kind: LimitRange
+  orphanedResources:
+    warn: true
+  roles:
+    - name: payments-dev
+      description: Payments developers — sync dev/staging only
+      policies:
+        - p, proj:team-payments:payments-dev, applications, sync, team-payments/*, allow
+        - p, proj:team-payments:payments-dev, applications, get, team-payments/*, allow
+      groups:
+        - payments-developers

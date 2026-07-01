@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: frontend-web
+  namespace: argocd
+spec:
+  project: team-frontend
+  source:
+    repoURL: https://github.com/acme/frontend-web.git
+    targetRevision: v2.1.0
+    path: manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: frontend
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

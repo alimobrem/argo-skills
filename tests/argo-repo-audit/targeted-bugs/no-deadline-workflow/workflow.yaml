@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: data-pipeline
+  namespace: data-eng
+spec:
+  entrypoint: main
+  templates:
+    - name: main
+      steps:
+        - - name: extract
+            template: extract-data
+        - - name: transform
+            template: transform-data
+        - - name: load
+            template: load-data
+    - name: extract-data
+      container:
+        image: quay.io/acme/etl:latest
+        command: [python, extract.py]
+    - name: transform-data
+      container:
+        image: quay.io/acme/etl:latest
+        command: [python, transform.py]
+    - name: load-data
+      container:
+        image: quay.io/acme/etl:latest
+        command: [python, load.py]

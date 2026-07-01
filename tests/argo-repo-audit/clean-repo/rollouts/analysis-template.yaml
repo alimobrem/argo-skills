@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: payments-success-rate
+  namespace: payments-prod
+spec:
+  metrics:
+    - name: success-rate
+      interval: 30s
+      count: 10
+      successCondition: result[0] >= 0.99
+      failureCondition: result[0] < 0.95
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://prometheus.istio-system:9090
+          query: |
+            sum(rate(istio_requests_total{destination_service_name="payments-api",response_code!~"5.*"}[2m]))
+            /
+            sum(rate(istio_requests_total{destination_service_name="payments-api"}[2m]))
