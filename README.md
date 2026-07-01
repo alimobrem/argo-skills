@@ -117,6 +117,7 @@ The agent automatically selects the right skill based on what you ask:
  Audit a repo ────────────► argo-repo-audit   "Audit this repo"
  Debug a cluster ─────────► argo-cluster-debug "Why is X failing?"
  Make a change ───────────► argo-operations    "Install/create/promote/upgrade..."
+ Onboard a team ──────────► argo-team-onboard  "Set up a new team on Argo CD"
 ```
 
 You don't need to invoke skills manually — just describe what you need.
@@ -299,6 +300,11 @@ Tested on real repos and a live OpenShift cluster.
 <td><a href="benchmarks/argo-operations.md"><b>argo-operations</b></a></td>
 <td><b>87%</b></td>
 <td>Safety model fully compliant: dry-run preview + user confirmation on every write. Context-aware — detects existing installations and adapts.</td>
+</tr>
+<tr>
+<td><a href="benchmarks/argo-team-onboard.md"><b>argo-team-onboard</b></a></td>
+<td><b>100%</b><br><sub>27/27 scored</sub></td>
+<td>Discovery-first onboarding. Refuses overprivileged requests. Branch-per-env promotion with gitops-promoter. Opus and Sonnet both 100%.</td>
 </tr>
 </tbody>
 </table>
