@@ -267,6 +267,64 @@ Destructive operations (delete, prune, rollback) require typing the resource nam
 
 </details>
 
+### Team Onboarding — Set Up New Teams on Argo CD
+
+<p align="center">
+  <img src="assets/screenshots/onboarding-preview.svg" alt="Onboarding Preview" width="820"/>
+</p>
+
+Use when you need to onboard app teams onto Argo CD. The skill discovers what
+each team already has (CI, registry, source type) and generates only the Argo CD
+pieces — no assumptions about your stack.
+
+```text
+# Single team onboarding
+Onboard the payments team. They use Kustomize, deploy from
+https://github.com/acme/payments.git, need dev/staging/prod namespaces.
+
+# Helm-based team
+Onboard analytics — they deploy a Helm chart from OCI registry
+oci://registry.acme.com/charts/analytics with values in a separate config repo.
+
+# Self-service at scale
+Set up self-service onboarding so teams can add themselves via PR.
+
+# Multi-environment with promotion
+Onboard the checkout team with gitops-promoter gating dev → staging → prod.
+Production should require manual approval.
+```
+
+**What it generates:**
+
+| Resource | When | Why |
+|----------|------|-----|
+| AppProject | Always | Security boundary — scoped sourceRepos, destinations, RBAC |
+| Application | Always | Points to team's repo with correct source type (Helm/Kustomize/directory) |
+| RBAC role | Always | Project-scoped permissions for team's SSO group |
+| Namespace + Quota | If needed | When namespaces don't exist yet |
+| PromotionStrategy | If multi-env | Branch-per-environment promotion with health gates |
+| ApplicationSet | If self-service | teams.yaml + git-file generator for scaling |
+
+**What it refuses:**
+
+| Request | Response |
+|---------|----------|
+| `sourceRepos: '*'` | Lists repos explicitly — wildcards defeat multi-tenancy |
+| `clusterResourceWhitelist: '*/*'` | Scopes to specific CRD groups needed |
+| `exec` permission | Redirects to kubectl exec with scoped RBAC |
+| Hardcoded secrets | References ExternalSecret or SealedSecret patterns |
+
+<details>
+<summary>Reference docs included</summary>
+
+| Topic | Reference |
+|-------|-----------|
+| What gets created, AppProject/Application/RBAC templates, validation checklist | `onboarding-guide.md` |
+| Self-service via ApplicationSet + teams.yaml, PR workflow, guard rails | `self-service-pattern.md` |
+| Helm/Kustomize/directory variants, Rollouts, notifications, sync windows, promoter | `onboarding-variants.md` |
+
+</details>
+
 ## Benchmarks
 
 Evals test **outcomes** (issues found, report quality), not process (which tools were used).
