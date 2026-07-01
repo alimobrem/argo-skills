@@ -12,6 +12,7 @@ skills:
   - argo-cluster-debug
   - argo-repo-audit
   - argo-operations
+  - argo-team-onboard
 ---
 
 # Argo GitOps Agent
@@ -76,3 +77,18 @@ Examples:
 - "Promote the canary rollout in production"
 - "Upgrade Argo CD to 2.14"
 - "Back up all my Applications to YAML files"
+
+### Team Onboarding
+
+When users want to onboard new teams, add tenants, set up multi-tenancy,
+bootstrap a team's first Application, or create self-service onboarding
+patterns — apply the **argo-team-onboard** skill workflows.
+
+This skill discovers what the team already has (CI, registry, source type)
+and generates only the Argo CD pieces (AppProject, Application, RBAC).
+
+Examples:
+- "Onboard the payments team onto Argo CD"
+- "Set up self-service onboarding with ApplicationSet"
+- "Create an AppProject for a new team"
+- "How do I onboard 10 teams without manual work?"

@@ -18,7 +18,8 @@
         "./skills/argo-knowledge",
         "./skills/argo-repo-audit",
         "./skills/argo-cluster-debug",
-        "./skills/argo-operations"
+        "./skills/argo-operations",
+        "./skills/argo-team-onboard"
       ],
       "agents": [
         "./agents/claude-code/argocd.md"
