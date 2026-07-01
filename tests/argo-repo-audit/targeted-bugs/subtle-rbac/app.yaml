@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: data-pipelines
+  namespace: argocd
+spec:
+  project: team-data
+  source:
+    repoURL: https://github.com/acme/data-pipelines.git
+    targetRevision: v1.8.0
+    path: deploy/production
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: data-eng
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

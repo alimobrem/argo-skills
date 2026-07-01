@@ -164,6 +164,19 @@
         "Reports overall status as PASS",
         "Does NOT produce false positives — this repo is intentionally clean"
       ]
+    },
+    {
+      "id": 13,
+      "name": "Subtle RBAC: looks restricted but has privilege escalation",
+      "prompt": "Audit the Argo CD GitOps repository at tests/argo-repo-audit/targeted-bugs/subtle-rbac/ using the argo-repo-audit skill. This repo has one AppProject and one Application. The AppProject looks well-configured at first glance — restricted sourceRepos, scoped destinations, explicit clusterResourceWhitelist. Look carefully.",
+      "expectations": [
+        "Flags clusterResourceWhitelist allowing ClusterRole and ClusterRoleBinding as a privilege escalation risk — the data team can create ClusterRoleBindings that grant themselves (or their apps) cluster-admin",
+        "Flags the exec permission in the project role (exec, create) as a security risk — allows terminal access into running pods, which can be used to access node-level resources, service account tokens, and secrets",
+        "Does NOT flag sourceRepos or destinations — those are properly restricted",
+        "Does NOT flag the Application — it has proper syncPolicy, pinned targetRevision, and retry",
+        "Explains why ClusterRole+ClusterRoleBinding in clusterResourceWhitelist is dangerous even when destinations are scoped — the created ClusterRoleBinding applies cluster-wide, not just to the allowed namespaces",
+        "Reports overall status as FAIL or WARN due to the privilege escalation path"
+      ]
     }
   ]
 }

@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: team-data
+  namespace: argocd
+spec:
+  description: Data engineering team
+  sourceRepos:
+    - https://github.com/acme/data-pipelines.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: data-eng
+    - server: https://kubernetes.default.svc
+      namespace: data-staging
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+  roles:
+    - name: data-admin
+      policies:
+        - p, proj:team-data:data-admin, applications, *, team-data/*, allow
+        - p, proj:team-data:data-admin, exec, create, team-data/*, allow
+      groups:
+        - data-engineers
