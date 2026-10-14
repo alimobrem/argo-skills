@@ -9,7 +9,7 @@ ROLLOUTS_VERSION := v1.8.2
 WORKFLOWS_VERSION := v3.6.5
 EVENTS_VERSION := v1.10.1
 
-.PHONY: help download-schemas clean-schemas test-discover test-validate eval eval-knowledge eval-repo-audit eval-cluster-debug
+.PHONY: help download-schemas clean-schemas test-discover test-validate eval eval-knowledge eval-repo-audit eval-cluster-debug eval-performance-tuning
 
 download-schemas: clean-schemas ## Download Argo CRD schemas for kubeconform validation
 	@mkdir -p $(SCHEMAS_DIR)
@@ -43,7 +43,7 @@ test-validate: ## Run validation script on test fixtures
 	$(VALIDATE_SCRIPT) -d $(TEST_DIR)/app-of-apps
 	$(VALIDATE_SCRIPT) -d $(TEST_DIR)/applicationset
 
-eval: eval-knowledge eval-repo-audit eval-cluster-debug ## Run all skill evals
+eval: eval-knowledge eval-repo-audit eval-cluster-debug eval-performance-tuning ## Run all skill evals
 
 eval-knowledge: ## Run argo-knowledge evals
 	@echo "Running argo-knowledge evals..."
@@ -66,6 +66,14 @@ eval-cluster-debug: ## Run argo-cluster-debug evals (requires live cluster)
 	@claude --print --dangerously-skip-permissions \
 		"Read skills/argo-cluster-debug/evals/evals.json. For each eval: \
 		1. Spawn a sub-agent that reads skills/argo-cluster-debug/SKILL.md first, then follows the debug workflow. \
+		2. Score the output against the expectations array. \
+		Report a scorecard table: eval id, passed/total, and list any failed expectations."
+
+eval-performance-tuning: ## Run argo-performance-tuning evals (requires live cluster)
+	@echo "Running argo-performance-tuning evals (requires kubectl access)..."
+	@claude --print --dangerously-skip-permissions \
+		"Read skills/argo-performance-tuning/evals/evals.json. For each eval: \
+		1. Spawn a sub-agent that reads skills/argo-performance-tuning/SKILL.md first, then follows the assess/diagnose/tune workflow. \
 		2. Score the output against the expectations array. \
 		Report a scorecard table: eval id, passed/total, and list any failed expectations."
 

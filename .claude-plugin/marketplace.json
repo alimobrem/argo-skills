@@ -11,7 +11,7 @@
   "plugins": [
     {
       "name": "argo-skills",
-      "description": "Collection of skills for Argo CD, Rollouts, Workflows, and Events — knowledge, manifest generation, repository auditing, cluster debugging, and operations",
+      "description": "Collection of skills for Argo CD, Rollouts, Workflows, and Events — knowledge, manifest generation, repository auditing, cluster debugging, operations, and performance tuning",
       "source": "./",
       "strict": false,
       "skills": [
@@ -19,6 +19,7 @@
         "./skills/argo-repo-audit",
         "./skills/argo-cluster-debug",
         "./skills/argo-operations",
+        "./skills/argo-performance-tuning",
         "./skills/argo-team-onboard"
       ],
       "agents": [

@@ -4,7 +4,7 @@ description: >
   Set up, deploy, promote, and manage Argo ecosystem resources on live Kubernetes
   and OpenShift clusters. Covers Argo CD installation (Helm, operator, Autopilot),
   Application and ApplicationSet lifecycle, Rollout promotion and rollback, and
-  day-2 operations (upgrades, API migration, scaling). Every write operation uses
+  day-2 operations (upgrades, API migration, scaling replica counts). Every write operation uses
   dry-run first and requires explicit user confirmation before applying. Use when
   users want to install Argo CD, create or sync Applications, promote Rollouts,
   or perform operational changes on their Argo setup.
@@ -118,6 +118,7 @@ for a cluster you cannot validate against.
 | "Create an Application/ApplicationSet" | Phase 2: Deploy | `references/deployment.md` |
 | "Sync/deploy/promote/rollback" | Phase 3: Promote | `references/progressive-delivery.md` |
 | "Upgrade/migrate/scale/backup" | Phase 4: Maintain | `references/day2-operations.md` |
+| "Tune for performance/scale, fix OOM/timeouts, speed up sync" | Redirect to `argo-performance-tuning` | — |
 | "Debug/troubleshoot/why is X broken" | Redirect to `argo-cluster-debug` | — |
 | "What is/how does/explain" | Redirect to `argo-knowledge` | — |
 | "Audit/review my repo" | Redirect to `argo-repo-audit` | — |

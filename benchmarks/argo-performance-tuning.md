@@ -1,0 +1,105 @@
+# argo-performance-tuning
+
+## v0.1.0 (2026-10-14)
+
+**Methodology note:** evaluated via Cursor subagents rather than the `claude` CLI used by the
+other benchmarks in this repo. For practicality, each (model, condition) pair was run as a
+single subagent session handling all 14 scenarios as independent, non-cross-referencing prompts
+(rather than 14 separate subagent spawns) — instructed explicitly not to let answers leak across
+scenarios. Scoring was done by the orchestrating agent reading each full transcript against the
+written `expectations` arrays in `evals/evals.json`. Models are Cursor's currently available
+subagent slugs, labeled below by vendor-neutral tier name since they don't map 1:1 to this
+repo's historical `claude-opus-4-6`/`claude-sonnet-4-6` naming.
+
+### Opus-tier (`claude-4.6-opus-high-thinking`)
+
+| Eval | With Skill | Baseline | Delta |
+|------|-----------|----------|-------|
+| 1. Repo-server OOMKilled on monorepo mass sync | 7/7 (100%) | 2/7 (29%) | +71% |
+| 2. Sluggish UI / slow drift detection at scale | 6/6 (100%) | 4/6 (67%) | +33% |
+| 3. Single controller maxed out across 20 clusters | 6/6 (100%) | 3/6 (50%) | +50% |
+| 4. Context deadline exceeded on a large chart | 5/5 (100%) | 0/5 (0%) | **+100%** |
+| 5. Git provider rate-limiting across 500 apps | 3/4 (75%) | 0/4 (0%) | +75% |
+| 6. High baseline load without webhooks | 5/5 (100%) | 4/5 (80%) | +20% |
+| 7. User requests the known Operator misconfiguration | 5/5 (100%) | 0/5 (0%) | **+100%** |
+| 8. Sharding requested with only one cluster | 4/4 (100%) | 4/4 (100%) | 0% |
+| 9. Floating tag freshness vs. cache TTL | 4/4 (100%) | 4/4 (100%) | 0% |
+| 10. Shallow clone on public repo, no Secret yet | 4/4 (100%) | 1/4 (25%) | +75% |
+| 11. Unsupported sharding algorithm requested | 4/4 (100%) | 2/4 (50%) | +50% |
+| 12. Multiple simultaneous symptoms — prioritization | 5/5 (100%) | 2/5 (40%) | +60% |
+| 13. Safety-model compliance on direct apply request | 4/4 (100%) | 2/4 (50%) | +50% |
+| 14. Standalone Argo CD, not the Operator | 5/5 (100%) | 4/5 (80%) | +20% |
+| **Overall** | **67/68 (99%)** | **32/68 (47%)** | **+52%** |
+
+### Sonnet-tier (`claude-sonnet-5-thinking-xhigh`)
+
+| Eval | With Skill | Baseline | Delta |
+|------|-----------|----------|-------|
+| 1. Repo-server OOMKilled on monorepo mass sync | 7/7 (100%) | 4/7 (57%) | +43% |
+| 2. Sluggish UI / slow drift detection at scale | 6/6 (100%) | 3/6 (50%) | +50% |
+| 3. Single controller maxed out across 20 clusters | 6/6 (100%) | 3/6 (50%) | +50% |
+| 4. Context deadline exceeded on a large chart | 5/5 (100%) | 2/5 (40%) | +60% |
+| 5. Git provider rate-limiting across 500 apps | 4/4 (100%) | 0/4 (0%) | **+100%** |
+| 6. High baseline load without webhooks | 5/5 (100%) | 4/5 (80%) | +20% |
+| 7. User requests the known Operator misconfiguration | 5/5 (100%) | 2/5 (40%) | +60% |
+| 8. Sharding requested with only one cluster | 4/4 (100%) | 4/4 (100%) | 0% |
+| 9. Floating tag freshness vs. cache TTL | 4/4 (100%) | 4/4 (100%) | 0% |
+| 10. Shallow clone on public repo, no Secret yet | 4/4 (100%) | 0/4 (0%) | **+100%** |
+| 11. Unsupported sharding algorithm requested | 4/4 (100%) | 3/4 (75%) | +25% |
+| 12. Multiple simultaneous symptoms — prioritization | 5/5 (100%) | 3/5 (60%) | +40% |
+| 13. Safety-model compliance on direct apply request | 4/4 (100%) | 2/4 (50%) | +50% |
+| 14. Standalone Argo CD, not the Operator | 5/5 (100%) | 4/5 (80%) | +20% |
+| **Overall** | **68/68 (100%)** | **38/68 (56%)** | **+44%** |
+
+### Cross-Model Summary
+
+| Model | With Skill | Baseline | Delta |
+|-------|-----------|----------|-------|
+| Opus-tier | 99% | 47% | +52% |
+| Sonnet-tier | 100% | 56% | +44% |
+
+**Key findings:**
+
+- **Both models are effectively perfect with the skill loaded** (99–100%). The one Opus miss
+  (eval 5) was a minor omission — it recommended the right setting and value but didn't
+  explicitly contrast it against `ARGOCD_REPO_SERVER_PARALLELISM_LIMIT`, which the Sonnet run
+  did.
+- **Eval 7 (Operator misconfiguration) is the clearest demonstration of value.** The prompt
+  directly asks the agent to put `controller.status.processors`/`controller.operation.processors`
+  under `spec.extraConfig` — the exact mistake this skill's reference calls out by name. Baseline
+  Opus **validated the user's broken request outright** ("This is a reasonable and well-targeted
+  request") and generated the non-functional patch as asked — 0/5, the single most concerning
+  baseline result in the set, since nothing in the baseline's own response would have alerted the
+  user that their change silently does nothing. Baseline Sonnet sensed something was wrong and
+  pushed back, but "corrected" it to a different, also-incorrect location (`spec.controller.env`
+  with invented env var names `ARGOCD_CONTROLLER_STATUS_PROCESSORS`/`_OPERATION_PROCESSORS` that
+  don't exist in Argo CD) — 2/5. Both skill-equipped runs caught the mistake and produced the
+  real fix (`spec.controller.processors.status`/`.operation`) — 5/5 each.
+- **Eval 5 and eval 10 are near-total baseline blind spots on both models** (0/4 on three of the
+  four baseline/model combinations). Neither model's unaided knowledge included
+  `ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT` (eval 5) or the repository Secret `depth` field for
+  shallow cloning (eval 10) — baseline Sonnet explicitly and honestly declined to invent a field
+  name for the latter ("I don't want to invent a key name that doesn't exist"), which is good
+  epistemic behavior but still produced zero practical help. Baseline Opus, by contrast,
+  **hallucinated a plausible but nonexistent field name** (`fetchDepth` instead of `depth`) —
+  worse than admitting uncertainty, since a user could apply it and have it silently not work.
+- **Eval 4 (timeout alignment) is a strong Opus-specific gap** (0/5 baseline) — Opus baseline
+  conflated the `argocd-server`→repo-server timeout with a generic ingress/Route timeout and
+  never named `ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS` at all, missing the
+  three-timeout chain entirely.
+- **Evals 8 and 9 show zero delta on both models** — "sharding needs >1 cluster" and "cache TTL
+  isn't an image-freshness knob" are derivable from general GitOps/caching reasoning without
+  Argo-specific knowledge, and both baselines got there unaided. These are useful as a sanity
+  check that the skill isn't just winning by default — the delta is concentrated exactly where
+  specialized, version-specific knowledge is actually required.
+- **Baseline sharding-algorithm guidance (eval 11) is where baseline models actively disagree
+  with the skill's recommendation**, not just omit detail: both baselines recommended
+  `consistent-hashing` as the preferred choice for OpenShift GitOps without the
+  not-officially-supported caveat (Opus baseline even argued affirmatively for it), where the
+  skill recommends `round-robin` specifically because of that support gap.
+- **Sonnet-tier baseline modestly outperforms Opus-tier baseline overall** (56% vs. 47%) in this
+  run — driven mostly by Sonnet's more cautious hedging on uncertain settings (it says "I'm not
+  sure" rather than inventing specifics in several places) versus Opus baseline's tendency to
+  state incorrect specifics confidently (the `extraConfig` validation in eval 7, the `fetchDepth`
+  field in eval 10, the pro-`consistent-hashing` stance in eval 11). With the skill loaded, this
+  gap disappears entirely.

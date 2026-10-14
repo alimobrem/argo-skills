@@ -12,7 +12,7 @@
 
 <p align="center">
   <b>Give your AI agent deep expertise in Argo CD, Rollouts, Workflows, and Events.</b><br>
-  Generate manifests, audit repos, debug clusters, and manage operations — all from your terminal.
+  Generate manifests, audit repos, debug clusters, tune performance, and manage operations — all from your terminal.
 </p>
 
 ---
@@ -43,7 +43,7 @@
 /plugin install argo-skills@argocd
 ```
 
-After install, the `argocd` agent appears in `/agents` and the 4 skills auto-trigger
+After install, the `argocd` agent appears in `/agents` and the 6 skills auto-trigger
 based on context. Run `/reload-plugins` if they don't appear immediately.
 
 </details>
@@ -117,6 +117,7 @@ The agent automatically selects the right skill based on what you ask:
  Audit a repo ────────────► argo-repo-audit   "Audit this repo"
  Debug a cluster ─────────► argo-cluster-debug "Why is X failing?"
  Make a change ───────────► argo-operations    "Install/create/promote/upgrade..."
+ Tune performance ────────► argo-performance-tuning "Why is this slow at scale?"
  Onboard a team ──────────► argo-team-onboard  "Set up a new team on Argo CD"
 ```
 
@@ -267,6 +268,42 @@ Destructive operations (delete, prune, rollback) require typing the resource nam
 
 </details>
 
+### Performance Tuning — Diagnose & Fix Slowness at Scale
+
+Use when Argo CD/OpenShift GitOps is slow, resource-hungry, or struggling at scale.
+
+```text
+# Repo-server under pressure
+Our argocd-repo-server keeps getting OOMKilled every time we push to our
+  500-application monorepo.
+
+# UI/controller sluggishness
+The Argo CD UI feels sluggish and drift detection takes forever with 2,000 apps.
+
+# Multi-cluster scaling
+We have 20 clusters registered but only one application-controller pod and
+  it's maxed out on CPU.
+
+# Timeout errors
+Users see "context deadline exceeded" opening an Application with a huge Helm chart.
+
+# Git provider limits
+Our GitHub org is rate-limiting us — 500 apps all point at the same repo and branch.
+```
+
+Diagnoses the bottleneck first (repo-server concurrency, controller processors, sharding,
+Git rate-limits, cache behavior), then applies the same **Generate → Preview → Confirm**
+safety model as Operations before changing anything live.
+
+<details>
+<summary>Reference docs included</summary>
+
+| Topic | Reference |
+|-------|-----------|
+| Full settings table, per-setting fixes, sharding algorithms, standalone vs. OpenShift GitOps Operator YAML, common mistakes, tuning order of leverage | `tuning-settings.md` |
+
+</details>
+
 ### Team Onboarding — Set Up New Teams on Argo CD
 
 <p align="center">
@@ -358,6 +395,11 @@ Tested on real repos and a live OpenShift cluster.
 <td><a href="benchmarks/argo-operations.md"><b>argo-operations</b></a></td>
 <td><b>87%</b></td>
 <td>Safety model fully compliant: dry-run preview + user confirmation on every write. Context-aware — detects existing installations and adapts.</td>
+</tr>
+<tr>
+<td><a href="benchmarks/argo-performance-tuning.md"><b>argo-performance-tuning</b></a></td>
+<td><b>99–100%</b><br><sub>vs 47–56% baseline</sub></td>
+<td>+52% (Opus-tier) / +44% (Sonnet-tier) vs. unaided baseline, 14 evals × 2 models × with-skill/baseline. Biggest deltas: catches the <code>spec.extraConfig</code> processors misconfiguration baseline Opus validated outright (+100%), timeout-chain alignment (+100% Opus), Git <code>ls-remote</code> rate-limit setting unknown to both baselines (+100% Sonnet). Zero delta on reasoning derivable without Argo-specific knowledge (single-cluster sharding, cache-TTL-vs-image-freshness).</td>
 </tr>
 <tr>
 <td><a href="benchmarks/argo-team-onboard.md"><b>argo-team-onboard</b></a></td>

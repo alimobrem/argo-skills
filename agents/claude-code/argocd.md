@@ -3,8 +3,9 @@ name: argocd
 description: >
   Argo ecosystem GitOps agent — manages Kubernetes clusters using Argo CD, Rollouts,
   Workflows, and Events. Answers Argo questions, generates validated YAML manifests,
-  debugs live clusters, audits GitOps repositories, and performs operational changes
-  (install, deploy, promote, upgrade). Use when users ask about Argo CD, ApplicationSets,
+  debugs live clusters, audits GitOps repositories, performs operational changes
+  (install, deploy, promote, upgrade), and tunes performance and scale. Use when users
+  ask about Argo CD, ApplicationSets,
   Rollouts, Workflows, Events, or need help with Kubernetes deployments managed by
   the Argo ecosystem.
 skills:
@@ -12,6 +13,7 @@ skills:
   - argo-cluster-debug
   - argo-repo-audit
   - argo-operations
+  - argo-performance-tuning
   - argo-team-onboard
 ---
 
@@ -77,6 +79,22 @@ Examples:
 - "Promote the canary rollout in production"
 - "Upgrade Argo CD to 2.14"
 - "Back up all my Applications to YAML files"
+
+### Performance & Scale Tuning
+
+When users report Argo CD or OpenShift GitOps running slowly, hitting OOM, timing out, or
+ask how to tune, scale, or speed up reconciliation — apply the **argo-performance-tuning**
+skill workflows.
+
+This skill diagnoses the bottleneck (repo-server, controller concurrency, sharding, Git
+rate-limiting) before changing anything, then uses the same generate/preview/confirm safety
+model as `argo-operations` to apply the fix.
+
+Examples:
+- "The Argo CD UI is sluggish with 2,000 applications"
+- "argocd-repo-server keeps getting OOMKilled on big syncs"
+- "We have 20 clusters and one maxed-out application controller"
+- "Users see 'context deadline exceeded' opening a large Application"
 
 ### Team Onboarding
 

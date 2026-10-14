@@ -133,6 +133,31 @@ Migrate deprecated APIs to the latest versions.
 Set up gitops-promoter for environment promotion of our payments app.
 ```
 
+### Performance Tuning — Diagnose & Fix Slowness
+
+```text
+# Repo-server under pressure
+Our argocd-repo-server keeps getting OOMKilled every time we push to our
+  500-application monorepo.
+
+# UI/controller sluggishness
+The Argo CD UI feels sluggish and drift detection takes forever with 2,000 apps.
+
+# Multi-cluster scaling
+We have 20 clusters registered but only one application-controller pod and
+  it's maxed out on CPU.
+
+# Timeout errors
+Users see "context deadline exceeded" opening an Application with a huge Helm chart.
+
+# Git provider limits
+Our GitHub org is rate-limiting us — 500 apps all point at the same repo and branch.
+
+# No webhooks at scale
+We have 5,000 applications and no Git webhooks — baseline CPU is very high
+  even when nothing changed.
+```
+
 ## Make Commands (Developer)
 
 ```shell
@@ -155,6 +180,7 @@ make eval
 make eval-knowledge
 make eval-repo-audit
 make eval-cluster-debug
+make eval-performance-tuning
 
 # Clean schemas
 make clean-schemas
