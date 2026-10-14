@@ -289,10 +289,17 @@ Users see "context deadline exceeded" opening an Application with a huge Helm ch
 
 # Git provider limits
 Our GitHub org is rate-limiting us — 500 apps all point at the same repo and branch.
+
+# Reconciliation churn (no real drift)
+Our controller CPU is constantly high even though every Application shows
+  Synced/Healthy — nothing in Git has changed.
 ```
 
-Diagnoses the bottleneck first (repo-server concurrency, controller processors, sharding,
-Git rate-limits, cache behavior), then applies the same **Generate → Preview → Confirm**
+Diagnoses the bottleneck first — including whether the controller is reconciling for the
+right reasons at all (`resource.ignoreResourceUpdatesEnabled`, `resource.exclusions`,
+per-Application `manifest-generate-paths` cache scoping for monorepos) before reaching for
+repo-server concurrency, controller processors, sharding (static or Dynamic Cluster
+Distribution), or Git rate-limits — then applies the same **Generate → Preview → Confirm**
 safety model as Operations before changing anything live.
 
 <details>
@@ -383,18 +390,18 @@ Tested on real repos and a live OpenShift cluster.
 </tr>
 <tr>
 <td><a href="benchmarks/argo-repo-audit.md"><b>argo-repo-audit</b></a></td>
-<td><b>100%</b></td>
-<td>Catches all Critical issues: wildcard AppProjects, plain-text Secrets, hardcoded passwords, missing sync policies, HEAD revisions, weak AnalysisTemplates.</td>
+<td><b>94–98%</b><br><sub>vs 84% baseline</sub></td>
+<td>Catches all Critical issues (wildcard AppProjects, plain-text Secrets, hardcoded passwords) in every condition, with or without the skill — this draws on general security judgment both models already have. The skill's real gap-closing is on comprehensiveness: ApplicationSet-specific checklist items (<code>goTemplateOptions</code>, <code>preserveResourcesOnDeletion</code>) that baseline reliably skips on open-ended audits.</td>
 </tr>
 <tr>
 <td><a href="benchmarks/argo-cluster-debug.md"><b>argo-cluster-debug</b></a></td>
-<td><b>97.5%</b></td>
-<td>Advanced evals on live OpenShift: multi-tenant ArgoCD audit, ApplicationSet deep dive, Rollout analysis (flagged trivial AnalysisTemplates), config review, sync wave ordering.</td>
+<td><b>99–100%</b><br><sub>vs 93% baseline</sub></td>
+<td>97.5% on the original live-OpenShift advanced evals (multi-tenant audit, ApplicationSet deep dive, Rollout analysis). On the expanded 13-eval cross-model run, narrowest with-skill/baseline gap of any skill (+6–7%) — Argo troubleshooting patterns are well-represented in general training data; the skill's edge is committing to a specific root cause instead of a generic checklist.</td>
 </tr>
 <tr>
 <td><a href="benchmarks/argo-operations.md"><b>argo-operations</b></a></td>
-<td><b>87%</b></td>
-<td>Safety model fully compliant: dry-run preview + user confirmation on every write. Context-aware — detects existing installations and adapts.</td>
+<td><b>99–100%</b><br><sub>vs 74–89% baseline</sub></td>
+<td>Safety model fully compliant: dry-run preview + confirmation on every write. Cross-model run shows the gap is mostly the confirmation gate itself — baseline Opus skipped it 74% of the time, baseline Sonnet adopted it unprompted 89% of the time, closed to 100% for both once the skill enforces it explicitly.</td>
 </tr>
 <tr>
 <td><a href="benchmarks/argo-performance-tuning.md"><b>argo-performance-tuning</b></a></td>
@@ -403,8 +410,8 @@ Tested on real repos and a live OpenShift cluster.
 </tr>
 <tr>
 <td><a href="benchmarks/argo-team-onboard.md"><b>argo-team-onboard</b></a></td>
-<td><b>100%</b><br><sub>27/27 scored</sub></td>
-<td>Discovery-first onboarding. Refuses overprivileged requests. Branch-per-env promotion with gitops-promoter. Opus and Sonnet both 100%.</td>
+<td><b>100%</b><br><sub>vs 72–76% baseline</sub></td>
+<td>Discovery-first onboarding, Opus and Sonnet both 100% with skill. Sharpest finding in this repo: asked for wildcard <code>sourceRepos</code>/<code>clusterResourceWhitelist</code>/<code>exec</code>, both baseline models <i>generated the overprivileged config exactly as asked</i> with a caveat attached — neither refused. Both skill-equipped runs refused and substituted the scoped alternative, as the skill's hard rules require.</td>
 </tr>
 </tbody>
 </table>
@@ -427,62 +434,78 @@ Tested on real repos and a live OpenShift cluster.
 <td><b>98%</b></td>
 <td>86%</td>
 <td><b>95%</b></td>
-<td>—</td>
+<td>88%<sup>†</sup></td>
 </tr>
 <tr>
-<td><b>argo-repo-audit</b> (11 / 1<sup>†</sup> evals)</td>
+<td><b>argo-repo-audit</b> (13 evals)</td>
+<td><b>98%</b></td>
+<td>84%</td>
+<td><b>94%</b></td>
+<td>84%</td>
+</tr>
+<tr>
+<td><b>argo-cluster-debug</b> (13 evals)</td>
+<td><b>99%</b></td>
+<td>93%</td>
 <td><b>100%</b></td>
-<td>—</td>
+<td>93%</td>
+</tr>
+<tr>
+<td><b>argo-operations</b> (13 evals)</td>
+<td><b>99%</b></td>
+<td>74%</td>
 <td><b>100%</b></td>
-<td>—</td>
+<td>89%</td>
 </tr>
 <tr>
-<td><b>argo-cluster-debug</b> (5 evals)</td>
-<td><b>97.5%</b></td>
-<td>—</td>
-<td>—</td>
-<td>—</td>
-</tr>
-<tr>
-<td><b>argo-operations</b> (5 evals)</td>
-<td><b>87%</b></td>
-<td>—</td>
-<td>—</td>
-<td>—</td>
-</tr>
-<tr>
-<td><b>argo-performance-tuning</b> (14 evals)</td>
+<td><b>argo-performance-tuning</b> (14 evals<sup>‡</sup>)</td>
 <td><b>99%</b></td>
 <td>47%</td>
 <td><b>100%</b></td>
 <td>56%</td>
 </tr>
 <tr>
-<td><b>argo-team-onboard</b> (3 / 2<sup>†</sup> evals)</td>
+<td><b>argo-team-onboard</b> (13 evals)</td>
 <td><b>100%</b></td>
-<td>—</td>
+<td>72%</td>
 <td><b>100%</b></td>
-<td>—</td>
+<td>76%</td>
 </tr>
 </tbody>
 </table>
 
-<sup>†</sup> Sonnet was run on a subset of the Opus eval set for this skill (see its
-`benchmarks/*.md` for the exact evals covered) — the two "+ Skill" scores aren't over an
-identical eval count.
+`—` meant that condition was never run for that skill — as of this run, every cell in this table
+has a real score and no skill has an unrun condition left. See each skill's `benchmarks/*.md`
+for the full per-eval breakdown and methodology notes (in particular, `argo-team-onboard`'s
+baseline runs were not given the same "simulate a committed outcome" instruction as the
+with-skill runs, which affects one eval; `argo-repo-audit` is a static-file-audit skill, so its
+baseline runs had real read access to the same fixture files as the with-skill runs, differing
+only in whether `SKILL.md`/`references/` were loaded).
 
-`—` means that condition was never run for that skill, not that it scored zero.
-`argo-repo-audit`, `argo-cluster-debug`, `argo-operations`, and `argo-team-onboard` were
-benchmarked on raw task accuracy / safety-model compliance with the skill loaded, not on a
-skill-vs-no-skill ablation — only `argo-knowledge` and `argo-performance-tuning` have a real
-baseline (no skill loaded) run on both models.
+<sup>†</sup> `argo-knowledge`'s Sonnet Baseline was scored against a slightly expanded
+`evals.json` (88 checks) than the Opus columns in this row were originally scored against (86
+checks) — see `benchmarks/argo-knowledge.md` for the exact delta. Directionally comparable, not
+a perfectly controlled identical-rubric diff.
 
-> **Sonnet + skill (95–100%) beats Opus without skill (47–86%) on every skill where a
-> baseline exists.** The gap is widest on `argo-performance-tuning` (100% vs. 47%, +53
-> points) — the skill whose baseline evals are the most adversarial, including an Operator
-> misconfiguration trap that baseline Opus validated and applied without question. The skill
-> effectively upgrades a cheaper, faster model to exceed the expensive model's baseline
-> accuracy on Argo-specific tasks — a strong case for cost-conscious teams.
+<sup>‡</sup> `argo-performance-tuning`'s `evals.json` now has 21 scenarios after a web-research
+pass added 7 covering settings this skill didn't previously document (`resource.exclusions`,
+`manifest-generate-paths`, Dynamic Cluster Distribution, and others — see
+`references/tuning-settings.md`). The 99%/47%/100%/56% scores above are the real, unmodified
+result of the original 14-eval benchmark and have not been re-run against the new 21; treat
+them as the pre-expansion baseline, not a current full-coverage score.
+
+> **Sonnet + skill (94–100%) beats Opus without skill (47–93%) on every skill — but the size of
+> that gap varies enormously by skill.** It's widest on `argo-performance-tuning` (100% vs.
+> 47%, +53 points) and `argo-team-onboard` (100% vs. 72%, +28 points) — skills whose baseline
+> evals include an adversarial trap (an Operator misconfiguration both models' baselines
+> validated outright; an overprivileged-RBAC request both baselines generated as asked instead
+> of refusing). It's narrowest on `argo-cluster-debug` (100% vs. 93%, +7 points) and
+> `argo-repo-audit` (94–98% vs. 84%, +10–14 points) — tasks where the underlying judgment (common
+> troubleshooting patterns; "wildcard RBAC and plaintext secrets are bad") is common enough that
+> baseline models already handle most of it correctly without any skill-specific knowledge. The
+> skill's real, measurable value is concentrated in the specific settings, CRD-field names,
+> checklist comprehensiveness, and hard safety rules that aren't common knowledge — not a flat
+> tax on every task.
 
 <sub>Run locally with <code>make eval</code> or via GitHub Actions (<code>evals</code> workflow).
 Full results per model in <a href="benchmarks/">benchmarks/</a>.</sub>

@@ -1,12 +1,15 @@
 ---
 name: argo-performance-tuning
 description: >
-  Diagnoses and tunes OpenShift GitOps / Argo CD performance and scalability — repo-server
-  Git and caching behavior, application-controller sharding and concurrency, API-server
-  timeouts, and reconciliation/webhook tuning. Maps symptoms (slow or stuck UI, OOMKilled
-  repo-server, backed-up sync queue, Git provider rate-limiting, sluggish drift detection,
-  "context deadline exceeded" errors) to the specific setting that fixes them, for both
-  standalone Argo CD (ConfigMaps + env vars) and the OpenShift GitOps Operator (ArgoCD CR).
+  Diagnoses and tunes OpenShift GitOps / Argo CD performance and scalability — reducing
+  unnecessary reconciliation at the source (resource-update ignore rules, resource exclusions,
+  monorepo manifest-cache scoping), repo-server Git and caching behavior, application-controller
+  sharding (static and dynamic) and concurrency, Kubernetes client tuning against managed
+  clusters, self-heal pacing, API-server timeouts, and reconciliation/webhook tuning. Maps
+  symptoms (slow or stuck UI, OOMKilled repo-server, backed-up sync queue, Git provider
+  rate-limiting, sluggish drift detection, "context deadline exceeded" errors, high baseline
+  CPU from status churn or repeated self-heal) to the specific setting that fixes them, for
+  both standalone Argo CD (ConfigMaps + env vars) and the OpenShift GitOps Operator (ArgoCD CR).
   Use when users report Argo CD or OpenShift GitOps running slowly at scale, hitting OOM,
   timing out, or ask how to tune, scale, speed up, or reduce resource usage of GitOps
   reconciliation.
@@ -79,6 +82,11 @@ kubectl get pods -n "$NS" -l app.kubernetes.io/name=argocd-application-controlle
 kubectl get configmap argocd-cm -n "$NS" -o jsonpath='{.data.timeout\.reconciliation}{"\n"}{.data.timeout\.reconciliation\.jitter}{"\n"}' 2>/dev/null
 kubectl get configmap argocd-cmd-params-cm -n "$NS" -o yaml 2>/dev/null
 kubectl get argocd -n "$NS" -o yaml 2>/dev/null   # Operator-managed: spec.repo.env / spec.controller.* / spec.extraConfig
+
+# Whether reconciliation-at-the-source reduction is already configured — check before assuming
+# timeout.reconciliation is the only lever
+kubectl get configmap argocd-cm -n "$NS" -o jsonpath='{.data.resource\.exclusions}{"\n"}{.data.resource\.ignoreResourceUpdatesEnabled}{"\n"}' 2>/dev/null
+kubectl get applications -A -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.metadata.annotations.argocd\.argoproj\.io/manifest-generate-paths}{"\n"}{end}' 2>/dev/null | grep -v -P '\t$'
 ```
 
 Check whether Git webhooks are configured (relevant to `timeout.reconciliation` decisions) —
@@ -91,6 +99,9 @@ Map the reported symptom to the bottleneck using this table, then read the match
 
 | Symptom | Likely bottleneck | Setting(s) |
 |---|---|---|
+| High controller CPU with no real drift — frequent status/health flapping on child resources (Pods, ReplicaSets, CRs) | Reconciliation triggered by ignorable field churn | `resource.ignoreResourceUpdatesEnabled` / `resource.customizations.ignoreResourceUpdates` |
+| High connection/watch load on managed clusters from non-GitOps-managed, high-churn kinds (Endpoints, EndpointSlice, policy/scan reports) | Watching kinds that should never be reconciled against | `resource.exclusions` |
+| One commit to a monorepo triggers mass re-render for every Application in that repo, even untouched paths | Manifest cache invalidated by commit SHA, not by changed paths | `argocd.argoproj.io/manifest-generate-paths` annotation |
 | repo-server `OOMKilled` / CrashLoopBackOff during a mass sync or large push | Unbounded concurrent manifest generation | `ARGOCD_REPO_SERVER_PARALLELISM_LIMIT` |
 | Git provider rate-limiting / 429s / org-wide block | Unbounded concurrent `git ls-remote` | `ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT` |
 | `context deadline exceeded` in UI/CLI viewing a complex Application | API server timeout shorter than actual render time | `ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS` (align with `ARGOCD_EXEC_TIMEOUT`) |
@@ -104,7 +115,11 @@ Map the reported symptom to the bottleneck using this table, then read the match
 | Controller `context deadline exceeded` cancelling slow manifest RPCs | Controller→repo-server timeout too low | `ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS` |
 | Sustained high baseline CPU/network, no code changes | Aggressive blind polling, no webhooks | `timeout.reconciliation` (+ set up webhooks) |
 | Periodic load spikes at a fixed cadence | No jitter spreading polls | `timeout.reconciliation.jitter` |
+| Apps repeatedly self-heal / high CPU from constant retry on chronically-drifting apps | No backoff between self-heal attempts | `controller.self.heal.backoff.timeout/factor/cap.seconds` |
+| Controller slow calling a *managed cluster's* API server (not the repo-server) at high cluster/app count | K8s client QPS/burst too conservative | `ARGOCD_K8S_CLIENT_QPS` / `ARGOCD_K8S_CLIENT_BURST` |
+| High controller→Redis write traffic from one or more Applications with very large resource trees | Entire resource tree rewritten as one Redis key per change | `ARGOCD_APPLICATION_TREE_SHARD_SIZE` |
 | One controller maxed out across many registered clusters | No horizontal scaling | Application Controller **sharding** |
+| Need to rebalance shards when scaling controller replicas without a restart | Static sharding only rebalances on restart | Dynamic Cluster Distribution (alpha — see Edge Cases) |
 
 If multiple symptoms are present, work through **Tuning order of leverage** in
 `references/tuning-settings.md`: reduce unnecessary work first, then align timeouts, then bound
@@ -143,6 +158,10 @@ and Git provider rate-limit headers. Recommend changing **one** major setting at
 | Floating tags / mutable Helm chart versions in use | Do not recommend lowering `ARGOCD_REPO_CACHE_EXPIRATION` to chase freshness — recommend webhooks or version pinning instead |
 | Public repository with no Repository Secret yet | Must create the Secret object first — shallow-clone `depth` cannot be set without it |
 | User asks for `consistent-hashing` sharding on OpenShift GitOps | Note it is not documented/officially supported there; verify against the installed operator version before relying on it in production |
+| User asks about `round-robin` as a "safe" default | Note it is also still experimental — removing the rank-0 cluster reshuffles every cluster across every shard |
+| User asks for Dynamic Cluster Distribution, or to rebalance shards without a restart | It is alpha; cite the known 2025 scale-down (clusters left unassigned) and scale-up (double-assigned) bugs and recommend the static sharding model with a planned restart for production until resolved |
+| User has a monorepo and asks to fix cache invalidation on every commit | Recommend `argocd.argoproj.io/manifest-generate-paths` (works without webhooks since v2.11) over lowering `ARGOCD_REPO_CACHE_EXPIRATION`; note it requires full-history clone (no shallow `depth`) and has had real cache-coherency bugs — pair with `resource.ignoreResourceUpdatesEnabled` as defense in depth |
+| User reports high controller CPU with no actual drift, especially from child resources (Pods/ReplicaSets) | Check `resource.ignoreResourceUpdatesEnabled` (default `true`) and whether the specific churny field is covered before reaching for `timeout.reconciliation` |
 | Repo-server/controller already restarting with `OOMKilled` | Treat as urgent — recommend the relevant parallelism/processor limit immediately, not just resource-limit increases that mask the root cause |
 | Cluster not reachable | Report the error and stop; do not generate apply commands for a cluster you cannot validate against |
 

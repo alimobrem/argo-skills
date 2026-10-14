@@ -166,6 +166,91 @@
         "Covers webhook setup at a high level (Git provider webhook pointed at the Argo CD API server/ingress)",
         "Recommends a value only safe because webhooks are being configured, not a large jump without them"
       ]
+    },
+    {
+      "id": 15,
+      "name": "High controller CPU from child-resource status churn",
+      "prompt": "Our argocd-application-controller CPU usage is constantly high even though nothing in Git has changed and all our Applications show Synced/Healthy. We suspect something is triggering constant reconciliation.",
+      "expectations": [
+        "Identifies resource.ignoreResourceUpdatesEnabled and the default .status ignore rule as the relevant mechanism",
+        "States the default is already true and recommends checking controller logs for high-churn fields not yet covered, rather than assuming it is disabled",
+        "Explains ignoreResourceUpdates only applies to tracked resources by default, and that untracked child resources (ReplicaSets, Pods) need the argocd.argoproj.io/ignore-resource-updates annotation added directly on them",
+        "Does not recommend disabling resource.ignoreResourceUpdatesEnabled as a fix",
+        "Distinguishes this from timeout.reconciliation (polling cadence) as a different root cause for high baseline CPU"
+      ]
+    },
+    {
+      "id": 16,
+      "name": "High API load on managed clusters from non-GitOps resources",
+      "prompt": "We're seeing high connection load on our managed clusters' API servers from Argo CD watching resources we never put in Git — things like Kyverno policy reports and Endpoints/EndpointSlice objects.",
+      "expectations": [
+        "Recommends resource.exclusions as the fix, not resource.customizations.ignoreResourceUpdates",
+        "Explains the distinction: exclusions stop the controller from watching the kind at all, while ignoreResourceUpdates still watches but skips reconciling on specific field changes",
+        "Notes that recent Argo CD versions (3.0+) ship default exclusions for exactly these kinds (Endpoints, EndpointSlice, Kyverno report kinds) and recommends checking whether they're already present before adding duplicates",
+        "States the correct placement for standalone (argocd-cm) and Operator (spec.extraConfig)",
+        "Follows Generate -> Preview -> Confirm before suggesting the change be applied"
+      ]
+    },
+    {
+      "id": 17,
+      "name": "Monorepo commit invalidates cache for unrelated apps",
+      "prompt": "We have 50 Applications in one monorepo, each pointing at its own subdirectory. Every single commit to the repo re-renders all 50 Applications, even when a commit only touches one app's directory. We already tried lowering ARGOCD_REPO_CACHE_EXPIRATION but it didn't help and made things slower.",
+      "expectations": [
+        "Identifies that the manifest cache is keyed on commit SHA, so any commit invalidates the cache for every Application in the repo regardless of which paths changed",
+        "Recommends the argocd.argoproj.io/manifest-generate-paths annotation, scoped to each Application's own subdirectory, as the actual fix",
+        "Explains this works without configuring Git webhooks (available since Argo CD v2.11)",
+        "Explicitly validates that lowering ARGOCD_REPO_CACHE_EXPIRATION was the wrong lever and explains why it made things worse",
+        "Notes the annotation requires a full-history clone (no shallow clone depth set) to compare revisions",
+        "Mentions pairing it with resource.ignoreResourceUpdatesEnabled as defense in depth given known cache-coherency bugs in this feature"
+      ]
+    },
+    {
+      "id": 18,
+      "name": "Shard rebalancing without restarts requested",
+      "prompt": "We're scaling our application-controller replicas up and down fairly often as cluster count changes, and we don't want to restart the controller every time to rebalance shards. Can we use Dynamic Cluster Distribution for this in production?",
+      "expectations": [
+        "Describes Dynamic Cluster Distribution accurately: requires running the controller as a Deployment (not StatefulSet), ARGOCD_ENABLE_DYNAMIC_CLUSTER_DISTRIBUTION=true, and coordination via the argocd-app-controller-shard-cm ConfigMap",
+        "States clearly that this feature is alpha",
+        "Cites the known 2025 production risk: scaling down can leave clusters/apps unassigned to any shard, scaling up can double-assign a cluster to two shards",
+        "Recommends against relying on it for production scale-down events given these open issues, and suggests the static sharding model with a planned restart instead",
+        "Does not generate an apply-ready patch enabling it for production without first surfacing the caveat and getting explicit confirmation that the user still wants it"
+      ]
+    },
+    {
+      "id": 19,
+      "name": "Controller slow calling managed cluster API, not repo-server",
+      "prompt": "We have 80 registered clusters. Syncs are slow across the board, but repo-server CPU/memory look fine and ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS is already raised. What else could be the bottleneck?",
+      "expectations": [
+        "Identifies ARGOCD_K8S_CLIENT_QPS / ARGOCD_K8S_CLIENT_BURST (default 50/100) as a likely bottleneck distinct from repo-server timeouts",
+        "Explains this controls how fast the controller is allowed to call each managed cluster's own API server, not the repo-server RPC",
+        "Recommends raising in steps (e.g. 100/200, then 150/300) while monitoring each managed cluster's own API server request rate/latency",
+        "Does not recommend repo-server or controller->repo-server settings as the fix, since those are already ruled out",
+        "Distinguishes this from ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT (concurrent kubectl child processes) which governs a different part of the sync path"
+      ]
+    },
+    {
+      "id": 20,
+      "name": "Large resource tree causing Redis traffic",
+      "prompt": "We have one Application that manages several thousand resources (a platform-level app-of-apps rendering a huge number of objects). Our Redis instance shows unusually high write traffic correlated with that Application's syncs specifically, not the rest of our ~800 other apps.",
+      "expectations": [
+        "Identifies ARGOCD_APPLICATION_TREE_SHARD_SIZE as the relevant setting, not cluster sharding",
+        "Explicitly distinguishes resource-tree sharding (splitting one Application's cached resource tree across Redis keys) from application-controller cluster sharding (distributing clusters across controller replicas) — does not conflate the two",
+        "States the default is 0 (entire tree in one Redis key) and recommends a value like 100",
+        "Explains that only the changed shard is rewritten instead of the whole tree, explaining the observed correlation with this specific large Application",
+        "Notes this setting will not help the other ~800 apps with normal-sized resource trees and shouldn't be tuned on their account"
+      ]
+    },
+    {
+      "id": 21,
+      "name": "Round-robin assumed to be risk-free",
+      "prompt": "We're about to remove one of our registered clusters. We're on round-robin sharding across 4 controller replicas — that's the safe, production-ready algorithm, right? Just want to confirm before we proceed.",
+      "expectations": [
+        "Corrects the premise: round-robin is still an experimental sharding algorithm, not a fully production-hardened default",
+        "Specifically warns that removing the cluster at shard rank-0 triggers reshuffling of every cluster across every shard, with a temporary performance impact",
+        "Recommends checking which rank the cluster being removed currently holds before proceeding, or planning for a brief rebalancing window regardless",
+        "Does not simply confirm the user's assumption that round-robin removal is risk-free",
+        "Does not recommend switching sharding algorithms mid-conversation as a non-sequitur — stays focused on the removal operation being asked about"
+      ]
     }
   ]
 }
