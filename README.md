@@ -414,10 +414,11 @@ Tested on real repos and a live OpenShift cluster.
 <table>
 <thead>
 <tr>
-<th width="250"></th>
+<th width="220"></th>
 <th width="120">Opus + Skill</th>
 <th width="120">Opus Baseline</th>
 <th width="120">Sonnet + Skill</th>
+<th width="120">Sonnet Baseline</th>
 </tr>
 </thead>
 <tbody>
@@ -426,13 +427,62 @@ Tested on real repos and a live OpenShift cluster.
 <td><b>98%</b></td>
 <td>86%</td>
 <td><b>95%</b></td>
+<td>—</td>
+</tr>
+<tr>
+<td><b>argo-repo-audit</b> (11 / 1<sup>†</sup> evals)</td>
+<td><b>100%</b></td>
+<td>—</td>
+<td><b>100%</b></td>
+<td>—</td>
+</tr>
+<tr>
+<td><b>argo-cluster-debug</b> (5 evals)</td>
+<td><b>97.5%</b></td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td><b>argo-operations</b> (5 evals)</td>
+<td><b>87%</b></td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td><b>argo-performance-tuning</b> (14 evals)</td>
+<td><b>99%</b></td>
+<td>47%</td>
+<td><b>100%</b></td>
+<td>56%</td>
+</tr>
+<tr>
+<td><b>argo-team-onboard</b> (3 / 2<sup>†</sup> evals)</td>
+<td><b>100%</b></td>
+<td>—</td>
+<td><b>100%</b></td>
+<td>—</td>
 </tr>
 </tbody>
 </table>
 
-> **Sonnet + skill (95%) > Opus without skill (86%).**
-> The skill effectively upgrades a cheaper, faster model to exceed the expensive model's
-> baseline accuracy on Argo-specific tasks — a strong case for cost-conscious teams.
+<sup>†</sup> Sonnet was run on a subset of the Opus eval set for this skill (see its
+`benchmarks/*.md` for the exact evals covered) — the two "+ Skill" scores aren't over an
+identical eval count.
+
+`—` means that condition was never run for that skill, not that it scored zero.
+`argo-repo-audit`, `argo-cluster-debug`, `argo-operations`, and `argo-team-onboard` were
+benchmarked on raw task accuracy / safety-model compliance with the skill loaded, not on a
+skill-vs-no-skill ablation — only `argo-knowledge` and `argo-performance-tuning` have a real
+baseline (no skill loaded) run on both models.
+
+> **Sonnet + skill (95–100%) beats Opus without skill (47–86%) on every skill where a
+> baseline exists.** The gap is widest on `argo-performance-tuning` (100% vs. 47%, +53
+> points) — the skill whose baseline evals are the most adversarial, including an Operator
+> misconfiguration trap that baseline Opus validated and applied without question. The skill
+> effectively upgrades a cheaper, faster model to exceed the expensive model's baseline
+> accuracy on Argo-specific tasks — a strong case for cost-conscious teams.
 
 <sub>Run locally with <code>make eval</code> or via GitHub Actions (<code>evals</code> workflow).
 Full results per model in <a href="benchmarks/">benchmarks/</a>.</sub>

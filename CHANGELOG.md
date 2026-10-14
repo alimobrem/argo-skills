@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- README Cross-Model comparison table expanded from `argo-knowledge` only to all 6 skills,
+  with a new Sonnet Baseline column. Cells use `—` (not fabricated numbers) wherever a
+  baseline or cross-model run was never actually performed for that skill.
+
 ### Added
 
 - **argo-performance-tuning** skill — diagnoses and tunes Argo CD / OpenShift GitOps
