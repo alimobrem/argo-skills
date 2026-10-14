@@ -1,6 +1,38 @@
 # argo-operations
 
-## v0.0.1 (2026-06-03)
+## v0.2.0 (2026-10-14) — Cross-model, with-skill vs. baseline
+
+**Methodology:** 13 evals (expanded from 6) × 2 models (Opus-tier, Sonnet-tier) × with-skill/baseline,
+via Cursor subagents simulating plausible cluster outcomes where no live cluster was
+attached. Scored by the orchestrating agent against `evals/evals.json`.
+
+| Condition | Score |
+|---|---|
+| Opus-tier + skill | 96/97 (99%) |
+| Opus-tier baseline | 72/97 (74%) |
+| Sonnet-tier + skill | 97/97 (100%) |
+| Sonnet-tier baseline | 86/97 (89%) |
+
+**Key findings:**
+
+- **The two baseline models diverge sharply here** (74% Opus vs. 89% Sonnet) — driven almost
+  entirely by the Generate → Preview → Confirm safety model, not domain knowledge. Baseline
+  Sonnet consistently stopped and asked "Apply this? (yes/no)" before every write operation
+  on its own judgment; baseline Opus usually presented the correct YAML/commands but skipped
+  the explicit confirmation gate, going straight to "after user confirms" framing without
+  actually withholding the apply step. Both skill-equipped runs enforce the gate on every
+  scenario, closing this gap for both models.
+- **Destructive-operation safety (the typed-resource-name requirement) is a baseline blind
+  spot for both models** — on the delete-Application eval, both baselines relied on the
+  `argocd` CLI's own interactive `-y` prompt rather than requiring the user to type the
+  resource name, which is the skill's stricter rule.
+- **The ApplicationSet RollingSync matrix-generator subtlety (plain directory generators
+  can't stage by cluster label) was caught by *both* baselines independently** — a case where
+  the nuance is derivable from the generator semantics, not exclusive skill knowledge.
+- **Largest clean per-eval gaps:** the Operator `spec.extraConfig`-adjacent credential
+  rotation and API-migration evals, where baseline answers were technically sound but never
+  paused for confirmation before describing the apply as done.
+
 
 Model: `claude-opus-4-6`
 

@@ -94,6 +94,93 @@
         "Dev and staging have autoMerge: true (with commit status gates)",
         "Explains the branch-per-environment model: pipeline commits to dev branch, promoter merges to staging, then to prod"
       ]
+    },
+    {
+      "id": 7,
+      "name": "Plain directory source onboarding",
+      "prompt": "Onboard the 'legacy-ops' team. They don't use Helm or Kustomize — just plain YAML manifests in a directory manifests/prod in their repo https://github.com/acme/legacy-ops.git. Namespace is legacy-ops-prod, SSO group is legacy-ops-admins.",
+      "expectations": [
+        "Generates AppProject scoped to the exact repo URL and legacy-ops-prod namespace",
+        "Generates Application using a plain directory source (source.path pointing to manifests/prod, no helm or kustomize block)",
+        "Does NOT generate a Kustomize- or Helm-specific Application for a plain-YAML team",
+        "Application includes directory.recurse if the structure requires it, or explains the assumption",
+        "Includes RBAC configuration for legacy-ops-admins",
+        "Follows Generate -> Preview -> Confirm before treating resources as applied"
+      ]
+    },
+    {
+      "id": 8,
+      "name": "New team, namespaces do not exist yet",
+      "prompt": "Onboard the 'search' team. Repo is https://github.com/acme/search-service.git with Kustomize overlays. They need a brand-new namespace search-prod that doesn't exist yet on the cluster. SSO group is search-engineers.",
+      "expectations": [
+        "Checks whether the search-prod namespace already exists before generating anything",
+        "Since it doesn't exist, generates a Namespace manifest",
+        "Generates a ResourceQuota and LimitRange for the new namespace (conditionally generated resources)",
+        "Generates AppProject and Application scoped to search-prod",
+        "Asks the user to adjust default quota values rather than treating them as universal",
+        "Follows Generate -> Preview -> Confirm for all resources including the Namespace"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "Production SyncWindow for change control",
+      "prompt": "Onboard the 'billing' team with Kustomize from https://github.com/acme/billing.git. Production should only sync during our weekday 2pm UTC maintenance window, not on every commit.",
+      "expectations": [
+        "Generates the standard AppProject and Application resources for the billing team",
+        "Adds a syncWindows entry to the AppProject spec scoped to the billing production namespace",
+        "The syncWindows schedule reflects a weekday 2pm UTC-style cron pattern",
+        "Explains that syncWindows restricts when automated syncs can occur, distinct from the sync policy itself",
+        "Does not apply the SyncWindow globally across all namespaces/applications — scoped to billing prod only"
+      ]
+    },
+    {
+      "id": 10,
+      "name": "Onboarding request collides with an existing AppProject name",
+      "prompt": "Onboard a team called 'frontend'. Note: we may already have something named frontend in Argo CD from an old setup — not sure if it's still used.",
+      "expectations": [
+        "Checks for an existing AppProject named frontend before generating anything",
+        "If found, shows the current AppProject's full configuration to the user",
+        "Asks whether to update the existing AppProject, retire it, or use a different name for the new team",
+        "Does NOT silently overwrite or replace the existing AppProject without this check",
+        "If proceeding with changes to the existing resource, shows a diff before applying"
+      ]
+    },
+    {
+      "id": 11,
+      "name": "Validate onboarding after apply",
+      "prompt": "I just applied the AppProject and Application you generated for the 'payments' team. Can you verify the onboarding actually worked?",
+      "expectations": [
+        "Verifies the AppProject exists with the expected scoped sourceRepos/destinations",
+        "Verifies the Application synced successfully (Synced/Healthy status)",
+        "Verifies RBAC — checks that the team's SSO group can access their own project",
+        "Verifies RBAC — checks that the team's SSO group cannot access other projects",
+        "Verifies namespace-level restrictions where applicable (e.g. cannot create a blacklisted ResourceQuota)",
+        "Reports results as a pass/fail checklist, not just a single generic 'looks good'"
+      ]
+    },
+    {
+      "id": 12,
+      "name": "Out-of-scope request — CI pipeline and secrets setup",
+      "prompt": "While you're onboarding the 'notify' team, also set up their GitHub Actions CI pipeline and configure their Vault secrets backend.",
+      "expectations": [
+        "Proceeds with the Argo CD onboarding resources (AppProject, Application, RBAC) for the notify team",
+        "Explicitly declines to generate the GitHub Actions CI pipeline — states this is out of scope",
+        "Explicitly declines to configure the Vault secrets backend — states this is out of scope",
+        "References how to wire an existing secrets backend into the Argo CD Application (e.g. ExternalSecret pattern) without creating the backend itself",
+        "Does not silently ignore the out-of-scope parts — calls them out explicitly as redirected/not generated"
+      ]
+    },
+    {
+      "id": 13,
+      "name": "Onboarding attempted before Argo CD is installed",
+      "prompt": "Onboard the 'reporting' team onto Argo CD. (The cluster has no Argo CD installation — no argoproj.io CRDs, no argocd-labeled pods.)",
+      "expectations": [
+        "Runs the cluster check step (Argo CD CRDs / argocd-labeled pods) before any onboarding work",
+        "Detects that Argo CD is not installed on the cluster",
+        "Stops immediately — does not generate AppProject/Application resources for a nonexistent Argo CD instance",
+        "Explicitly redirects the user to argo-operations to install Argo CD first",
+        "Does not proceed with discovery questions (team profile) once the missing-installation blocker is found"
+      ]
     }
   ]
 }
