@@ -84,7 +84,7 @@
         "Uses apiVersion argoproj.io/v1beta1 kind ArgoCD (not v1alpha1, not raw Deployment manifests)",
         "Cluster-scoped instance in openshift-gitops namespace (not argocd)",
         "spec.server.route.enabled true with tls.termination reencrypt",
-        "spec.dex.openShiftOAuth true for OAuth integration",
+        "spec.sso.provider: dex with spec.sso.dex.openShiftOAuth: true \u2014 NOT top-level spec.dex, which is no longer supported from Argo CD Operator v0.8.0 onwards and silently fails to configure SSO",
         "RBAC policy maps cluster-admins to role:admin",
         "RBAC defaultPolicy is role:readonly",
         "resourceExclusions includes tekton.dev TaskRun and PipelineRun",

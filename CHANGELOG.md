@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added (eval harness can now catch bad expectations)
+
+- `scripts/check-eval-expectations.sh` — validates every `spec.*` path asserted in an eval
+  expectation against the committed CRD schemas, wired into CI and `make
+  test-expectations`. Nothing previously validated the expectations themselves, which is
+  how three of them ended up grading **for** output the API server rejects or prunes.
+  Running it immediately found two more:
+  - eval 5 still asserted `spec.dex.openShiftOAuth` — the form unsupported since operator
+    v0.8.0 — so it would have failed a correct `spec.sso.dex` answer.
+  - eval 10 asserted CronWorkflow `spec.schedule`, removed in Workflows v3.6 in favour of
+    the `spec.schedules` **list**. `references/workflows.md` had the same removed field,
+    which produces a CronWorkflow that is created and then never fires.
+- **Eight more CRD schemas** in `make download-schemas`: the ArgoCD CR (from
+  `argocd-operator`, storage version `v1beta1`), Workflow, CronWorkflow, WorkflowTemplate,
+  ClusterWorkflowTemplate, EventSource, Sensor, EventBus. 7 → 15. This closes the gap the
+  repo-audit eval flagged (the CRD table listed 15 kinds while only 7 were validatable)
+  and turns ~19 unverifiable expectation paths into real checks.
+
+### Fixed (dev tooling that was quietly broken)
+
+- **`make test-validate` failed** on the `applicationset` fixture: its overlays pulled in
+  individual files from outside the kustomization root, which kustomize forbids. CI never
+  caught it because the step ended in `|| true`. The fixture now uses a proper base
+  (`apps/kustomization.yaml`) referenced as a directory, and all five fixtures build.
+- **CI no longer swallows validation failures** for the clean fixtures. Intentionally
+  broken ones under `targeted-bugs/` and `mixed-issues/` still tolerate findings.
+
 ### Fixed (argo-operations + promoter, from the live-cluster eval run)
 
 - **`ArgoCDCommitStatus` was misspelled and its spec was wrong.** The live CRD's kind is
