@@ -39,8 +39,7 @@ Show what the operation would change on the cluster before applying:
 
 | Operation | Preview Command |
 |-----------|----------------|
-| Create resource | `kubectl apply --dry-run=client -f <file> -o yaml` |
-| Create resource (server-validated) | `kubectl apply --dry-run=server -f <file> -o yaml` |
+| Create resource | `kubectl apply --dry-run=server -f <file> -o yaml` — **prefer server** |
 | Update resource | `kubectl diff -f <file>` or `oc diff -f <file>` |
 | Sync Application | `argocd app diff <name>` |
 | Helm install/upgrade | `helm template` or `helm upgrade --dry-run` |
@@ -48,6 +47,25 @@ Show what the operation would change on the cluster before applying:
 | Promote Rollout | `kubectl argo rollouts status <name> -n <ns>` (show current state) |
 
 Show the preview output to the user. Explain what will change in plain language.
+
+#### `--dry-run=client` is a weak preview — do not rely on it
+
+It renders your file locally. It contacts no admission or schema validation, and it does
+not merge against live state, so **for an update it cannot show what will change** — it
+just echoes your input back. Measured against a real cluster:
+
+```
+manifest with a nonexistent field AND a wrong-typed value
+  kubectl apply --dry-run=client   -> ACCEPTED   (no validation at all)
+  kubectl apply --dry-run=server   -> REJECTED   (schema validated)
+```
+
+So:
+- **Creating?** Use `--dry-run=server`. Fall back to client only if the API rejects a
+  server dry-run outright (CRD absent), and say plainly that nothing was validated.
+- **Updating?** Use `kubectl diff`. A client dry-run is not a preview of an update under
+  any circumstances; presenting one as the Preview step gives the user false assurance
+  that the change is understood and safe.
 
 ### Step 3: Confirm
 
@@ -306,7 +324,7 @@ data. This is a read-only operation — no confirmation needed.
 | Resource already exists | Use `kubectl apply` (update) not `kubectl create`. Show the diff. |
 | Conflicting changes (sync in progress) | Check `operationState.phase`. If `Running`, wait or ask user to cancel. |
 | OpenShift vs vanilla K8s | Detect platform first. Use `oc` and Routes on OpenShift, `kubectl` and Ingress on K8s. |
-| Dry-run fails (CRD not installed) | Fall back to `--dry-run=client`. Warn that server-side validation was skipped. |
+| Dry-run fails (CRD not installed) | Fall back to `--dry-run=client`, but state explicitly that **nothing was validated** — client dry-run accepts nonexistent fields and wrong types silently. Treat the preview as 'here is the YAML I would send', not 'this is valid'. For an update, say that no diff was possible. |
 | Helm chart not reachable | Report the error. Suggest checking `helm repo update` or OCI registry auth. |
 | Application name conflict | Check if an Application with the same name exists. Show the existing one and ask. |
 | Multiple Argo CD instances | Detect by checking for ArgoCD CRs or argocd-labeled pods in multiple namespaces. Ask which instance. |

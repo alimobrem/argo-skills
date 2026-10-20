@@ -175,12 +175,20 @@ argocd app sync <name> --retry-limit 3 --retry-backoff-duration 5s
 kubectl argo rollouts get rollout <name> -n <namespace>
 
 # Fallback
-kubectl get rollout <name> -n <namespace> -o jsonpath='{
-  "phase": "{.status.phase}",
-  "currentStep": {.status.currentStepIndex},
-  "stableRS": "{.status.stableRS}",
-  "canaryRS": "{.status.currentPodHash}"
-}'
+# jsonpath has no multi-line/JSON-literal form — a braced block like {"phase": "{...}"}
+# is a parse error on every cluster. Use a flat template:
+kubectl get rollout <name> -n <namespace> -o jsonpath='phase={.status.phase} step={.status.currentStepIndex} stable={.status.stableRS} canary={.status.currentPodHash}{"\n"}'
+
+# A rollout is COMPLETE, not stuck, when step == len(spec.strategy.canary.steps)
+# and stable == canary. Compare them before reporting a stall:
+kubectl get rollout <name> -n <namespace> \
+  -o jsonpath='{.status.currentStepIndex}/{..spec.strategy.canary.steps[*]}{"\n"}' 2>/dev/null
+kubectl get rollout <name> -n <namespace> -o json | python3 -c "
+import json,sys
+r=json.load(sys.stdin); s=r['status']; steps=len(r['spec'].get('strategy',{}).get('canary',{}).get('steps',[]))
+idx=s.get('currentStepIndex')
+print(f\"step {idx}/{steps}\", 'COMPLETE' if idx==steps and s.get('stableRS')==s.get('currentPodHash') else 'in progress/stuck')
+"
 ```
 
 ### Promote (Advance to Next Step)

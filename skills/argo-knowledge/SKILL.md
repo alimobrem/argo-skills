@@ -18,7 +18,7 @@ license: MIT
 
 1. **Always use correct apiVersion and kind.** Most Argo CRDs use `apiVersion: argoproj.io/v1alpha1` — see the CRD Table below — but **not all of them**, and assuming otherwise produces a manifest the API server rejects. The exceptions:
    - **`argoproj.io/v1beta1`** — the OpenShift GitOps / Argo CD Operator `ArgoCD` CR (`references/openshift.md`). `v1alpha1` is deprecated for this kind.
-   - **`promoter.argoproj.io/v1alpha1`** — every GitOps Promoter kind (`PromotionStrategy`, `ChangeTransferPolicy`, `GitRepository`, `ScmProvider`, `CommitStatus`, `ArgocdCommitStatus`, `PullRequest`, and others — see the CRD Table and `references/gitops-promoter.md`). Note the different API **group**, not just a different version.
+   - **`promoter.argoproj.io/v1alpha1`** — every GitOps Promoter kind (`PromotionStrategy`, `ChangeTransferPolicy`, `GitRepository`, `ScmProvider`, `CommitStatus`, `ArgoCDCommitStatus`, `PullRequest`, and others — see the CRD Table and `references/gitops-promoter.md`). Note the different API **group**, not just a different version.
 
    Never invent CRDs or apiVersions that do not exist. When in doubt, check the reference file for that topic rather than defaulting to `argoproj.io/v1alpha1`.
 2. **Load references on-demand.** Only read reference files when the user's question requires detailed field-level knowledge. Do not preload all references.
@@ -66,7 +66,7 @@ The Argo project is a set of Kubernetes-native tools for running and managing jo
 | GitRepository | **promoter.argoproj.io/v1alpha1** | GitOps Promoter | Repository reference (owner, name, SCM provider ref) |
 | ScmProvider / ClusterScmProvider | **promoter.argoproj.io/v1alpha1** | GitOps Promoter | SCM credentials and provider config (namespaced / cluster-scoped) |
 | CommitStatus | **promoter.argoproj.io/v1alpha1** | GitOps Promoter | Set a commit status on a SHA — the generic promotion gate |
-| ArgocdCommitStatus | **promoter.argoproj.io/v1alpha1** | GitOps Promoter | Surfaces Argo CD health/sync as a promotion gate |
+| ArgoCDCommitStatus | **promoter.argoproj.io/v1alpha1** | GitOps Promoter | Surfaces Argo CD health/sync as a promotion gate |
 | PullRequest | **promoter.argoproj.io/v1alpha1** | GitOps Promoter | PR lifecycle (open/merged/closed) |
 
 > The promoter also ships `GitCommitStatus`, `TimedCommitStatus`,

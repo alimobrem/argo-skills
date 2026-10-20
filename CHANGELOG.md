@@ -4,6 +4,35 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed (argo-operations + promoter, from the live-cluster eval run)
+
+- **`ArgoCDCommitStatus` was misspelled and its spec was wrong.** The live CRD's kind is
+  `ArgoCDCommitStatus` (not `Argocd...`), and its `spec` takes **`promotionStrategyRef`**
+  and **`applicationSelector`** — both required — plus optional `url`. The reference
+  documented `gitRepositoryRef`, which is not a field on this kind, so the manifest failed
+  admission twice over. Also corrected in eval 8's expectations.
+- **`--dry-run=client` was the documented preview fallback but validates nothing.**
+  Measured on-cluster: a manifest with a nonexistent field *and* a wrong-typed value is
+  ACCEPTED by `--dry-run=client` and REJECTED by `--dry-run=server`. It also never merges
+  with live state, so it cannot preview an update at all. The Preview table now defaults
+  to `--dry-run=server` for creates and `kubectl diff` for updates, and the edge case
+  says plainly that a client dry-run validated nothing.
+- **Three credential-rotation recipes ended in `| kubectl apply -f -`**, skipping the
+  skill's own Generate → Preview → Confirm model (Safety Rules 1 and 8) — on the one
+  change most likely to lock Argo CD out of every repo at once. Split into
+  generate/diff/confirm/apply, with a shred step. The repo-creds recipe was also missing
+  `type=git`, without which Argo CD ignores the credential entirely.
+- **The documented backup script reported success for empty backups.**
+  `kubectl get ... -o yaml` exits 0 and writes `items: []` when nothing matches, so
+  `cmd && echo "[OK]"` printed `[OK] Applications` while saving nothing — a false-positive
+  backup. Now counts resources first. Also adds the **ArgoCD CR** to the backup, the most
+  important object on an operator-managed cluster and previously omitted.
+- **An invalid jsonpath in `progressive-delivery.md`** (a multi-line JSON-literal block)
+  failed to parse on every cluster, not just this one. Replaced with a flat template, plus
+  a check for the real ambiguity it was meant to resolve: a canary at
+  `currentStepIndex == len(steps)` with `stableRS == currentPodHash` is **complete**, not
+  stuck on the last step.
+
 ### Fixed (found by running the full eval suite against a live OpenShift cluster)
 
 Six skills, 81 eval prompts, run against a real OpenShift cluster with three Argo CD

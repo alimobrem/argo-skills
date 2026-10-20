@@ -39,7 +39,7 @@ through environment sequences.
 | ClusterScmProvider | promoter.argoproj.io/v1alpha1 | Cluster-scoped SCM provider config |
 | GitRepository | promoter.argoproj.io/v1alpha1 | Repository reference (owner, name, SCM provider ref) |
 | CommitStatus | promoter.argoproj.io/v1alpha1 | Set commit status on a SHA (pending/success/failure) |
-| ArgocdCommitStatus | promoter.argoproj.io/v1alpha1 | Auto-reports Argo CD Application health as a CommitStatus — see *Integration with Argo CD* |
+| ArgoCDCommitStatus | promoter.argoproj.io/v1alpha1 | Auto-reports Argo CD Application health as a CommitStatus — see *Integration with Argo CD* |
 | PullRequest | promoter.argoproj.io/v1alpha1 | Manage PR lifecycle (open/merged/closed) |
 | RevertCommit | promoter.argoproj.io/v1alpha1 | Revert a specific commit |
 | GitCommitStatus | promoter.argoproj.io/v1alpha1 | Commit status derived from Git state |
@@ -247,7 +247,7 @@ GitOps Promoter is designed to work alongside Argo CD:
    `environment/prod`) is a source for an Argo CD Application or ApplicationSet
 2. **Argo CD reports health via CommitStatus** — use the `argocd-app-health` commit status
    key as an `activeCommitStatus` to gate promotions on Argo CD sync/health
-3. **ArgoCD CommitStatus CRD** — the promoter includes an `ArgocdCommitStatus` resource
+3. **ArgoCD CommitStatus CRD** — the promoter includes an `ArgoCDCommitStatus` resource
    that automatically reports Argo CD Application health as a commit status
 
 ### Example: Argo CD Application per Environment
@@ -294,16 +294,24 @@ spec:
 
 ```yaml
 apiVersion: promoter.argoproj.io/v1alpha1
-kind: ArgocdCommitStatus
+kind: ArgoCDCommitStatus        # note the capitalisation: ArgoCD, not Argocd
 metadata:
   name: my-app-health
 spec:
-  gitRepositoryRef:
-    name: my-repo
-  applicationSelector:
+  # Both fields below are REQUIRED by the CRD.
+  promotionStrategyRef:         # which PromotionStrategy this status feeds
+    name: my-app-promotion
+  applicationSelector:          # which Argo CD Applications to report health for
     matchLabels:
       app.kubernetes.io/name: my-app
+  # url: https://argocd.example.com   # optional, surfaced on the SCM status check
 ```
+
+> Verified against the installed CRD: `spec` accepts **`promotionStrategyRef`**,
+> **`applicationSelector`** (both required) and optional `url`. There is **no
+> `gitRepositoryRef`** on this kind — that field belongs to `CommitStatus`, and using it
+> here fails admission. Confirm on your cluster with:
+> `kubectl explain argocdcommitstatus.spec`
 
 This automatically creates CommitStatus resources reflecting the Argo CD Application
 health, which the PromotionStrategy uses as an `activeCommitStatus` gate.
