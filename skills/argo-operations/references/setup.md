@@ -194,12 +194,14 @@ spec:
         memory: 256Mi
   ha:
     enabled: false
-  dex:
-    openShiftOAuth: true
-    resources:
-      limits:
-        cpu: 500m
-        memory: 256Mi
+  sso:                        # NOT top-level spec.dex — unsupported since operator v0.8.0
+    provider: dex
+    dex:
+      openShiftOAuth: true
+      resources:
+        limits:
+          cpu: 500m
+          memory: 256Mi
   rbac:
     defaultPolicy: role:readonly
     policy: |

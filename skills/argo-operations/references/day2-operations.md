@@ -296,12 +296,12 @@ done
 
 ```bash
 # Export all Applications
-kubectl get applications -n argocd -o yaml > applications-backup.yaml
+kubectl get applications.argoproj.io -n argocd -o yaml > applications-backup.yaml
 
 # Export individual Applications
-for app in $(kubectl get applications -n argocd -o name); do
+for app in $(kubectl get applications.argoproj.io -n argocd -o name); do
   name=$(basename $app)
-  kubectl get application $name -n argocd -o yaml > "backup/application-${name}.yaml"
+  kubectl get applications.argoproj.io $name -n argocd -o yaml > "backup/application-${name}.yaml"
 done
 
 # Count exported
@@ -353,17 +353,29 @@ mkdir -p "$BACKUP_DIR"
 
 echo "Backing up Argo CD resources to $BACKUP_DIR..."
 
-# Applications
-kubectl get applications -n argocd -o yaml > "$BACKUP_DIR/applications.yaml" 2>/dev/null && \
-  echo "[OK] Applications" || echo "[SKIP] No Applications found"
+# NS must be the real Argo CD namespace — 'argocd' does not exist on operator installs.
+# On OpenShift GitOps it is openshift-gitops, and there may be several instances.
+NS="${NS:-argocd}"
 
-# ApplicationSets
-kubectl get applicationsets -n argocd -o yaml > "$BACKUP_DIR/applicationsets.yaml" 2>/dev/null && \
-  echo "[OK] ApplicationSets" || echo "[SKIP] No ApplicationSets found"
+# `kubectl get ... -o yaml` exits 0 and writes an empty "items: []" list when nothing
+# matched, so `cmd && echo "[OK]"` reports success for an EMPTY backup. Count instead.
+backup() {            # backup <kind> <outfile> <label>
+  local kind="$1" out="$2" label="$3" n
+  n=$(kubectl get "$kind" -n "$NS" --no-headers 2>/dev/null | wc -l | tr -d ' ')
+  if [ "$n" -gt 0 ]; then
+    kubectl get "$kind" -n "$NS" -o yaml > "$out" && echo "[OK] $label ($n)"
+  else
+    echo "[SKIP] No $label found in namespace $NS"
+  fi
+}
 
-# AppProjects
-kubectl get appprojects -n argocd -o yaml > "$BACKUP_DIR/appprojects.yaml" 2>/dev/null && \
-  echo "[OK] AppProjects" || echo "[SKIP] No AppProjects found"
+backup applications.argoproj.io "$BACKUP_DIR/applications.yaml"    "Applications"
+backup applicationsets          "$BACKUP_DIR/applicationsets.yaml" "ApplicationSets"
+backup appprojects              "$BACKUP_DIR/appprojects.yaml"     "AppProjects"
+
+# On operator-managed clusters the ArgoCD CR is the most important object to back up
+# and is easy to forget — it holds all instance configuration.
+backup argocd                   "$BACKUP_DIR/argocd-cr.yaml"       "ArgoCD CR"
 
 # ConfigMaps
 for cm in argocd-cm argocd-rbac-cm argocd-cmd-params-cm argocd-notifications-cm argocd-tls-certs-cm argocd-ssh-known-hosts-cm; do
@@ -402,12 +414,25 @@ kubectl apply -f backup/cluster-secrets.yaml
 kubectl apply -f backup/applications.yaml
 
 # 6. Verify
-argocd app list 2>/dev/null || kubectl get applications -n argocd
+argocd app list 2>/dev/null || kubectl get applications.argoproj.io -n argocd
 ```
 
 ---
 
 ## Credential Rotation
+
+> **These recipes end in `| kubectl apply -f -`, which skips Generate → Preview →
+> Confirm and violates Safety Rules 1 and 8.** Split them: render to a file, show it to
+> the user (redacting the credential), get explicit confirmation, then apply. Credentials
+> are the single worst thing to apply unreviewed — a typo'd rotation locks Argo CD out of
+> every repo at once.
+>
+> ```bash
+> kubectl create secret ... --dry-run=client -o yaml > /tmp/cred.yaml   # 1. generate
+> kubectl diff -f /tmp/cred.yaml                                        # 2. preview
+> #    -> ask "Apply this? (yes/no)"                                    # 3. confirm
+> kubectl apply -f /tmp/cred.yaml && shred -u /tmp/cred.yaml            # 4. apply + shred
+> ```
 
 ### Git SSH Keys
 
@@ -438,6 +463,7 @@ kubectl create secret generic repo-creds-<name> \
   --from-literal=url=https://github.com/org \
   --from-literal=username=argocd \
   --from-literal=password=<new-pat> \
+  --from-literal=type=git \
   --dry-run=client -o yaml | \
   kubectl label --local -f - argocd.argoproj.io/secret-type=repo-creds -o yaml | \
   kubectl apply -f -
@@ -506,7 +532,7 @@ kubectl apply -f root-application.yaml
 
 # 4. Wait for reconciliation
 argocd app list --watch 2>/dev/null || \
-  watch kubectl get applications -n argocd
+  watch kubectl get applications.argoproj.io -n argocd
 ```
 
 ### Autopilot Recovery

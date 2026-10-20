@@ -62,8 +62,13 @@ manifests to Git in the same session so the cluster and the repo agree.
 
 3. **AppProject is the security boundary — get it right.** Scope `sourceRepos` to exact
    repo URLs, `destinations` to exact namespace/cluster pairs, and `clusterResourceWhitelist`
-   to only what the team needs. Never use wildcards (`*`). This is the single most
-   important resource in the onboarding output.
+   to only what the team needs. This is the single most important resource in the
+   onboarding output.
+
+   **Never a bare `*`.** A *bounded* prefix glob is acceptable when the team genuinely
+   adds repos often — `https://github.com/acme/payments-*.git` is scoped to one team in
+   one org. `https://github.com/acme/*` is not: it grants every repo in the org. The test
+   is whether the pattern can match a repo belonging to another team.
 
 4. **Generate only Argo CD and tenant-boundary resources.** Do not generate CI pipelines,
    registry setup, or secrets backend config. When the team's answers reveal they need
@@ -102,7 +107,7 @@ Show exactly what will enter the repo:
 
 | Operation | Preview Command |
 |-----------|----------------|
-| New tenant files | `git status --short` + `git diff --stat` |
+| New tenant files (untracked — the usual case) | `git add -N <paths>` first, then `git diff` — **plain `git diff` shows nothing for untracked files** |
 | Content review | `git diff` (or `git diff --cached` once staged) |
 | Change to an existing tenant | `git diff -- <tenant-path>` |
 | What Argo CD will then do (read-only, optional) | `argocd app diff <onboarding-app>` |
@@ -136,11 +141,11 @@ argocd app get <onboarding-app> --refresh
 3. **NEVER use wildcards in AppProject sourceRepos or destinations.** This is the
    entire point of scoped onboarding.
 4. **NEVER overwrite an existing tenant's config without showing the diff first.**
-6. **NEVER create cluster-admin-equivalent RBAC.** Team roles should be scoped to their
+5. **NEVER create cluster-admin-equivalent RBAC.** Team roles should be scoped to their
    project's resources.
-7. **Log every committed change.** After each successful commit, report:
+6. **Log every committed change.** After each successful commit, report:
    `[COMMITTED] <timestamp> <repo-path> -- <action>` and the resulting commit SHA or PR URL.
-8. **If a command fails, show the error and suggest recovery.** Do not retry automatically.
+7. **If a command fails, show the error and suggest recovery.** Do not retry automatically.
 
 ## Prerequisites
 
@@ -394,8 +399,14 @@ confirm or adjust the values for their team.
 
 This is where onboarding actually happens. Do not skip it, and do not substitute an apply.
 
-1. **Show the diff** — `git -C <repo> status --short` then `git -C <repo> diff`. Walk the
-   user through what Argo CD will create.
+1. **Show the diff.** New tenant files are untracked, and `git diff` ignores untracked
+   files — so stage them as intent-to-add first or you will show the user an empty diff:
+   ```bash
+   git -C <repo> add -N <tenant-paths>     # intent-to-add: makes new files visible to diff
+   git -C <repo> status --short
+   git -C <repo> diff                      # now shows the full tenant config
+   ```
+   Walk the user through what Argo CD will create.
 2. **Confirm** — "Commit this? (yes/no)", and whether they want a branch + PR or a direct
    commit to the tracked branch.
 3. **Commit** with a message naming the tenant and what was granted, e.g.
@@ -466,7 +477,7 @@ kubectl get appproject <team-name> -n <argocd-namespace> -o yaml
 
 # Verify Application syncs successfully
 argocd app get <team-app-name> 2>/dev/null || \
-  kubectl get application <team-app-name> -n <argocd-namespace> -o jsonpath='sync={.status.sync.status} health={.status.health.status}'
+  kubectl get applications.argoproj.io <team-app-name> -n <argocd-namespace> -o jsonpath='sync={.status.sync.status} health={.status.health.status}'
 
 # Verify RBAC — team member can see their apps
 argocd account can-i get applications '<team-name>/*' --auth-token <token> 2>/dev/null
@@ -548,7 +559,7 @@ Cross-reference `argo-knowledge` for full CRD documentation.
 
 | Scenario | Behavior |
 |----------|----------|
-| Argo CD not installed | Stop immediately. Redirect to `argo-operations` for setup. |
+| Argo CD not installed | **Do not stop.** Cluster access is optional for this skill — generate and commit the tenant config now; it reconciles once Argo CD exists. Mention `argo-operations` for the install, and say plainly that the tenant is committed but not yet live. Only stop if the user has no GitOps repo *either*, since then there is nowhere to commit. |
 | Single-tenant cluster | Generate a simpler AppProject — less restrictive destinations OK, but still scope sourceRepos. Note that `namespaceResourceBlacklist` may not be needed. |
 | Existing AppProject with same name | Find it in Git first (`git -C <repo> grep -l "name: <name>"`). Show the committed definition and ask whether to update it or pick a different name. Show the `git diff` before committing. |
 | Tenant exists on the cluster but not in Git | Drift — the tenant was applied imperatively at some point. Flag it, and offer to import the live definition into the repo so Argo CD owns it going forward. |
@@ -570,5 +581,5 @@ rather than writing manifests from memory.
 |-------|---------------|-------------|
 | **Recommended model** — per-tenant values + onboarding Helm chart, discovery ApplicationSet, t-shirt sizes, default NetworkPolicies, Pod Security Standards labels, two-instance split | `references/gitops-onboarding.md` | **Default for Phase 2 and Phase 4** — any repeat or self-service onboarding |
 | AppProject / Application / RBAC templates, conditional resources (Namespace, quota tiers, LimitRange, NetworkPolicies, RoleBinding, notifications, sync windows), validation checklist | `references/onboarding-guide.md` | Phase 2 when committing rendered manifests rather than values |
-| `teams.yaml` schema, both ApplicationSet approaches, PR workflow, platform-vs-team guard rails | `references/self-service-pattern.md` | Phase 3 — scaling or self-service requests |
+| `teams.yaml` schema, both ApplicationSet approaches, PR workflow, platform-vs-team guard rails | `references/self-service-pattern.md` | Phase 4 — scaling or self-service requests |
 | Source type variants (Helm / Kustomize / directory), Rollouts, notifications, sync windows, gitops-promoter | `references/onboarding-variants.md` | When adapting to a specific stack |

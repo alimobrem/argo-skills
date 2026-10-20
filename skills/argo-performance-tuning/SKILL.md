@@ -42,9 +42,34 @@ common-mistakes list) and the source of truth for every recommendation this skil
 
 | Tool | Required | Purpose |
 |------|----------|---------|
-| kubectl or oc | Yes | Read current config, apply tuning changes |
+| `kubectl` **or** `oc` | Yes | Read current config, apply tuning changes |
 | argocd | No | Richer Application/version inspection |
 | yq | No | Parsing `argocd-cm`/`argocd-cmd-params-cm` YAML |
+
+**Resolve the CLI first. On OpenShift, `oc` is the default.**
+
+```bash
+# Detect the platform and pick the CLI — on OpenShift, oc is the default.
+if command -v oc >/dev/null 2>&1 && oc api-resources --api-group=route.openshift.io 2>/dev/null | grep -q routes; then
+  KCTL=oc; PLATFORM=OpenShift
+elif command -v kubectl >/dev/null 2>&1; then
+  KCTL=kubectl
+  PLATFORM=$(kubectl api-resources --api-group=route.openshift.io 2>/dev/null | grep -q routes && echo OpenShift || echo Kubernetes)
+elif command -v oc >/dev/null 2>&1; then
+  KCTL=oc; PLATFORM=Kubernetes
+else
+  echo "ERROR: no cluster CLI found — install kubectl or oc" >&2; exit 1
+fi
+echo "Platform: $PLATFORM — using '$KCTL'"
+```
+
+Every `kubectl` below means `$KCTL`; `oc` accepts all of them verbatim.
+
+`$PLATFORM` directly determines where tuning settings go. On OpenShift the instance is
+almost always an Operator-managed **`ArgoCD` CR** (`argoproj.io/v1beta1`), so settings
+belong under its `spec` (`spec.controller.processors`, `spec.repo.env`, …) — **not** in
+`argocd-cmd-params-cm`, where the Operator will overwrite them on the next reconcile.
+Confirm with `$KCTL get argocd -A` during Phase 1 before generating any patch.
 
 ## Phase 1: Assess
 
@@ -53,8 +78,9 @@ Confirm the cluster context and install type first:
 ```bash
 kubectl config current-context
 kubectl get argocd -A -o name 2>/dev/null  # Operator-managed (OpenShift GitOps / Argo CD Operator)
-kubectl get deployment -n argocd argocd-server 2>/dev/null || \
-  kubectl get deployment -n openshift-gitops argocd-server 2>/dev/null  # standalone / detect namespace
+# Operator workloads are named <cr-name>-server, so "argocd-server" only matches by
+# accident. List what is actually there rather than probing for a fixed name:
+kubectl get deploy -A 2>/dev/null | grep -E '\-server|\-repo-server|\-application-controller'""
 ```
 
 Gather scale signals:
@@ -63,20 +89,28 @@ Gather scale signals:
 NS=<argocd-namespace>   # argocd or openshift-gitops
 
 # Application and cluster count — the two numbers that matter most for sharding decisions
-kubectl get applications -A --no-headers | wc -l
+kubectl get applications.argoproj.io -A --no-headers | wc -l
 kubectl get secrets -n "$NS" -l argocd.argoproj.io/secret-type=cluster --no-headers | wc -l   # external clusters (+1 for in-cluster)
 kubectl get secrets -n "$NS" -l argocd.argoproj.io/secret-type=repository --no-headers | wc -l
 
 # Current replica counts
-kubectl get deploy,statefulset -n "$NS" -l app.kubernetes.io/name=argocd-application-controller -o wide
-kubectl get deploy -n "$NS" -l app.kubernetes.io/name=argocd-repo-server -o wide
-kubectl get deploy -n "$NS" -l app.kubernetes.io/name=argocd-server -o wide
+# Do NOT use -l app.kubernetes.io/name=argocd-<component>: the Operator labels workloads
+# <cr-name>-<component>, so a hardcoded argocd- prefix matches nothing and every
+# component reads as absent. Enumerate and match on suffix instead.
+kubectl get deploy,statefulset -n "$NS" -o custom-columns=NAME:.metadata.name,READY:.status.readyReplicas,WANT:.spec.replicas
 
 # OOM / restart history — strong signal for parallelism-limit tuning
-kubectl get pods -n "$NS" -l app.kubernetes.io/name=argocd-repo-server -o json | \
-  python3 -c "import json,sys; [print(p['metadata']['name'], c['restartCount'], c.get('lastState',{}).get('terminated',{}).get('reason')) for p in json.load(sys.stdin)['items'] for c in p['status']['containerStatuses']]"
-kubectl get pods -n "$NS" -l app.kubernetes.io/name=argocd-application-controller -o json | \
-  python3 -c "import json,sys; [print(p['metadata']['name'], c['restartCount'], c.get('lastState',{}).get('terminated',{}).get('reason')) for p in json.load(sys.stdin)['items'] for c in p['status']['containerStatuses']]"
+# Label selectors do not work here either — and worse, pods on Operator installs carry
+# NO part-of label at all, so a selector-based check silently reports "no OOMs" on a
+# cluster that is actively OOMKilling. Scan every pod in the namespace.
+kubectl get pods -n "$NS" -o json | python3 -c "
+import json,sys
+for p in json.load(sys.stdin)['items']:
+    for c in p['status'].get('containerStatuses', []):   # .get: pods may have none yet
+        reason = c.get('lastState',{}).get('terminated',{}).get('reason')
+        if c.get('restartCount') or reason:
+            print(f\"{p['metadata']['name']:<55} restarts={c.get('restartCount')} last={reason}\")
+"
 
 # Current tuning-relevant settings
 kubectl get configmap argocd-cm -n "$NS" -o jsonpath='{.data.timeout\.reconciliation}{"\n"}{.data.timeout\.reconciliation\.jitter}{"\n"}' 2>/dev/null
@@ -86,7 +120,7 @@ kubectl get argocd -n "$NS" -o yaml 2>/dev/null   # Operator-managed: spec.repo.
 # Whether reconciliation-at-the-source reduction is already configured — check before assuming
 # timeout.reconciliation is the only lever
 kubectl get configmap argocd-cm -n "$NS" -o jsonpath='{.data.resource\.exclusions}{"\n"}{.data.resource\.ignoreResourceUpdatesEnabled}{"\n"}' 2>/dev/null
-kubectl get applications -A -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.metadata.annotations.argocd\.argoproj\.io/manifest-generate-paths}{"\n"}{end}' 2>/dev/null | grep -v -P '\t$'
+kubectl get applications.argoproj.io -A -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.metadata.annotations.argocd\.argoproj\.io/manifest-generate-paths}{"\n"}{end}' 2>/dev/null | grep -v -P '\t$'
 ```
 
 Check whether Git webhooks are configured (relevant to `timeout.reconciliation` decisions) —
@@ -103,6 +137,7 @@ Map the reported symptom to the bottleneck using this table, then read the match
 | High connection/watch load on managed clusters from non-GitOps-managed, high-churn kinds (Endpoints, EndpointSlice, policy/scan reports) | Watching kinds that should never be reconciled against | `resource.exclusions` |
 | One commit to a monorepo triggers mass re-render for every Application in that repo, even untouched paths | Manifest cache invalidated by commit SHA, not by changed paths | `argocd.argoproj.io/manifest-generate-paths` annotation |
 | repo-server `OOMKilled` / CrashLoopBackOff during a mass sync or large push | Unbounded concurrent manifest generation | `ARGOCD_REPO_SERVER_PARALLELISM_LIMIT` |
+| **argocd-server** `OOMKilled` (exit 137), often while idle | Memory limit too low for the API/UI server — commonly an Operator default (e.g. 256Mi) rather than a concurrency problem | Raise `spec.server.resources.limits.memory` on the ArgoCD CR. Compare against a sibling instance with no limit set before assuming a leak; this is a sizing issue, not a tuning one, so parallelism settings will not help |
 | Git provider rate-limiting / 429s / org-wide block | Unbounded concurrent `git ls-remote` | `ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT` |
 | `context deadline exceeded` in UI/CLI viewing a complex Application | API server timeout shorter than actual render time | `ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS` (align with `ARGOCD_EXEC_TIMEOUT`) |
 | Sync/comparison errors on large Helm charts or Kustomize overlays | Repo-server child-process timeout too low | `ARGOCD_EXEC_TIMEOUT` |

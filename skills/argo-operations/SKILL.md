@@ -39,8 +39,7 @@ Show what the operation would change on the cluster before applying:
 
 | Operation | Preview Command |
 |-----------|----------------|
-| Create resource | `kubectl apply --dry-run=client -f <file> -o yaml` |
-| Create resource (server-validated) | `kubectl apply --dry-run=server -f <file> -o yaml` |
+| Create resource | `kubectl apply --dry-run=server -f <file> -o yaml` — **prefer server** |
 | Update resource | `kubectl diff -f <file>` or `oc diff -f <file>` |
 | Sync Application | `argocd app diff <name>` |
 | Helm install/upgrade | `helm template` or `helm upgrade --dry-run` |
@@ -48,6 +47,25 @@ Show what the operation would change on the cluster before applying:
 | Promote Rollout | `kubectl argo rollouts status <name> -n <ns>` (show current state) |
 
 Show the preview output to the user. Explain what will change in plain language.
+
+#### `--dry-run=client` is a weak preview — do not rely on it
+
+It renders your file locally. It contacts no admission or schema validation, and it does
+not merge against live state, so **for an update it cannot show what will change** — it
+just echoes your input back. Measured against a real cluster:
+
+```
+manifest with a nonexistent field AND a wrong-typed value
+  kubectl apply --dry-run=client   -> ACCEPTED   (no validation at all)
+  kubectl apply --dry-run=server   -> REJECTED   (schema validated)
+```
+
+So:
+- **Creating?** Use `--dry-run=server`. Fall back to client only if the API rejects a
+  server dry-run outright (CRD absent), and say plainly that nothing was validated.
+- **Updating?** Use `kubectl diff`. A client dry-run is not a preview of an update under
+  any circumstances; presenting one as the Preview step gives the user false assurance
+  that the change is understood and safe.
 
 ### Step 3: Confirm
 
@@ -89,20 +107,47 @@ Before executing any destructive operation, verify:
 
 ## Prerequisites
 
-Before any operation, check the environment:
+### Resolving the cluster CLI
+
+**`kubectl` in this skill means "the cluster CLI" — resolve it once, then substitute it
+into every command below.** Do not report a broken environment just because the binary is
+literally named `kubectl` and is absent; on OpenShift hosts `oc` is frequently the only
+one installed, and it accepts every `kubectl` command in this skill verbatim.
+
+Run this first and use `$KCTL` for every cluster command afterwards:
 
 ```bash
-# Required
-command -v kubectl >/dev/null && echo "kubectl: $(kubectl version --client -o json 2>/dev/null | grep gitVersion)" || echo "kubectl: MISSING"
+# Detect the platform and pick the CLI — on OpenShift, oc is the default.
+if command -v oc >/dev/null 2>&1 && oc api-resources --api-group=route.openshift.io 2>/dev/null | grep -q routes; then
+  KCTL=oc; PLATFORM=OpenShift
+elif command -v kubectl >/dev/null 2>&1; then
+  KCTL=kubectl
+  PLATFORM=$(kubectl api-resources --api-group=route.openshift.io 2>/dev/null | grep -q routes && echo OpenShift || echo Kubernetes)
+elif command -v oc >/dev/null 2>&1; then
+  KCTL=oc; PLATFORM=Kubernetes
+else
+  echo "ERROR: no cluster CLI found — install kubectl or oc" >&2; exit 1
+fi
+echo "Platform: $PLATFORM — using '$KCTL'"
+```
 
+**On OpenShift, default to `oc`.** `Route`, `project`, `SecurityContextConstraints`, and
+`oc adm` have no `kubectl` equivalent, and they are exactly what you need when a Route is
+misconfigured or an SCC is blocking a pod. `oc` also accepts every `kubectl` command in
+this skill verbatim, so there is no downside.
+
+This also replaces the separate OpenShift check in Phase 1 — `$PLATFORM` is already set.
+Only report a missing prerequisite when **neither** binary exists.
+
+```bash
 # Optional — enhances capabilities
 command -v argocd >/dev/null && echo "argocd: $(argocd version --client -o json 2>/dev/null | grep Version)" || echo "argocd: not installed"
 command -v helm >/dev/null && echo "helm: $(helm version --short 2>/dev/null)" || echo "helm: not installed"
 command -v kubectl-argo-rollouts >/dev/null && echo "rollouts plugin: available" || echo "rollouts plugin: not installed"
 
-# Cluster context
-kubectl config current-context
-kubectl cluster-info --request-timeout=5s 2>/dev/null || echo "WARN: cluster not reachable"
+# Cluster context — use the CLI resolved above
+$KCTL config current-context
+$KCTL cluster-info --request-timeout=5s 2>/dev/null || echo "WARN: cluster not reachable"
 ```
 
 If the cluster is not reachable, stop and report the error. Do not generate manifests
@@ -144,7 +189,7 @@ Load `references/setup.md` for detailed procedures.
 
 1. Detect the cluster platform:
    ```bash
-   kubectl api-resources --api-group=route.openshift.io 2>/dev/null && echo "OpenShift" || echo "Kubernetes"
+   echo "$PLATFORM"   # already resolved in Prerequisites — do not re-detect
    ```
 2. Ask the user which install method they prefer (if not specified).
 3. Load `references/setup.md` and follow the matching procedure.
@@ -185,7 +230,7 @@ Load `references/deployment.md` for detailed procedures.
 4. **Confirm** — wait for user approval.
 5. Apply and verify:
    ```bash
-   argocd app get <name> 2>/dev/null || kubectl get application <name> -n argocd -o jsonpath='{.status.sync.status}'
+   argocd app get <name> 2>/dev/null || kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{.status.sync.status}'
    ```
 
 **Covers:**
@@ -212,7 +257,7 @@ Load `references/progressive-delivery.md` for detailed procedures.
    For Application syncs:
    ```bash
    argocd app get <name> -o json 2>/dev/null | jq '.status.sync.status, .status.health.status' || \
-     kubectl get application <name> -n argocd -o jsonpath='sync={.status.sync.status} health={.status.health.status}'
+     kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='sync={.status.sync.status} health={.status.health.status}'
    ```
 2. Show the user the current state and what the operation will do.
 3. **Preview** — show what will change (new weight, promoted ReplicaSet, synced resources).
@@ -279,7 +324,7 @@ data. This is a read-only operation — no confirmation needed.
 | Resource already exists | Use `kubectl apply` (update) not `kubectl create`. Show the diff. |
 | Conflicting changes (sync in progress) | Check `operationState.phase`. If `Running`, wait or ask user to cancel. |
 | OpenShift vs vanilla K8s | Detect platform first. Use `oc` and Routes on OpenShift, `kubectl` and Ingress on K8s. |
-| Dry-run fails (CRD not installed) | Fall back to `--dry-run=client`. Warn that server-side validation was skipped. |
+| Dry-run fails (CRD not installed) | Fall back to `--dry-run=client`, but state explicitly that **nothing was validated** — client dry-run accepts nonexistent fields and wrong types silently. Treat the preview as 'here is the YAML I would send', not 'this is valid'. For an update, say that no diff was possible. |
 | Helm chart not reachable | Report the error. Suggest checking `helm repo update` or OCI registry auth. |
 | Application name conflict | Check if an Application with the same name exists. Show the existing one and ask. |
 | Multiple Argo CD instances | Detect by checking for ArgoCD CRs or argocd-labeled pods in multiple namespaces. Ask which instance. |

@@ -20,7 +20,7 @@ Symptom-to-cause mappings organized by Argo component. Read this in full before 
 **Debug:**
 ```bash
 # Check the condition message
-kubectl get application <name> -n argocd -o jsonpath='{.status.conditions[*].message}'
+kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{.status.conditions[*].message}'
 
 # Check repo-server logs for manifest generation errors
 kubectl logs -n argocd -l app.kubernetes.io/name=argocd-repo-server --tail=200 | grep -i error
@@ -44,7 +44,7 @@ kustomize build <path>
 **Debug:**
 ```bash
 # Check the operation state
-kubectl get application <name> -n argocd -o jsonpath='{.status.operationState.syncResult.resources[*]}' | python3 -m json.tool
+kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{.status.operationState.syncResult.resources[*]}' | python3 -m json.tool
 
 # Check AppProject restrictions
 kubectl get appproject <project-name> -n argocd -o yaml
@@ -67,10 +67,10 @@ kubectl auth can-i create <resource> --as=system:serviceaccount:argocd:argocd-ap
 **Debug:**
 ```bash
 # Check syncPolicy
-kubectl get application <name> -n argocd -o jsonpath='{.spec.syncPolicy}'
+kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{.spec.syncPolicy}'
 
 # Check for sync error backoff
-kubectl get application <name> -n argocd -o jsonpath='{.status.operationState.retryCount}'
+kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{.status.operationState.retryCount}'
 
 # Check sync windows on the AppProject
 kubectl get appproject <project> -n argocd -o jsonpath='{.spec.syncWindows}'
@@ -93,7 +93,7 @@ kubectl logs -n argocd -l app.kubernetes.io/name=argocd-application-controller -
 **Debug:**
 ```bash
 # Check which resources are not synced/healthy
-kubectl get application <name> -n argocd -o jsonpath='{range .status.resources[*]}{.kind}/{.name}: sync={.status}, health={.health.status}{"\n"}{end}' | grep -v 'Synced.*Healthy'
+kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{range .status.resources[*]}{.kind}/{.name}: sync={.status}, health={.health.status}{"\n"}{end}' | grep -v 'Synced.*Healthy'
 
 # Check for stuck deletions (finalizers)
 kubectl get <kind> <name> -n <namespace> -o jsonpath='{.metadata.finalizers}'
@@ -144,7 +144,7 @@ kubectl get configmap argocd-cm -n argocd -o jsonpath='{.data.reposerver\.timeou
 **Debug:**
 ```bash
 # Check the source config
-kubectl get application <name> -n argocd -o jsonpath='{.spec.source.helm}' | python3 -m json.tool
+kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{.spec.source.helm}' | python3 -m json.tool
 
 # Try rendering locally with the same values
 helm template <release-name> <chart> -f <values.yaml> --version <version>
@@ -193,7 +193,7 @@ kustomize build <path>
 **Debug:**
 ```bash
 # Find the degraded resource
-kubectl get application <name> -n argocd -o jsonpath='{range .status.resources[?(@.health.status=="Degraded")]}{.kind}/{.namespace}/{.name}{"\n"}{end}'
+kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{range .status.resources[?(@.health.status=="Degraded")]}{.kind}/{.namespace}/{.name}{"\n"}{end}'
 
 # Get events for the degraded resource
 kubectl describe <kind> <name> -n <namespace>
@@ -275,7 +275,7 @@ for k,v in data.items():
 
 ### No Applications generated
 
-**Symptoms:** ApplicationSet exists but `kubectl get applications -n argocd` shows none owned by it.
+**Symptoms:** ApplicationSet exists but `kubectl get applications.argoproj.io -n argocd` shows none owned by it.
 
 **Causes:**
 - Generator returns an empty parameter set
@@ -311,7 +311,7 @@ kubectl get secrets -n argocd -l argocd.argoproj.io/secret-type=cluster
 **Debug:**
 ```bash
 # List applications and their owning ApplicationSet
-kubectl get applications -n argocd -o jsonpath='{range .items[*]}{.metadata.name}: {.metadata.ownerReferences[0].name}{"\n"}{end}'
+kubectl get applications.argoproj.io -n argocd -o jsonpath='{range .items[*]}{.metadata.name}: {.metadata.ownerReferences[0].name}{"\n"}{end}'
 ```
 
 ### Applications not updating after generator source changes
@@ -347,7 +347,7 @@ kubectl annotate applicationset <name> -n argocd refreshed-at="$(date +%s)" --ov
 kubectl get applicationset <name> -n argocd -o jsonpath='{.spec.strategy}' | python3 -m json.tool
 
 # Check Application health per step
-kubectl get applications -n argocd -l 'app.kubernetes.io/managed-by=applicationset-controller' -o custom-columns='NAME:.metadata.name,SYNC:.status.sync.status,HEALTH:.status.health.status'
+kubectl get applications.argoproj.io -n argocd -l 'app.kubernetes.io/managed-by=applicationset-controller' -o custom-columns='NAME:.metadata.name,SYNC:.status.sync.status,HEALTH:.status.health.status'
 ```
 
 ---
@@ -752,8 +752,8 @@ Quick reference for the most-used debug commands across all Argo components.
 
 | Command | Purpose |
 |---------|---------|
-| `kubectl get applications -n argocd` | List all Applications |
-| `kubectl get applications -n argocd -o custom-columns='NAME:.metadata.name,SYNC:.status.sync.status,HEALTH:.status.health.status'` | Application status summary |
+| `kubectl get applications.argoproj.io -n argocd` | List all Applications |
+| `kubectl get applications.argoproj.io -n argocd -o custom-columns='NAME:.metadata.name,SYNC:.status.sync.status,HEALTH:.status.health.status'` | Application status summary |
 | `kubectl get applicationsets -n argocd` | List all ApplicationSets |
 | `kubectl get appprojects -n argocd` | List all AppProjects |
 | `kubectl logs -n argocd -l app.kubernetes.io/name=argocd-application-controller --tail=100` | Controller logs |

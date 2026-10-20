@@ -20,10 +20,37 @@ Debug and troubleshoot the full Argo ecosystem on live Kubernetes clusters.
 
 | Tool | Required | Purpose |
 |------|----------|---------|
-| kubectl | Yes | CRD inspection, pod logs, resource status |
+| `kubectl` **or** `oc` | Yes | CRD inspection, pod logs, resource status |
 | argocd | No | Richer Application output, diff, sync operations |
 | argo | No | Workflow logs, node inspection |
 | kubectl-argo-rollouts | No | Rollout status, step details, promotion |
+
+**Resolve the CLI before any workflow. On OpenShift, `oc` is the default.**
+
+```bash
+# Detect the platform and pick the CLI — on OpenShift, oc is the default.
+if command -v oc >/dev/null 2>&1 && oc api-resources --api-group=route.openshift.io 2>/dev/null | grep -q routes; then
+  KCTL=oc; PLATFORM=OpenShift
+elif command -v kubectl >/dev/null 2>&1; then
+  KCTL=kubectl
+  PLATFORM=$(kubectl api-resources --api-group=route.openshift.io 2>/dev/null | grep -q routes && echo OpenShift || echo Kubernetes)
+elif command -v oc >/dev/null 2>&1; then
+  KCTL=oc; PLATFORM=Kubernetes
+else
+  echo "ERROR: no cluster CLI found — install kubectl or oc" >&2; exit 1
+fi
+echo "Platform: $PLATFORM — using '$KCTL'"
+```
+
+Every `kubectl` in the workflows below means `$KCTL`. `oc` accepts all of them verbatim,
+so substituting is always safe. Prefer `oc` on OpenShift — `Route`, `project`,
+`SecurityContextConstraints`, and `oc adm` have no `kubectl` equivalent, and they are
+exactly what you need when the Argo CD UI is unreachable (Route) or a pod will not start
+(SCC). Only report a missing prerequisite when **neither** binary exists.
+
+When `$PLATFORM` is OpenShift, also expect the Argo CD namespace to be
+`openshift-gitops` rather than `argocd`, and instances to be Operator-managed `ArgoCD`
+CRs (`argoproj.io/v1beta1`) — check `$KCTL get argocd -A`.
 
 ## How This Skill Works
 

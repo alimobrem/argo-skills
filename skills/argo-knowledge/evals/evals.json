@@ -9,7 +9,7 @@
       "expectations": [
         "Output uses spec.sources (plural array) not spec.source (singular) \u2014 multi-source Applications require the array form",
         "Output contains exactly two entries in the sources array",
-        "First source is Helm with repoURL: oci://registry.example.com/charts/webapp and chart field",
+        "First source is the Helm/OCI chart: repoURL is the registry host and path WITHOUT the oci:// scheme (registry.example.com/charts) and chart: webapp is a separate field \u2014 per Argo CD docs, \"the oci:// syntax is not included\" in repoURL",
         "Helm source uses targetRevision with semver constraint 2.x or similar",
         "Second source is Git with repoURL: https://github.com/org/config.git",
         "Git source has ref.targetRevision: main and path containing envs/production",
@@ -136,7 +136,7 @@
     {
       "id": 8,
       "prompt": "I want to set up environment promotion for my app across dev, staging, and production using gitops-promoter. The app repo is on GitHub (org: acme-corp, repo: payments). I want automatic promotion from dev to staging (gated on Argo CD app health), but manual approval for production (gated on both app health and a performance-test check). Also add a security-scan proposed commit status that must pass before merging into any environment. Generate all the resources needed: ScmProvider, GitRepository, PromotionStrategy, and an ArgoCD CommitStatus to report app health. Use a GitHub App for authentication.",
-      "expected_output": "Complete gitops-promoter setup with ScmProvider (GitHub App), GitRepository, PromotionStrategy with 3 environments and commit status gating, and ArgocdCommitStatus for health reporting.",
+      "expected_output": "Complete gitops-promoter setup with ScmProvider (GitHub App), GitRepository, PromotionStrategy with 3 environments and commit status gating, and ArgoCDCommitStatus for health reporting.",
       "files": [],
       "expectations": [
         "Uses apiVersion promoter.argoproj.io/v1alpha1 for all promoter CRDs",
@@ -150,7 +150,7 @@
         "activeCommitStatuses includes argocd-app-health at the strategy level",
         "Production environment has additional activeCommitStatus for performance-test",
         "proposedCommitStatuses includes security-scan at the strategy level",
-        "ArgocdCommitStatus resource referencing the GitRepository and selecting the app"
+        "ArgoCDCommitStatus resource (note capitalisation) with the required promotionStrategyRef and applicationSelector \u2014 NOT gitRepositoryRef, which is not a field on this kind"
       ]
     }
   ]

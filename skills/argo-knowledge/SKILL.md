@@ -18,7 +18,7 @@ license: MIT
 
 1. **Always use correct apiVersion and kind.** Most Argo CRDs use `apiVersion: argoproj.io/v1alpha1` — see the CRD Table below — but **not all of them**, and assuming otherwise produces a manifest the API server rejects. The exceptions:
    - **`argoproj.io/v1beta1`** — the OpenShift GitOps / Argo CD Operator `ArgoCD` CR (`references/openshift.md`). `v1alpha1` is deprecated for this kind.
-   - **`promoter.argoproj.io/v1alpha1`** — all GitOps Promoter kinds: `PromotionStrategy`, `GitRepository`, `ScmProvider`, `ArgocdCommitStatus` (`references/gitops-promoter.md`). Note the different API *group*, not just version.
+   - **`promoter.argoproj.io/v1alpha1`** — every GitOps Promoter kind (`PromotionStrategy`, `ChangeTransferPolicy`, `GitRepository`, `ScmProvider`, `CommitStatus`, `ArgoCDCommitStatus`, `PullRequest`, and others — see the CRD Table and `references/gitops-promoter.md`). Note the different API **group**, not just a different version.
 
    Never invent CRDs or apiVersions that do not exist. When in doubt, check the reference file for that topic rather than defaulting to `argoproj.io/v1alpha1`.
 2. **Load references on-demand.** Only read reference files when the user's question requires detailed field-level knowledge. Do not preload all references.
@@ -61,10 +61,17 @@ The Argo project is a set of Kubernetes-native tools for running and managing jo
 | EventBus | argoproj.io/v1alpha1 | Events | Message transport layer between EventSources and Sensors |
 | Sensor | argoproj.io/v1alpha1 | Events | Listens to EventBus, applies filters, fires triggers |
 | ArgoCD | **argoproj.io/v1beta1** | OpenShift GitOps / Argo CD Operator | Operator-managed Argo CD instance (`v1alpha1` is deprecated for this kind) |
-| PromotionStrategy | **promoter.argoproj.io/v1alpha1** | GitOps Promoter | Environment promotion across branches with gating |
-| GitRepository | **promoter.argoproj.io/v1alpha1** | GitOps Promoter | Git repo reference for the promoter |
-| ScmProvider | **promoter.argoproj.io/v1alpha1** | GitOps Promoter | SCM credentials/endpoint used by the promoter |
-| ArgocdCommitStatus | **promoter.argoproj.io/v1alpha1** | GitOps Promoter | Surfaces Argo CD health/sync as a promotion gate |
+| PromotionStrategy | **promoter.argoproj.io/v1alpha1** | GitOps Promoter | Environment sequence and gating rules |
+| ChangeTransferPolicy | **promoter.argoproj.io/v1alpha1** | GitOps Promoter | How changes move between branches (auto-generated) |
+| GitRepository | **promoter.argoproj.io/v1alpha1** | GitOps Promoter | Repository reference (owner, name, SCM provider ref) |
+| ScmProvider / ClusterScmProvider | **promoter.argoproj.io/v1alpha1** | GitOps Promoter | SCM credentials and provider config (namespaced / cluster-scoped) |
+| CommitStatus | **promoter.argoproj.io/v1alpha1** | GitOps Promoter | Set a commit status on a SHA — the generic promotion gate |
+| ArgoCDCommitStatus | **promoter.argoproj.io/v1alpha1** | GitOps Promoter | Surfaces Argo CD health/sync as a promotion gate |
+| PullRequest | **promoter.argoproj.io/v1alpha1** | GitOps Promoter | PR lifecycle (open/merged/closed) |
+
+> The promoter also ships `GitCommitStatus`, `TimedCommitStatus`,
+> `WebRequestCommitStatus`, `RevertCommit`, and `ControllerConfiguration`. For the full
+> installed set on a given cluster: `kubectl get crd -o name | grep promoter.argoproj.io`.
 
 ## How Argo CD Works
 
@@ -150,6 +157,7 @@ user needs a manifest** — do not reproduce these from memory.
 | 8 | EventSource + Sensor triggering a Workflow | Event-driven automation from webhooks |
 | 9 | Notifications config (`argocd-notifications-cm`) | Slack/email alerts on sync or health events |
 | 10 | Image updater annotations | Automated image bumps written back to Git |
+| 11 | Multi-source Application (chart + external values) | Chart in one repo, values in another — `spec.sources[]` + `$values` |
 
 ## Common Mistakes
 
@@ -177,13 +185,21 @@ user needs a manifest** — do not reproduce these from memory.
 
 12. **Image updater `write-back-method: git` without write access.** The image updater needs push access to the Git repo. Without it, updates silently fail. Check the image updater logs.
 
+13. **Putting `oci://` in a Helm `repoURL`.** The Argo CD docs are explicit: *"the `oci://` syntax is not included."* Use the registry host and path (`registry.example.com/charts`) with the chart name in `chart:`, and register the repository with `enableOCI: "true"`. The resulting failure looks like an auth or network error, not a URL format error.
+
+14. **`preserveResourcesOnDeletion` at `spec` level on an ApplicationSet.** It only exists at `spec.syncPolicy.preserveResourcesOnDeletion`. The CRD is a structural schema, so the misplaced key is silently pruned — you get no deletion protection and no error.
+
+15. **Top-level `spec.dex` on an ArgoCD CR.** Unsupported since Argo CD Operator v0.8.0; use `spec.sso.provider: dex` with `spec.sso.dex`. The old form does not take effect, so SSO quietly never comes up.
+
+16. **One notification trigger driving multiple commit-status states.** `oncePer` is scoped per trigger, so a single trigger fires once per revision and then stops — typically leaving the commit status stuck on `pending`. Use one trigger per state. Also note `operationState.syncResult.revision` is empty while the operation is `Running`.
+
 ## Reference Index
 
 | Topic | Reference File | When to Load |
 |-------|---------------|-------------|
 | 10 canonical YAML patterns (Application, ApplicationSet, Rollout, Workflow, Events, notifications, image updater) | `references/patterns.md` | **Any request to generate or review a manifest** |
-| Application spec, sync policies, sync waves, health checks, ignore differences, multi-cluster | `references/applications.md` | Questions about Application configuration, sync behavior, health, or multi-cluster |
-| ApplicationSet generators, templates, progressive syncs | `references/applicationsets.md` | Questions about ApplicationSet generators, templating, or progressive rollout |
+| Application spec, **multi-source (`sources[]` + `$values`)**, sync policies, sync waves, health checks, ignore differences, multi-cluster | `references/applications.md` | Questions about Application configuration, multi-source, sync behavior, health, or multi-cluster |
+| ApplicationSet generators, templates, progressive syncs, `preserveResourcesOnDeletion`, `ignoreApplicationDifferences` | `references/applicationsets.md` | Questions about ApplicationSet generators, templating, progressive rollout, or suppressing drift on generated Applications |
 | AppProject RBAC, source/destination restrictions, sync windows | `references/app-projects.md` | Questions about RBAC, project policies, sync windows |
 | Rollout canary/blue-green, traffic management, AnalysisTemplate, experiments | `references/rollouts.md` | Questions about progressive delivery, canary/blue-green, analysis metrics |
 | Workflow DAG/steps, parameters, artifacts, CronWorkflow | `references/workflows.md` | Questions about workflow orchestration, scheduling, parameters |

@@ -39,7 +39,7 @@ fragments work for a community **Argo CD Operator** install under `metadata.name
 | `controller.sync.timeout.seconds` | `0` (no timeout) | set only if a specific hung sync needs a hard stop | `argocd-cmd-params-cm` | `spec.controller.env` |
 | `controller.sync.wave.delay.seconds` | `2s` | raise for multi-wave apps where downstream controllers need more reaction time | `argocd-cmd-params-cm` | `spec.controller.env` |
 | `ARGOCD_APPLICATION_TREE_SHARD_SIZE` | `0` (single Redis key) | `100` for apps with very large resource trees | env on `argocd-application-controller` | `spec.controller.env` |
-| `controller.resource.health.persist` | `false` (3.0+ default) | leave `false` unless you depend on health in `kubectl get application -o yaml` | `argocd-cmd-params-cm` | `spec.controller.env` |
+| `controller.resource.health.persist` | `false` (3.0+ default) | leave `false` unless you depend on health in `kubectl get applications.argoproj.io -o yaml` | `argocd-cmd-params-cm` | `spec.controller.env` |
 | Dynamic Cluster Distribution | disabled (alpha) | only for non-production / with restart-based fallback ready | `ARGOCD_ENABLE_DYNAMIC_CLUSTER_DISTRIBUTION` + Deployment (not StatefulSet) | same env var under `spec.controller.env` |
 
 ## Controller: Reduce reconciliation at the source
@@ -494,7 +494,7 @@ default otherwise — raising it globally slows every multi-wave Application's t
 **Fixes:** `Application` CR update churn from writing resource health status into the
 Application's own `/status` on every health change — 3.0 changed the default to store health
 externally instead. Setting this to `true` restores the pre-3.0 behavior of persisting health in
-the CR (useful if something reads health via `kubectl get application -o yaml`) at the cost of
+the CR (useful if something reads health via `kubectl get applications.argoproj.io -o yaml`) at the cost of
 reintroducing that update load — leave it `false` unless you have a specific consumer depending
 on in-CR health.
 

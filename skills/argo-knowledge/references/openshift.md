@@ -185,23 +185,34 @@ can manage DeploymentConfigs, but:
 
 ### OAuth Integration
 
-OpenShift GitOps integrates with OpenShift OAuth by default. The ArgoCD CR can configure
-Dex with OpenShift as an OIDC provider:
+OpenShift GitOps integrates with OpenShift OAuth by default. The ArgoCD CR configures Dex
+with OpenShift as an OIDC provider under **`spec.sso`**:
 
 ```yaml
 spec:
-  dex:
-    openShiftOAuth: true
-    resources:
-      limits:
-        cpu: 500m
-        memory: 256Mi
+  sso:
+    provider: dex            # currently the only supported provider value
+    dex:
+      openShiftOAuth: true   # wires up the built-in OpenShift OAuth server
+      resources:
+        limits:
+          cpu: 500m
+          memory: 256Mi
   rbac:
     defaultPolicy: role:readonly
     policy: |
       g, cluster-admins, role:admin
     scopes: '[groups]'
 ```
+
+> **Top-level `spec.dex` is dead — do not generate it.** Per the Argo CD Operator
+> reference: *"`.spec.dex` is no longer supported in Argo CD operator v0.8.0 onwards, use
+> `.spec.sso.dex` instead."* On a current operator the old form does not take effect, so
+> SSO silently never comes up and users fall back to the local admin account — precisely
+> what OAuth integration was meant to avoid.
+>
+> `spec.sso.provider` must be set alongside `spec.sso.dex`. With `openShiftOAuth: true`
+> you do **not** also hand-write a `dex.config` block.
 
 Groups from OpenShift are passed through to Argo CD RBAC policies via the `scopes`
 field. Map OpenShift groups to Argo CD roles in the `policy` field.
