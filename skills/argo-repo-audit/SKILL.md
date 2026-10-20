@@ -61,15 +61,40 @@ With the inventory:
 
 ### Phase 2: Manifest Validation
 
-**If `yq`, `kustomize`, and `kubeconform` are available**, run the validation script:
+Run the validation script whenever **any** of `yq`, `kustomize`, or `kubeconform` is
+available — it degrades per tool and runs whichever passes it can:
+
 ```bash
 bash <skill-dir>/scripts/validate.sh -d <repo-root>
 ```
 
+| Tool | Pass it enables | Missing → |
+|------|----------------|-----------|
+| `yq` | 1 — YAML syntax | that pass is skipped, others still run |
+| `kubeconform` | 2 — schema validation against `assets/schemas/` | that pass is skipped, others still run |
+| `kustomize` | 3 — overlay builds | that pass is skipped, others still run |
+
+Exit codes: `0` pass, `1` validation errors found, `2` none of the three tools installed
+(nothing could be checked). **Only exit `2` means "no validation happened".** Read the
+script's `Skipped:` summary line and carry it into the report — a reduced run that finds
+nothing is not a clean bill of health.
+
 This performs YAML syntax checks, Kubernetes schema validation (using Argo CRD schemas
 from `assets/schemas/`), and Kustomize overlay builds.
 
-**If tools are not available**, skip this phase and note it in the report:
+**Two coverage limits to state in the report rather than let the reader assume away:**
+
+- **Secrets are not inspected here.** The script runs kubeconform with `-skip=Secret`, so
+  a validate-only run can never surface a plain-text Secret. Those are Phase 4 findings.
+  Never let a clean Pass 2 imply the repo is free of hardcoded credentials.
+- **Only Argo CD and Rollouts schemas ship** in `assets/schemas/` (Application,
+  AppProject, ApplicationSet, Rollout, AnalysisTemplate, AnalysisRun, Experiment).
+  Workflows and Events kinds (Workflow, WorkflowTemplate, CronWorkflow, EventSource,
+  EventBus, Sensor) have no local schema and are passed over via
+  `-ignore-missing-schemas`. A Workflow-heavy repo gets little schema coverage even with
+  every tool installed — say so instead of reporting it as validated.
+
+**If none of the three tools are available** (exit code `2`), skip this phase and note it:
 "Schema validation skipped — install yq, kustomize, kubeconform for deeper validation."
 
 ### Phase 3: Best Practices Assessment
@@ -94,7 +119,13 @@ Skip categories with zero matching resources.
 **Read `references/security-audit.md` and work through each checklist item.** This file
 contains specific things to look for and grep commands to find them. Check:
 
-- **AppProject restrictions** — sourceRepos, destinations, clusterResourceWhitelist
+- **AppProject restrictions** — sourceRepos, destinations, clusterResourceWhitelist.
+  **Wildcards are the easy case; do not stop there.** An *enumerated*
+  `clusterResourceWhitelist` containing `ClusterRole`/`ClusterRoleBinding` (or webhook
+  configs, CRDs, SCCs) grants cluster-wide privilege escalation while passing every
+  wildcard grep and reading as careful least-privilege. Same for project role policies
+  like `applications, *` or any `exec, create` — scoped, but still too broad. Run the
+  enumerated-escalation and scoped-but-dangerous scans in `security-audit.md`.
 - **RBAC** — SSO integration, project roles, default policy, admin access
 - **Secrets management** — plain-text Secrets (should be sealed-secrets, external-secrets, SOPS, or Vault)
 - **Cluster credentials** — argocd-cluster-secret not in plain text
