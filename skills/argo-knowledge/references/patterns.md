@@ -118,7 +118,10 @@ spec:
           - path: addons/*
           - path: addons/experimental-*
             exclude: true
-  preserveResourcesOnDeletion: true
+  syncPolicy:
+    # NOTE: preserveResourcesOnDeletion lives under spec.syncPolicy, NOT at spec level.
+    # At spec level the API server silently prunes it and you lose the protection.
+    preserveResourcesOnDeletion: true
   template:
     metadata:
       name: 'addon-{{.path.basename}}'
@@ -169,7 +172,8 @@ spec:
   goTemplate: true
   goTemplateOptions:
     - missingkey=error
-  preserveResourcesOnDeletion: true
+  syncPolicy:
+    preserveResourcesOnDeletion: true   # under syncPolicy — not at spec level
   generators:
     - matrix:
         generators:

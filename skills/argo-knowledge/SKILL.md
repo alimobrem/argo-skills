@@ -16,7 +16,11 @@ license: MIT
 
 ## Rules
 
-1. **Always use correct apiVersion and kind.** Every Argo CRD uses `apiVersion: argoproj.io/v1alpha1`. Never invent CRDs or apiVersions that do not exist.
+1. **Always use correct apiVersion and kind.** Most Argo CRDs use `apiVersion: argoproj.io/v1alpha1` — see the CRD Table below — but **not all of them**, and assuming otherwise produces a manifest the API server rejects. The exceptions:
+   - **`argoproj.io/v1beta1`** — the OpenShift GitOps / Argo CD Operator `ArgoCD` CR (`references/openshift.md`). `v1alpha1` is deprecated for this kind.
+   - **`promoter.argoproj.io/v1alpha1`** — all GitOps Promoter kinds: `PromotionStrategy`, `GitRepository`, `ScmProvider`, `ArgocdCommitStatus` (`references/gitops-promoter.md`). Note the different API *group*, not just version.
+
+   Never invent CRDs or apiVersions that do not exist. When in doubt, check the reference file for that topic rather than defaulting to `argoproj.io/v1alpha1`.
 2. **Load references on-demand.** Only read reference files when the user's question requires detailed field-level knowledge. Do not preload all references.
 3. **Max 1-2 topic reference files per question** (`references/patterns.md` does not count toward that budget — load it whenever a manifest is requested). Keep context focused. If a question spans more than two reference areas, answer the primary question first and offer to elaborate.
 4. **Validate YAML before presenting.** Every YAML example must be syntactically valid and use real field names from the Argo CRD schemas.
@@ -56,6 +60,11 @@ The Argo project is a set of Kubernetes-native tools for running and managing jo
 | EventSource | argoproj.io/v1alpha1 | Events | Defines external event sources to consume |
 | EventBus | argoproj.io/v1alpha1 | Events | Message transport layer between EventSources and Sensors |
 | Sensor | argoproj.io/v1alpha1 | Events | Listens to EventBus, applies filters, fires triggers |
+| ArgoCD | **argoproj.io/v1beta1** | OpenShift GitOps / Argo CD Operator | Operator-managed Argo CD instance (`v1alpha1` is deprecated for this kind) |
+| PromotionStrategy | **promoter.argoproj.io/v1alpha1** | GitOps Promoter | Environment promotion across branches with gating |
+| GitRepository | **promoter.argoproj.io/v1alpha1** | GitOps Promoter | Git repo reference for the promoter |
+| ScmProvider | **promoter.argoproj.io/v1alpha1** | GitOps Promoter | SCM credentials/endpoint used by the promoter |
+| ArgocdCommitStatus | **promoter.argoproj.io/v1alpha1** | GitOps Promoter | Surfaces Argo CD health/sync as a promotion gate |
 
 ## How Argo CD Works
 

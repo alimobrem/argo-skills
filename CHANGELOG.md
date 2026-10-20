@@ -4,6 +4,41 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed (`preserveResourcesOnDeletion` was documented at the wrong path everywhere)
+
+Surfaced by an eval run and confirmed against the repo's own committed CRD schema
+(`skills/argo-repo-audit/assets/schemas/applicationset-argoproj-v1alpha1.json`): the field
+exists **only** at `spec.syncPolicy.preserveResourcesOnDeletion`. There is no
+`spec.preserveResourcesOnDeletion`. Because the ApplicationSet CRD is a structural schema,
+the API server silently prunes the misplaced key — the manifest applies cleanly, review
+looks correct, and the cluster has no deletion protection at all.
+
+Every occurrence in the repo had it at spec level:
+
+- `argo-knowledge/references/patterns.md` — patterns 3 and 4
+- `argo-knowledge/references/applicationsets.md` — the spec overview block and the
+  dedicated `## preserveResourcesOnDeletion` section (which contradicted the correct
+  usage shown in the same file's Sync Policy section)
+- `argo-operations/references/deployment.md` — ApplicationSet example
+- `argo-repo-audit/references/best-practices.md` — the audit checklist, which meant the
+  auditor **passed** repos with the broken key and would have flagged correct ones. Now
+  reports the spec-level form as a finding.
+- `argo-knowledge/evals/evals.json` — eval 2 explicitly instructed "Set
+  preserveResourcesOnDeletion at the spec level" and asserted it in the expectations, so
+  the benchmark was rewarding the broken output. Prompt and expectation corrected.
+
+Note this slightly changes the argo-knowledge eval set, so the recorded 98% is not a
+like-for-like comparison with future runs of eval 2.
+
+### Fixed (argo-knowledge Rule 1 was factually wrong)
+
+Rule 1 asserted "Every Argo CRD uses `apiVersion: argoproj.io/v1alpha1`", which the
+skill's own references contradict: the OpenShift GitOps `ArgoCD` CR is
+`argoproj.io/v1beta1`, and every GitOps Promoter kind is in a different API *group*
+(`promoter.argoproj.io/v1alpha1`). A model following Rule 1 literally emits a rejected
+manifest on those topics. Rule 1 now names the exceptions, and the CRD Table lists
+`ArgoCD`, `PromotionStrategy`, `GitRepository`, `ScmProvider`, and `ArgocdCommitStatus`.
+
 ### Changed (argo-team-onboard is now GitOps-first) — BREAKING for existing users
 
 Review feedback: *"I'm not a fan of argo-team-onboard if it's directly updating the Argo

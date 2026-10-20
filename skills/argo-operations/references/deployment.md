@@ -197,7 +197,9 @@ spec:
           - path: addons/*
           - path: addons/experimental-*
             exclude: true
-  preserveResourcesOnDeletion: true
+  syncPolicy:
+    # Must be under spec.syncPolicy — at spec level the API server silently prunes it.
+    preserveResourcesOnDeletion: true
   template:
     metadata:
       name: 'addon-{{.path.basename}}'
