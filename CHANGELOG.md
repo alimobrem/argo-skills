@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed (argo-repo-audit missed the escalation its own fixture tests for)
+
+Surfaced by running the `argo-repo-audit` evals. The `tests/argo-repo-audit/targeted-bugs/subtle-rbac`
+fixture exists to test detection of a privilege escalation with no wildcards in it — an
+enumerated `clusterResourceWhitelist` granting `ClusterRole` + `ClusterRoleBinding`, plus
+`applications, *` and `exec, create` on the project role. All three scanning commands
+`security-audit.md` tells you to run returned **nothing** on it:
+
+| Documented scan | Result on `subtle-rbac` |
+|---|---|
+| `clusterResourceWhitelist` wildcard | MISSED |
+| RBAC triple-wildcard (`p,.*\*.*\*.*\*.*allow`) | MISSED |
+| `sourceRepos` wildcard | MISSED |
+
+The checklist prose covered the risk; every grep backing it only matched `'*'`. Added
+enumerated-escalation and scoped-but-dangerous scans (ClusterRole/ClusterRoleBinding/
+RoleBinding/CRD/webhook configs/SCC/APIService/StorageClass/PriorityClass, wildcard
+actions, and any `exec` grant), with a table of why each kind is an escalation. Verified
+the new scans catch the fixture and produce no false positives on `clean-repo`.
+
+### Fixed (`validate.sh` refused to run instead of degrading)
+
+`check_prereqs` hard-exited if **any** of yq/kustomize/kubeconform was missing, despite
+SKILL.md promising to "skip gracefully". A machine with yq but no kubeconform therefore
+got no YAML syntax check either, and a validation-only request had no automated path at
+all. Each tool gates exactly one pass, so it now degrades per tool, labels each skipped
+pass, and exits `2` only when all three are absent. The summary names what was skipped so
+a reduced run is not mistaken for a clean full validation.
+
+Also documented two coverage limits that could be read as false assurance: kubeconform
+runs with `-skip=Secret` (so plain-text secrets can never be a Pass 2 finding), and only
+Argo CD + Rollouts schemas ship locally (Workflows and Events kinds get no schema
+coverage even with all tooling installed).
+
 ### Fixed (`preserveResourcesOnDeletion` was documented at the wrong path everywhere)
 
 Surfaced by an eval run and confirmed against the repo's own committed CRD schema

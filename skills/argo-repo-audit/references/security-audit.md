@@ -36,6 +36,54 @@ grep -rn -A5 "destinations:" <repo-root> --include="*.yaml" --include="*.yml" | 
 grep -rn -A3 "clusterResourceWhitelist" <repo-root> --include="*.yaml" --include="*.yml" | grep -E "group:.*'\*'|kind:.*'\*'"
 ```
 
+### Scanning: Find *enumerated* but privilege-escalating clusterResourceWhitelist
+
+**The wildcard scan above is not sufficient, and this is the more common real-world case.**
+An explicitly enumerated whitelist that grants cluster-scoped RBAC or admission kinds
+contains no `*`, passes every wildcard grep, and reads as careful least-privilege in
+review — while voiding the AppProject's `destinations` scoping entirely.
+
+A team allowed to commit a `ClusterRoleBinding` can bind themselves `cluster-admin`, and
+the Argo CD controller — which runs privileged — will apply it. Namespace scoping is
+irrelevant at that point.
+
+```bash
+# Escalation-capable kinds that should essentially never be team-whitelisted
+grep -rn -A20 "clusterResourceWhitelist" <repo-root> --include="*.yaml" --include="*.yml" | \
+  grep -E "kind:[[:space:]]*(ClusterRole|ClusterRoleBinding|RoleBinding|CustomResourceDefinition|MutatingWebhookConfiguration|ValidatingWebhookConfiguration|SecurityContextConstraints|PodSecurityPolicy|APIService|StorageClass|PriorityClass)"
+```
+
+| Kind | Why it is an escalation |
+|------|------------------------|
+| `ClusterRole`, `ClusterRoleBinding` | Self-grant any permission cluster-wide, including cluster-admin |
+| `RoleBinding` | Bind existing powerful ClusterRoles into any namespace in reach |
+| `CustomResourceDefinition` | Cluster-scoped; can shadow or conflict with platform CRDs |
+| `MutatingWebhookConfiguration`, `ValidatingWebhookConfiguration` | Intercept and rewrite *all* cluster API traffic |
+| `SecurityContextConstraints` (OpenShift), `PodSecurityPolicy` | Grant themselves privileged pod execution |
+| `APIService` | Hijack aggregated API endpoints |
+| `StorageClass`, `PriorityClass` | Cluster-wide resource and scheduling impact |
+
+Report any hit as **Critical**, even with no wildcard present. Expected safe entries are
+narrow and app-shaped — the team's own CRDs, or `Namespace` when they self-provision.
+
+### Scanning: Find scoped-but-dangerous project role policies
+
+The triple-wildcard RBAC grep further down misses project-scoped grants that are still too
+broad: a wildcard *action* on a narrowly scoped resource, and any `exec` grant.
+
+```bash
+# Wildcard action (applications, *) even when the project/app scope is narrow
+grep -rn -E "p,[^,]+,[[:space:]]*applications[[:space:]]*,[[:space:]]*\*" <repo-root> --include="*.yaml" --include="*.yml" --include="*.csv"
+
+# Any exec grant, at any scope — not just */*
+grep -rn -E "p,[^,]+,[[:space:]]*exec[[:space:]]*,[[:space:]]*create" <repo-root> --include="*.yaml" --include="*.yml" --include="*.csv"
+```
+
+`applications, *` includes `delete` and `override`, and lets the holder edit the
+Application spec — including repointing `source` outside the intended repo. `exec, create`
+gives a shell in any pod in scope, which exposes mounted ServiceAccount tokens and bypasses
+Kubernetes audit attribution. Scope to `get`, `sync`, and at most `override`.
+
 ---
 
 ## RBAC and Authentication
