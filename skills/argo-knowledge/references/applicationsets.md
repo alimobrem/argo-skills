@@ -60,7 +60,10 @@ spec:
 
 **Always use Go templates** for new ApplicationSets. Fasttemplate is legacy.
 
-Go template pitfall: `{{.path.basename}}` works, but `{{.path[0]}}` does not. Use `index .path 0` for array access.
+Go template pitfall: `{{.path.basename}}` works, but `{{.path[0]}}` does not. **`.path` is
+a map, not an array** — its keys are `path`, `basename`, `basenameNormalized` and
+`segments`. For a path segment use `index .path.segments N`; plain `index .path N` fails
+to render.
 
 ## Generators
 
@@ -85,7 +88,7 @@ generators:
 - `{{.path.path}}` — Full path (e.g., `apps/my-app`)
 - `{{.path.basename}}` — Directory name (e.g., `my-app`)
 - `{{.path.basenameNormalized}}` — DNS-safe name (e.g., `my-app`)
-- `{{.path[N]}}` — Nth path segment (use `index .path N`)
+- `{{ index .path.segments N }}` — Nth path segment (0-indexed). **Not** `index .path N`: `.path` is a map, so that form does not render.
 
 ### Git File Generator
 

@@ -39,7 +39,7 @@ fragments work for a community **Argo CD Operator** install under `metadata.name
 | `controller.sync.timeout.seconds` | `0` (no timeout) | set only if a specific hung sync needs a hard stop | `argocd-cmd-params-cm` | `spec.controller.env` |
 | `controller.sync.wave.delay.seconds` | `2s` | raise for multi-wave apps where downstream controllers need more reaction time | `argocd-cmd-params-cm` | `spec.controller.env` |
 | `ARGOCD_APPLICATION_TREE_SHARD_SIZE` | `0` (single Redis key) | `100` for apps with very large resource trees | env on `argocd-application-controller` | `spec.controller.env` |
-| `controller.resource.health.persist` | upstream `false` (3.0+); **OpenShift GitOps operator ships `true`** | on OpenShift you are already paying the in-CR health write cost — setting it `false` is a *reduction*, not a no-op | `argocd-cmd-params-cm` | `spec.extraConfig` |
+| `controller.resource.health.persist` | upstream `false` (3.0+); **OpenShift GitOps operator ships `true`** | on OpenShift you are already paying the in-CR health write cost — setting it `false` is a *reduction*, not a no-op | `argocd-cmd-params-cm` | **`spec.cmdParams`** (dedicated — not `spec.extraConfig`) |
 | Dynamic Cluster Distribution | disabled (alpha) | only for non-production / with restart-based fallback ready | `ARGOCD_ENABLE_DYNAMIC_CLUSTER_DISTRIBUTION` + Deployment (not StatefulSet) | same env var under `spec.controller.env` |
 
 ## Controller: Reduce reconciliation at the source
@@ -79,6 +79,36 @@ it working, or the absence of that line to find what still isn't covered).
 **Do not disable this setting** to "fix" a missed status change — find the specific field
 causing the problem and add it to the ignore rule instead; disabling it re-enables reconciling
 on every periodic status rewrite cluster-wide.
+
+### Dedicated `ArgoCD` CR fields — prefer these over env vars
+
+Several settings in the table above have a **first-class field on the `ArgoCD` CR**.
+Where one exists, use it: a dedicated field is schema-validated (so a typo is rejected
+rather than silently ignored), and it will not be clobbered the way a raw env entry can
+be. Verified present on `argoproj.io/v1beta1`:
+
+| Setting | Dedicated CR field | Instead of |
+|---------|-------------------|-----------|
+| kubectl parallelism | `spec.controller.parallelismLimit` | `ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT` env |
+| reconciliation interval | `spec.controller.appSync` | `timeout.reconciliation` in `argocd-cm` |
+| repo-server exec timeout | `spec.repo.execTimeout` | `ARGOCD_EXEC_TIMEOUT` env |
+| sharding algorithm | `spec.controller.sharding.algorithm` | `ARGOCD_CONTROLLER_SHARDING_ALGORITHM` env |
+| resource exclusions/inclusions | `spec.resourceExclusions` / `spec.resourceInclusions` | `argocd-cm` keys via `extraConfig` |
+| `controller.resource.health.persist` | `spec.cmdParams` | `spec.extraConfig` |
+
+`spec.controller.sharding` also exposes `enabled`, `replicas`, `minShards`, `maxShards`,
+`clustersPerShard` and `dynamicScalingEnabled`.
+
+Check what the installed operator version supports before assuming:
+
+```bash
+kubectl explain argocd.spec.controller.sharding
+kubectl explain argocd.spec.cmdParams
+```
+
+Use `spec.*.env` only for settings with **no** dedicated field — and remember
+`spec.extraConfig` takes precedence over the CRD, so a stray entry there silently
+overrides a dedicated field you set correctly.
 
 ### `resource.exclusions` (ships with defaults since v3.0)
 
@@ -122,8 +152,18 @@ spec:
 > the intent. Always read the current value, append, and write the whole string back:
 >
 > ```bash
+> # Read BOTH. An instance can have an EMPTY spec.resourceExclusions while its argocd-cm
+> # carries a fully populated resource.exclusions — observed on a real cluster, where one
+> # instance had the CR field set and a sibling had only the ConfigMap. Reading just the
+> # CR field returns empty, you "append" to nothing, and you wipe the shipped defaults —
+> # exactly the failure this warning exists to prevent.
 > kubectl get argocd <name> -n "$NS" -o jsonpath='{.spec.resourceExclusions}'
+> kubectl get cm argocd-cm -n "$NS" -o jsonpath='{.data.resource\.exclusions}'
 > ```
+>
+> If only the ConfigMap is populated, the operator is managing it from its own defaults
+> rather than from the CR. Seed `spec.resourceExclusions` with the *current ConfigMap
+> contents plus your additions*, not with your additions alone.
 >
 > The same applies to `spec.resourceInclusions`.
 >
@@ -172,7 +212,7 @@ replace a full `git fetch origin --tags --force --prune`.
 Set under `spec.repo.env` on the `ArgoCD` CR (OpenShift GitOps / Argo CD Operator):
 
 ```yaml
-apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1beta1
 kind: ArgoCD
 metadata:
   name: openshift-gitops
@@ -308,7 +348,7 @@ destination cluster maps to its shard.
 OpenShift GitOps (`ArgoCD` CR):
 
 ```yaml
-apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1beta1
 kind: ArgoCD
 metadata:
   name: openshift-gitops
@@ -560,6 +600,15 @@ reintroducing that update load.
 > ```bash
 > kubectl get cm argocd-cmd-params-cm -n "$NS" -o jsonpath='{.data.controller\.resource\.health\.persist}'
 > ```
+>
+> **Set it via `spec.cmdParams`, not `spec.extraConfig`.** Per `kubectl explain
+> argocd.spec.cmdParams`, this is one of only *two* keys that field supports:
+>
+> ```yaml
+> spec:
+>   cmdParams:
+>     controller.resource.health.persist: "false"
+> ```
 
 ## Common mistakes (OpenShift GitOps Operator)
 
@@ -572,7 +621,11 @@ reintroducing that update load.
 3. **Lowering `timeout.reconciliation` without webhooks**, or raising it far without webhooks —
    either hurts. Pair a longer interval with a configured Git webhook.
 4. **Relying on `consistent-hashing` sharding on OpenShift GitOps** — the operator still passes
-   through whatever value you set, but it isn't documented/officially supported there. Verify
+   through whatever value you set. **Note the API does accept it**: on operator 1.21.3
+   `spec.controller.sharding.algorithm` is enum-validated to
+   `legacy | round-robin | consistent-hashing`, so "undocumented on OpenShift GitOps" is a
+   statement about Red Hat's *support posture*, not about API availability — do not tell
+   users the field will reject it. Verify
    against your installed version before depending on it in production.
 5. **Lowering `ARGOCD_REPO_CACHE_EXPIRATION`** to chase floating tags — use webhooks or pin
    versions instead; a short TTL forces constant re-rendering.

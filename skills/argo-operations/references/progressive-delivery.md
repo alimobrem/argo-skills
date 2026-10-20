@@ -106,7 +106,7 @@ kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/rele
 
 4. Preview and apply:
    ```bash
-   kubectl apply --dry-run=server -f rollout.yaml
+   kubectl apply --dry-run=server --validate=strict -f rollout.yaml
    # After confirmation:
    kubectl apply -f rollout.yaml
    ```
@@ -269,10 +269,8 @@ kubectl argo rollouts promote <name> -n <namespace>
 kubectl argo rollouts get rollout <name> -n <namespace>
 
 # Show which ReplicaSet is active vs preview
-kubectl get rollout <name> -n <namespace> -o jsonpath='{
-  "activeRS": "{.status.blueGreen.activeSelector}",
-  "previewRS": "{.status.blueGreen.previewSelector}"
-}'
+kubectl get rollout <name> -n <namespace> -o jsonpath='phase={.status.phase} active={.status.blueGreen.activeSelector} preview={.status.blueGreen.previewSelector}{"
+"}'
 ```
 
 ### Promote Preview to Active
@@ -365,7 +363,7 @@ spec:
 
 ```bash
 # Preview
-kubectl apply --dry-run=server -f analysisrun.yaml
+kubectl apply --dry-run=server --validate=strict -f analysisrun.yaml
 
 # Apply (after user confirms)
 kubectl apply -f analysisrun.yaml

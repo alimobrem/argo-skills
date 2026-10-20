@@ -3,6 +3,19 @@
 
 # Debugging Workflows
 
+> **Component selectors:** `$CR` is the ArgoCD instance's name — `openshift-gitops`,
+> `team-b`, etc. Operator-managed workloads are labelled `<cr-name>-<component>`, so a
+> hardcoded `app.kubernetes.io/name=argocd-server` matches **nothing** and the component
+> reads as absent. Resolve it alongside `$NS`:
+>
+> ```bash
+> CR=$(kubectl get argocd -n "$NS" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+> CR=${CR:-argocd}   # falls back to the Helm/standalone naming
+> ```
+>
+> On a Helm or plain-manifest install the components really are `argocd-*`, so the
+> fallback makes the same commands work on both.
+
 > **Namespace:** `$NS` below is the Argo CD instance's namespace. It is **`openshift-gitops`
 > on OpenShift GitOps**, `argocd` on a standalone install, and something else entirely for a
 > second instance. There is frequently more than one — resolve it once and reuse it:
@@ -105,6 +118,12 @@ Use when: user asks if Argo CD is installed, reports general Argo CD failures, o
    ```bash
    argocd version
    ```
+   **In `--core` mode this is vacuous** — the CLI *is* the server, so client and server
+   always match. `.status.version` is also empty on the ArgoCD CR, so on an
+   operator-managed instance read the actual version off the image:
+   ```bash
+   kubectl get deploy -n "$NS" "$CR"-server -o jsonpath='{.spec.template.spec.containers[0].image}'
+   ```
    Compare client and server versions. Mismatches beyond minor version can cause issues.
 
 6. Check the argocd-cm ConfigMap for server configuration:
@@ -202,7 +221,7 @@ Use when: user reports Application sync failure, health degradation, OutOfSync, 
 
 8. If repo-server is failing to render manifests, check repo-server logs:
    ```bash
-   kubectl logs -n "$NS" -l app.kubernetes.io/name=argocd-repo-server --tail=100
+   kubectl logs -n "$NS" -l app.kubernetes.io/name=$CR-repo-server --tail=100
    ```
 
 9. Inspect managed resources. List resources from `.status.resources` with non-Healthy or non-Synced status:
@@ -264,7 +283,7 @@ Use when: user reports ApplicationSet not generating Applications, generating wr
 
 5. If no Applications generated, check the applicationset-controller logs:
    ```bash
-   kubectl logs -n "$NS" -l app.kubernetes.io/name=argocd-applicationset-controller --tail=200
+   kubectl logs -n "$NS" -l app.kubernetes.io/name=$CR-applicationset-controller --tail=200
    ```
 
 6. If some Applications are generated but failing, debug each one using Workflow 2.

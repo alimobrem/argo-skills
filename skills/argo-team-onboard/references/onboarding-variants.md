@@ -412,6 +412,22 @@ spec:
     path: deploy
 ```
 
+**GitRepository** (required — `PromotionStrategy` references it, it is not inline):
+
+```yaml
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: GitRepository
+metadata:
+  name: "{{APP_NAME}}-repo"
+  namespace: "{{ARGOCD_NAMESPACE}}"
+spec:
+  github:
+    owner: "{{ORG}}"
+    name: "{{REPO}}"
+  scmProviderRef:
+    name: github
+```
+
 **PromotionStrategy:**
 
 ```yaml
@@ -419,39 +435,53 @@ apiVersion: promoter.argoproj.io/v1alpha1
 kind: PromotionStrategy
 metadata:
   name: "{{APP_NAME}}"
-  namespace: argocd
+  namespace: "{{ARGOCD_NAMESPACE}}"
 spec:
-  repositoryReference:
-    owner: "{{ORG}}"
-    name: "{{REPO}}"
-    scmProviderRef:
-      name: github                                   # References SCMProvider CR
+  # REQUIRED. Not `repositoryReference` — that field does not exist on the
+  # installed CRD; `spec.required` is ['environments', 'gitRepositoryRef'].
+  gitRepositoryRef:
+    name: "{{APP_NAME}}-repo"
   environments:
     - branch: environments/dev
-      autoMerge: true                                # Auto-merge PRs to dev
+      autoMerge: true
     - branch: environments/staging
-      autoMerge: true                                # Auto-merge PRs to staging
+      autoMerge: true
     - branch: environments/prod
-      autoMerge: false                               # Require manual merge to prod
+      autoMerge: false                               # manual merge to prod
   activeCommitStatuses:
-    - key: health-check
-      # Waits for commit status from Argo CD before promoting
+    - key: health-check                              # matched against CommitStatus.spec.name
 ```
 
-**SCMProvider (one per Git provider):**
+**ScmProvider (one per Git provider):**
 
 ```yaml
 apiVersion: promoter.argoproj.io/v1alpha1
-kind: SCMProvider
+kind: ScmProvider          # NOT "SCMProvider" — that kind does not exist
 metadata:
   name: github
-  namespace: argocd
+  namespace: "{{ARGOCD_NAMESPACE}}"
 spec:
   github:
-    domain: github.com
+    appID: 123456           # REQUIRED — the provider expects a GitHub App
+    installationID: 7890123
+    # domain: github.mycompany.com   # GitHub Enterprise ONLY.
+    # The CRD rejects `domain: github.com` outright — a CEL rule enforces
+    # "Instead of setting the domain to github.com, leave the field blank".
   secretRef:
-    name: github-token                               # Secret with PAT or GitHub App creds
+    name: github-app-creds  # Secret holding the App private key
 ```
+
+> **This section was wrong until it was checked against a running promoter.** Every CR
+> here previously failed admission: the kind was `SCMProvider`, the strategy used a
+> `repositoryReference` field that does not exist, the `GitRepository` CR was missing
+> entirely, and `spec.github` was documented with a bare PAT `secretRef` when `appID` is
+> required. Verify against your installed version before trusting any of it —
+> gitops-promoter is pre-1.0 and its API has moved:
+>
+> ```bash
+> kubectl explain promotionstrategy.spec
+> kubectl explain scmprovider.spec.github
+> ```
 
 ### Minimal (AppProject + Application Only)
 
@@ -464,7 +494,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
   name: team-{{TEAM_NAME}}
-  namespace: argocd
+  namespace: "{{ARGOCD_NAMESPACE}}"   # openshift-gitops on OpenShift
 spec:
   sourceRepos:
     - https://github.com/{{ORG}}/{{REPO}}.git
@@ -497,7 +527,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: "{{TEAM_NAME}}-{{APP_NAME}}-{{ENV}}"
-  namespace: argocd
+  namespace: "{{ARGOCD_NAMESPACE}}"   # openshift-gitops on OpenShift
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:

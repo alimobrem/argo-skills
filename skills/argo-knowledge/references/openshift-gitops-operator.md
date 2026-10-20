@@ -315,6 +315,7 @@ The recurring question when something will not stay changed:
 | You want to change | Set it on | Not on |
 |--------------------|-----------|--------|
 | Argo CD component replicas, resources, SSO, RBAC, route | `ArgoCD` CR | the Deployments |
+| Resource tracking method (`label` / `annotation`) | **`ArgoCD.spec.resourceTrackingMethod`** | `resource.trackingMethod` in `argocd-cm` — reconciled away |
 | Notification templates/triggers/services | `NotificationsConfiguration` | `argocd-notifications-cm` |
 | Whether the notifications controller runs at all | `ArgoCD.spec.notifications.enabled` | — |
 | Rollouts controller image, HA, resources, scope | `RolloutManager` | the argo-rollouts Deployment |

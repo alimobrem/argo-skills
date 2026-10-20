@@ -86,7 +86,8 @@ kubectl config current-context
 kubectl get argocd -A -o name 2>/dev/null  # Operator-managed (OpenShift GitOps / Argo CD Operator)
 # Operator workloads are named <cr-name>-server, so "argocd-server" only matches by
 # accident. List what is actually there rather than probing for a fixed name:
-kubectl get deploy -A 2>/dev/null | grep -E '\-server|\-repo-server|\-application-controller'""
+# Note deploy AND statefulset — the application-controller is a StatefulSet.
+kubectl get deploy,sts -A 2>/dev/null | grep -E '\-server|\-repo-server|\-application-controller'
 ```
 
 Gather scale signals:
@@ -178,7 +179,7 @@ Every change that touches the live cluster follows the same 3-step protocol as
    **Common mistakes** list in `references/tuning-settings.md` before presenting the patch.
 2. **Preview**:
    ```bash
-   kubectl patch argocd <name> -n <ns> --type merge -p '<patch>' --dry-run=server -o yaml
+   kubectl patch argocd <name> -n <ns> --type merge -p '<patch>' --dry-run=server --validate=strict -o yaml
    # or, for standalone ConfigMap/env changes:
    kubectl diff -f <file>.yaml
    ```
@@ -198,7 +199,7 @@ and Git provider rate-limit headers. Recommend changing **one** major setting at
 | OpenShift GitOps Operator in use | `processors` go under `spec.controller.processors`, **not** `spec.extraConfig`; controller repo-server timeout goes under `spec.controller.env`, **not** `spec.extraConfig` |
 | Floating tags / mutable Helm chart versions in use | Do not recommend lowering `ARGOCD_REPO_CACHE_EXPIRATION` to chase freshness — recommend webhooks or version pinning instead |
 | Public repository with no Repository Secret yet | Must create the Secret object first — shallow-clone `depth` cannot be set without it |
-| User asks for `consistent-hashing` sharding on OpenShift GitOps | Note it is not documented/officially supported there; verify against the installed operator version before relying on it in production |
+| User asks for `consistent-hashing` sharding on OpenShift GitOps | The API accepts it — `spec.controller.sharding.algorithm` is enum-validated to `legacy\|round-robin\|consistent-hashing` (verified on operator 1.21.3). The caveat is Red Hat's **support posture**, not API availability, so do not claim the field will reject it. Check the installed operator version and flag the support question before production use |
 | User asks about `round-robin` as a "safe" default | Note it is also still experimental — removing the rank-0 cluster reshuffles every cluster across every shard |
 | User asks for Dynamic Cluster Distribution, or to rebalance shards without a restart | It is alpha; cite the known 2025 scale-down (clusters left unassigned) and scale-up (double-assigned) bugs and recommend the static sharding model with a planned restart for production until resolved |
 | User has a monorepo and asks to fix cache invalidation on every commit | Recommend `argocd.argoproj.io/manifest-generate-paths` (works without webhooks since v2.11) over lowering `ARGOCD_REPO_CACHE_EXPIRATION`; note it requires full-history clone (no shallow `depth`) and has had real cache-coherency bugs — pair with `resource.ignoreResourceUpdatesEnabled` as defense in depth |

@@ -1,5 +1,18 @@
 # Day-2 Operations Reference — Upgrades, Scaling, Backup, and Maintenance
 
+> **Component selectors:** `$CR` is the ArgoCD instance's name — `openshift-gitops`,
+> `team-b`, etc. Operator-managed workloads are labelled `<cr-name>-<component>`, so a
+> hardcoded `app.kubernetes.io/name=argocd-server` matches **nothing** and the component
+> reads as absent. Resolve it alongside `$NS`:
+>
+> ```bash
+> CR=$(kubectl get argocd -n "$NS" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+> CR=${CR:-argocd}   # falls back to the Helm/standalone naming
+> ```
+>
+> On a Helm or plain-manifest install the components really are `argocd-*`, so the
+> fallback makes the same commands work on both.
+
 > **Namespace:** `$NS` below is the Argo CD instance's namespace. It is **`openshift-gitops`
 > on OpenShift GitOps**, `argocd` on a standalone install, and something else entirely for a
 > second instance. There is frequently more than one — resolve it once and reuse it:
@@ -88,26 +101,26 @@ The operator upgrades are managed by OLM. For automatic upgrades:
 
 ```bash
 # Check current CSV
-kubectl get csv -n openshift-operators | grep gitops
+kubectl get csv -n openshift-gitops-operator | grep gitops
 
 # Check install plan approval
-kubectl get subscription openshift-gitops-operator -n openshift-operators -o jsonpath='{.spec.installPlanApproval}'
+kubectl get subscription openshift-gitops-operator -n openshift-gitops-operator -o jsonpath='{.spec.installPlanApproval}'
 ```
 
 For manual approval:
 
 ```bash
 # 1. List pending install plans
-kubectl get installplan -n openshift-operators | grep openshift-gitops
+kubectl get installplan -n openshift-gitops-operator | grep openshift-gitops
 
 # 2. Review the install plan
-kubectl get installplan <plan-name> -n openshift-operators -o yaml
+kubectl get installplan <plan-name> -n openshift-gitops-operator -o yaml
 
 # 3. Approve (after user confirms)
-kubectl patch installplan <plan-name> -n openshift-operators --type merge -p '{"spec":{"approved":true}}'
+kubectl patch installplan <plan-name> -n openshift-gitops-operator --type merge -p '{"spec":{"approved":true}}'
 
 # 4. Verify
-kubectl get csv -n openshift-operators | grep gitops
+kubectl get csv -n openshift-gitops-operator | grep gitops
 kubectl get pods -n openshift-gitops
 ```
 
@@ -150,7 +163,7 @@ kubectl rollout status deployment/argocd-server -n "$NS"
 
 ```bash
 # Check for deprecated APIs in managed Applications
-argocd admin settings resource-overrides list-deprecated 2>/dev/null || \
+argocd admin settings resource-overrides list   # NOTE: there is no 'list-deprecated' subcommand (checked on argocd v3.5.5) 2>/dev/null || \
   echo "argocd admin not available — check manually"
 
 # Scan for deprecated apiVersions in Git repos
@@ -296,8 +309,8 @@ Sharding is automatic when `ARGOCD_CONTROLLER_REPLICAS` matches the replica coun
 
 ```bash
 # Verify sharding
-kubectl get pods -n "$NS" -l app.kubernetes.io/name=argocd-application-controller
-for pod in $(kubectl get pods -n "$NS" -l app.kubernetes.io/name=argocd-application-controller -o name); do
+kubectl get pods -n "$NS" -l app.kubernetes.io/name=$CR-application-controller
+for pod in $(kubectl get pods -n "$NS" -l app.kubernetes.io/name=$CR-application-controller -o name); do
   echo "=== $pod ==="
   kubectl logs $pod -n "$NS" --tail=5 | grep "shard"
 done
@@ -370,7 +383,9 @@ echo "Backing up Argo CD resources to $BACKUP_DIR..."
 
 # NS must be the real Argo CD namespace — 'argocd' does not exist on operator installs.
 # On OpenShift GitOps it is openshift-gitops, and there may be several instances.
-NS="${NS:-argocd}"
+NS="${NS:-openshift-gitops}"   # 'argocd' is the upstream default and usually wrong on OpenShift
+# There is often MORE THAN ONE instance. Back up each:
+#   for NS in $(kubectl get argocd -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"\n"}{end}'); do ... done
 
 # `kubectl get ... -o yaml` exits 0 and writes an empty "items: []" list when nothing
 # matched, so `cmd && echo "[OK]"` reports success for an EMPTY backup. Count instead.
@@ -582,7 +597,7 @@ kubectl patch argocd openshift-gitops -n openshift-gitops --type merge -p '{"spe
 kubectl apply -n "$NS" -f https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/stable/manifests/install.yaml
 
 # Verify
-kubectl get pods -n "$NS" -l app.kubernetes.io/name=argocd-image-updater
+kubectl get pods -n "$NS" -l app.kubernetes.io/name=$CR-image-updater
 ```
 
 ### Enable Applications in Any Namespace
