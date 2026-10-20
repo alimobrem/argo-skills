@@ -6,11 +6,26 @@ VALIDATE_SCRIPT := skills/argo-repo-audit/scripts/validate.sh
 TEST_DIR := tests/argo-repo-audit
 
 ARGOCD_VERSION := v2.14.14
+ARGOCD_OPERATOR_VERSION := v0.18.0
 ROLLOUTS_VERSION := v1.8.2
-WORKFLOWS_VERSION := v3.6.5
-EVENTS_VERSION := v1.10.1
+WORKFLOWS_VERSION := v4.1.5
+EVENTS_VERSION := v1.9.11
 
-.PHONY: help download-schemas clean-schemas test-discover test-validate test-registration eval eval-knowledge eval-repo-audit eval-cluster-debug eval-operations eval-performance-tuning eval-team-onboard
+.PHONY: help download-schemas clean-schemas test-discover test-validate test-registration test-expectations eval eval-knowledge eval-repo-audit eval-cluster-debug eval-operations eval-performance-tuning eval-team-onboard
+
+# Fetch a CRD schema from an arbitrary URL, selecting the STORAGE version rather than
+# versions[0] — the ArgoCD CR serves both v1alpha1 and v1beta1 and we want v1beta1.
+# $(1)=url $(2)=output basename
+define fetch_schema_url
+	@echo "  $(2)"
+	@curl -fsSL "$(1)" \
+		| yq e -o=json '.spec.versions[] | select(.storage == true) | .schema.openAPIV3Schema' > "$(SCHEMAS_TMP)/$(2).json" \
+		|| { echo "ERROR: failed to fetch $(2) from $(1)"; exit 1; }
+	@test -s "$(SCHEMAS_TMP)/$(2).json" \
+		|| { echo "ERROR: $(2).json is empty — upstream path likely moved"; exit 1; }
+	@python3 -m json.tool "$(SCHEMAS_TMP)/$(2).json" > /dev/null \
+		|| { echo "ERROR: $(2).json is not valid JSON"; exit 1; }
+endef
 
 # Download one CRD schema into the staging dir, failing loudly if upstream moved it.
 # $(1)=repo $(2)=version $(3)=upstream CRD filename $(4)=output basename
@@ -33,6 +48,17 @@ download-schemas: ## Download Argo CRD schemas for kubeconform validation
 	$(call fetch_schema,argo-cd,$(ARGOCD_VERSION),application-crd.yaml,application-argoproj-v1alpha1)
 	$(call fetch_schema,argo-cd,$(ARGOCD_VERSION),appproject-crd.yaml,appproject-argoproj-v1alpha1)
 	$(call fetch_schema,argo-cd,$(ARGOCD_VERSION),applicationset-crd.yaml,applicationset-argoproj-v1alpha1)
+	@echo "Downloading ArgoCD CR schema (argocd-operator $(ARGOCD_OPERATOR_VERSION))..."
+	$(call fetch_schema_url,https://raw.githubusercontent.com/argoproj-labs/argocd-operator/$(ARGOCD_OPERATOR_VERSION)/config/crd/bases/argoproj.io_argocds.yaml,argocd-argoproj-v1beta1)
+	@echo "Downloading Argo Workflows CRDs ($(WORKFLOWS_VERSION))..."
+	$(call fetch_schema_url,https://raw.githubusercontent.com/argoproj/argo-workflows/$(WORKFLOWS_VERSION)/manifests/base/crds/full/argoproj.io_workflows.yaml,workflow-argoproj-v1alpha1)
+	$(call fetch_schema_url,https://raw.githubusercontent.com/argoproj/argo-workflows/$(WORKFLOWS_VERSION)/manifests/base/crds/full/argoproj.io_cronworkflows.yaml,cronworkflow-argoproj-v1alpha1)
+	$(call fetch_schema_url,https://raw.githubusercontent.com/argoproj/argo-workflows/$(WORKFLOWS_VERSION)/manifests/base/crds/full/argoproj.io_workflowtemplates.yaml,workflowtemplate-argoproj-v1alpha1)
+	$(call fetch_schema_url,https://raw.githubusercontent.com/argoproj/argo-workflows/$(WORKFLOWS_VERSION)/manifests/base/crds/full/argoproj.io_clusterworkflowtemplates.yaml,clusterworkflowtemplate-argoproj-v1alpha1)
+	@echo "Downloading Argo Events CRDs ($(EVENTS_VERSION))..."
+	$(call fetch_schema_url,https://raw.githubusercontent.com/argoproj/argo-events/$(EVENTS_VERSION)/manifests/base/crds/argoproj.io_eventsources.yaml,eventsource-argoproj-v1alpha1)
+	$(call fetch_schema_url,https://raw.githubusercontent.com/argoproj/argo-events/$(EVENTS_VERSION)/manifests/base/crds/argoproj.io_sensors.yaml,sensor-argoproj-v1alpha1)
+	$(call fetch_schema_url,https://raw.githubusercontent.com/argoproj/argo-events/$(EVENTS_VERSION)/manifests/base/crds/argoproj.io_eventbus.yaml,eventbus-argoproj-v1alpha1)
 	@echo "Downloading Argo Rollouts CRDs ($(ROLLOUTS_VERSION))..."
 	$(call fetch_schema,argo-rollouts,$(ROLLOUTS_VERSION),rollout-crd.yaml,rollout-argoproj-v1alpha1)
 	$(call fetch_schema,argo-rollouts,$(ROLLOUTS_VERSION),analysis-template-crd.yaml,analysistemplate-argoproj-v1alpha1)
@@ -48,6 +74,9 @@ test-discover: ## Run discovery script on test fixtures
 	$(DISCOVER_SCRIPT) -d $(TEST_DIR)/app-of-apps
 	$(DISCOVER_SCRIPT) -d $(TEST_DIR)/applicationset
 	$(DISCOVER_SCRIPT) -d $(TEST_DIR)/mixed-issues
+
+test-expectations: ## Validate eval expectations' field paths against the Argo CRD schemas
+	@bash scripts/check-eval-expectations.sh
 
 test-registration: ## Check every skill is registered in manifests, agent, Makefile, banner, docs
 	@bash scripts/check-skill-registration.sh

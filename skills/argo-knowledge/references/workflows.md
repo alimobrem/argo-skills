@@ -533,7 +533,11 @@ metadata:
   name: nightly-cleanup
   namespace: argo
 spec:
-  schedule: "0 2 * * *"                 # Cron expression (daily at 2am)
+  # v3.6+: `schedules` is a LIST and replaces the removed singular `schedule`.
+  # A manifest using `schedule:` is silently pruned by the API server — the
+  # CronWorkflow is created and simply never fires.
+  schedules:
+    - "0 2 * * *"                       # daily at 2am
   timezone: America/New_York            # Optional timezone
   concurrencyPolicy: Replace            # Allow, Forbid, Replace
   startingDeadlineSeconds: 60           # Max seconds after missed schedule

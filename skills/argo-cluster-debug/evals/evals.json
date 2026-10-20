@@ -132,7 +132,7 @@
       "prompt": "Our CronWorkflow nightly-report hasn't run in 3 days even though the schedule says it should run daily. Debug it.",
       "expectations": [
         "Retrieves the CronWorkflow and checks status.lastScheduledTime and status.active",
-        "Checks spec.schedule and spec.timezone for correctness",
+        "Checks spec.schedules (a LIST, v3.6+ \u2014 the singular spec.schedule was removed) and spec.timezone for correctness",
         "Checks spec.concurrencyPolicy and whether a previous run is still marked active, blocking new runs",
         "Checks spec.startingDeadlineSeconds for missed-schedule handling",
         "Checks the workflow-controller logs for cron scheduling errors",
@@ -142,7 +142,7 @@
     {
       "id": 11,
       "name": "Ambiguous debug request with multiple Argo CD instances",
-      "prompt": "Something's wrong with Argo CD on this cluster but I don't know which instance — we have more than one. Check what's going on.",
+      "prompt": "Something's wrong with Argo CD on this cluster but I don't know which instance \u2014 we have more than one. Check what's going on.",
       "expectations": [
         "Detects multiple Argo CD instances (multiple namespaces with argocd-labeled pods or multiple ArgoCD CRs)",
         "Lists all detected instances with their namespaces",
@@ -166,7 +166,7 @@
     {
       "id": 13,
       "name": "Multi-source Application with one failing source",
-      "prompt": "My Application platform-ui uses multiple sources — a Helm chart and a separate values repo. It's OutOfSync and I don't know which source is the problem.",
+      "prompt": "My Application platform-ui uses multiple sources \u2014 a Helm chart and a separate values repo. It's OutOfSync and I don't know which source is the problem.",
       "expectations": [
         "Detects the Application uses spec.sources[] (multi-source), not spec.source",
         "Iterates every entry in spec.sources[] individually, checking repoURL, targetRevision, path, and Helm valueFiles for each",

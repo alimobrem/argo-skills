@@ -1,5 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+# Reference the apps/ directory as a base. Kustomize forbids pulling in individual
+# FILES from outside the kustomization root, but allows a directory that has its own
+# kustomization.yaml — the standard base/overlay layout.
 resources:
-  - ../../apps/appset-git-dirs.yaml
-  - ../../apps/appset-cluster.yaml
+  - ../../apps

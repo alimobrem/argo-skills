@@ -36,7 +36,12 @@ jobs:
         run: |
           for fixture in tests/argo-repo-audit/*/; do
             echo "=== $(basename $fixture) ==="
-            bash skills/argo-repo-audit/scripts/validate.sh -d "$fixture" || true
+            # Intentionally-broken fixtures live under targeted-bugs/ and mixed-issues/;
+            # those are expected to report findings. The clean fixtures must validate.
+            case "$fixture" in
+              */targeted-bugs/*|*/mixed-issues/*) bash skills/argo-repo-audit/scripts/validate.sh -d "$fixture" || true ;;
+              *) bash skills/argo-repo-audit/scripts/validate.sh -d "$fixture" ;;
+            esac
             echo
           done
 
@@ -55,3 +60,6 @@ jobs:
 
       - name: Check skill registration
         run: bash scripts/check-skill-registration.sh
+
+      - name: Validate eval expectations against CRD schemas
+        run: bash scripts/check-eval-expectations.sh
