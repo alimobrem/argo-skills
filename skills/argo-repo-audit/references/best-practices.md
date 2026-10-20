@@ -41,7 +41,8 @@ Assess the repository against each applicable category. Skip categories with zer
 - [ ] Progressive syncs enabled via `spec.strategy.type: RollingSync` for fleet deployments
   - `maxUpdate` configured (percentage or absolute number)
   - Steps defined for staged rollout (e.g., canary cluster first)
-- [ ] `spec.preserveResourcesOnDeletion: true` for safety — prevents accidental mass deletion when generator input changes
+- [ ] `spec.syncPolicy.preserveResourcesOnDeletion: true` for safety — prevents accidental mass deletion when generator input changes.
+  **Report `spec.preserveResourcesOnDeletion` (without `syncPolicy`) as a finding, not a pass.** That key is not in the ApplicationSet CRD, so the API server silently prunes it: the repo looks protected in review and has no protection on the cluster.
 - [ ] `spec.template` validated — all `{{placeholder}}` or `{{.values}}` resolve correctly
 - [ ] `spec.goTemplate: true` preferred over default fasttemplate for complex templating (conditionals, loops, functions)
 - [ ] `spec.templatePatch` used for per-environment overrides instead of duplicating full templates

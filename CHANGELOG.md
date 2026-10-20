@@ -4,6 +4,127 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed (`preserveResourcesOnDeletion` was documented at the wrong path everywhere)
+
+Surfaced by an eval run and confirmed against the repo's own committed CRD schema
+(`skills/argo-repo-audit/assets/schemas/applicationset-argoproj-v1alpha1.json`): the field
+exists **only** at `spec.syncPolicy.preserveResourcesOnDeletion`. There is no
+`spec.preserveResourcesOnDeletion`. Because the ApplicationSet CRD is a structural schema,
+the API server silently prunes the misplaced key — the manifest applies cleanly, review
+looks correct, and the cluster has no deletion protection at all.
+
+Every occurrence in the repo had it at spec level:
+
+- `argo-knowledge/references/patterns.md` — patterns 3 and 4
+- `argo-knowledge/references/applicationsets.md` — the spec overview block and the
+  dedicated `## preserveResourcesOnDeletion` section (which contradicted the correct
+  usage shown in the same file's Sync Policy section)
+- `argo-operations/references/deployment.md` — ApplicationSet example
+- `argo-repo-audit/references/best-practices.md` — the audit checklist, which meant the
+  auditor **passed** repos with the broken key and would have flagged correct ones. Now
+  reports the spec-level form as a finding.
+- `argo-knowledge/evals/evals.json` — eval 2 explicitly instructed "Set
+  preserveResourcesOnDeletion at the spec level" and asserted it in the expectations, so
+  the benchmark was rewarding the broken output. Prompt and expectation corrected.
+
+Note this slightly changes the argo-knowledge eval set, so the recorded 98% is not a
+like-for-like comparison with future runs of eval 2.
+
+### Fixed (argo-knowledge Rule 1 was factually wrong)
+
+Rule 1 asserted "Every Argo CRD uses `apiVersion: argoproj.io/v1alpha1`", which the
+skill's own references contradict: the OpenShift GitOps `ArgoCD` CR is
+`argoproj.io/v1beta1`, and every GitOps Promoter kind is in a different API *group*
+(`promoter.argoproj.io/v1alpha1`). A model following Rule 1 literally emits a rejected
+manifest on those topics. Rule 1 now names the exceptions, and the CRD Table lists
+`ArgoCD`, `PromotionStrategy`, `GitRepository`, `ScmProvider`, and `ArgocdCommitStatus`.
+
+### Changed (argo-team-onboard is now GitOps-first) — BREAKING for existing users
+
+Review feedback: *"I'm not a fan of argo-team-onboard if it's directly updating the Argo
+CD config, this should be handled in git and managed by GitOps."* Correct, and it was a
+design flaw — a GitOps onboarding skill whose write path was `kubectl apply` put the
+tenant boundary outside Git: invisible in review, absent from the audit trail, and liable
+to be reverted the next time anything reconciled.
+
+- **The write is now a commit**, not an apply. The safety model changed from
+  Generate → dry-run → apply to **Generate → `git diff` → confirm → commit/PR**, and the
+  skill states that the tenant is not onboarded until Argo CD syncs.
+- **`kubectl apply` is now the documented exception**, allowed only to bootstrap the first
+  control loop, and the skill must label it as such and commit the same manifests.
+- **Phase 1 Discovery now locates the GitOps repo first** and matches the existing tenant
+  layout instead of inventing one. New Phase 3 covers the commit and handoff.
+- **`git` is now the only hard requirement**; `kubectl`/`argocd` are optional and
+  read-only. Onboarding works with no cluster access at all.
+- New *Choosing the Onboarding Model* section: per-tenant values + chart (recommended),
+  rendered manifests, or Kustomize overlay.
+
+### Added (argo-team-onboard — security baseline and recommended model)
+
+- `references/gitops-onboarding.md` — the recommended model, following Thomas Jungbauer's
+  [project onboarding with GitOps and Helm](https://www.redhat.com/en/blog/project-onboarding-using-gitops-and-helm):
+  per-tenant `values.yaml` rendered by a shared onboarding chart and discovered by an
+  ApplicationSet with a `**/values.yaml` git generator. Includes t-shirt sizing with
+  per-tenant override, and the two-Argo-CD-instance platform/tenant split.
+- **Default NetworkPolicies are now generated for every tenant namespace.** The skill
+  previously blacklisted `NetworkPolicy` via `namespaceResourceBlacklist` but never
+  created any — so tenant namespaces shipped fully open to lateral traffic *and* teams
+  were blocked from fixing it. Adds default-deny egress (with the DNS exception that
+  makes it survivable), same-namespace, router ingress, and monitoring ingress.
+- **Pod Security Standards labels on the Namespace template** —
+  `pod-security.kubernetes.io/enforce: restricted` plus audit/warn and cluster monitoring.
+  Previously absent entirely, so a tenant could run privileged pods regardless of how
+  carefully the AppProject was scoped.
+
+### Fixed (six-skill consistency)
+
+- `assets/banner.svg` now shows a pill for all six skills; `performance-tuning` and
+  `team-onboard` were missing.
+- `make eval` ran only four of six skills — added `eval-operations` and
+  `eval-team-onboard` (both skills already had `evals.json` and a benchmarks page).
+- `.github/workflows/evals.yml` knew only three skills, and offered stale model IDs.
+- `.codex-plugin/plugin.json` had placeholder `your-org` URLs and a three-capability
+  description.
+- `docs/USER_GUIDE.md` had no Team Onboarding section.
+- README was missing the `gitops-promoter.md` reference row, and still explained a `—`
+  placeholder that no longer appears in the benchmarks table.
+- `make download-schemas` deleted the committed schemas first and had `|| true` on every
+  download, so a network blip or an upstream CRD rename silently produced empty schema
+  files — and `update-schemas.yml` would open a weekly PR deleting them. Downloads are now
+  staged, verified non-empty and valid JSON, and only then swapped in.
+- `argo-repo-audit` invoked its scripts at a CWD-relative path that does not resolve once
+  the skill is installed as a plugin.
+- `argo-knowledge` Pattern 10 combined Helm image-updater annotations with
+  `write-back-target: kustomization` on a Kustomize source; each half is ignored by the
+  other's source type.
+- `argo-team-onboard` Phase 2/3 carried inline templates that contradicted `references/`:
+  a different AppProject naming convention, snake_case vs camelCase `teams.yaml` fields,
+  and a `teams:` array feeding a per-file generator's `{{ .team.name }}` (which cannot
+  resolve, and hard-fails under `missingkey=error`).
+
+### Added
+
+- `scripts/check-skill-registration.sh`, wired into CI and `make test-registration`: a new
+  skill cannot be added without being registered in the marketplace manifest, agent
+  definition, Makefile eval targets, banner, README, and eval workflow. Verified it fails
+  against the old four-pill banner.
+
+### Changed (progressive disclosure)
+
+Large always-loaded `SKILL.md` files now route to references, following the structure
+`argo-performance-tuning` already used. No content was dropped — verified by comparing
+every code block before and after.
+
+- `argo-knowledge`: 822 → 189 lines; the 10 canonical YAML patterns moved to
+  `references/patterns.md`, replaced by an index table.
+- `argo-cluster-debug`: 695 → 176 lines; the 7 debugging workflows moved to
+  `references/debug-workflows.md`, replaced by a symptom → workflow routing table.
+- `argo-team-onboard`: 609 → 421 lines; Phase 2/3 inline manifests removed in favour of
+  the existing `references/`, which are now the single source of truth for templates.
+
+Evals should be re-run to confirm no regression, since answering now requires following a
+reference pointer rather than reading everything up front.
+
 ### Added (argo-performance-tuning — web research delta)
 
 - `references/tuning-settings.md` expanded with 11 settings/features verified against official

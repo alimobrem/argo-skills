@@ -24,8 +24,10 @@ spec:
       project: <project>
       source: {}
       destination: {}
-      syncPolicy: {}
-  preserveResourcesOnDeletion: false    # Keep generated Applications' resources when deleting AppSet
+      syncPolicy: {}                    # the generated Application's sync policy
+  syncPolicy:                           # the ApplicationSet's own sync policy — different thing
+    preserveResourcesOnDeletion: false  # Keep generated Applications' resources when deleting AppSet
+    applicationsSync: create-update     # create-only | create-update | create-delete
   strategy: {}                          # Progressive sync strategy
   templatePatch: ""                     # JSON merge patch applied to template
 ```
@@ -358,8 +360,23 @@ spec:
 
 ```yaml
 spec:
-  preserveResourcesOnDeletion: true
+  syncPolicy:
+    preserveResourcesOnDeletion: true
 ```
+
+**Placement matters.** This field lives at `spec.syncPolicy.preserveResourcesOnDeletion`.
+There is no `spec.preserveResourcesOnDeletion` — the ApplicationSet CRD is a structural
+schema, so the API server **silently prunes** the misplaced key. The resource applies
+cleanly, `kubectl get` shows no error, and you believe you have deletion protection that
+does not exist. Verify with:
+
+```bash
+kubectl get applicationset <name> -n argocd -o jsonpath='{.spec.syncPolicy}'
+```
+
+Do not confuse it with `spec.template.spec.syncPolicy`, which is the *generated
+Application's* sync policy (automated/prune/selfHeal) — a different field at a different
+level.
 
 When the ApplicationSet is deleted:
 - `false` (default) — All generated Applications and their cluster resources are deleted

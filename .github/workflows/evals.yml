@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       skill:
-        description: 'Skill to eval (argo-knowledge, argo-repo-audit, argo-cluster-debug, or all)'
+        description: 'Skill to eval (or all). Cluster-dependent skills are skipped on hosted runners.'
         required: true
         default: 'all'
         type: choice
@@ -12,15 +12,18 @@ on:
           - argo-knowledge
           - argo-repo-audit
           - argo-cluster-debug
+          - argo-operations
+          - argo-performance-tuning
+          - argo-team-onboard
       model:
         description: 'Model to use'
         required: true
-        default: 'claude-sonnet-4-6'
+        default: 'claude-sonnet-5-5'
         type: choice
         options:
-          - claude-opus-4-6
-          - claude-sonnet-4-6
-          - claude-haiku-4-5
+          - claude-opus-5-5
+          - claude-sonnet-5-5
+          - claude-haiku-5-5
 
 permissions:
   contents: read
@@ -37,6 +40,12 @@ jobs:
             needs_cluster: false
           - skill: argo-cluster-debug
             needs_cluster: true
+          - skill: argo-operations
+            needs_cluster: true
+          - skill: argo-performance-tuning
+            needs_cluster: true
+          - skill: argo-team-onboard
+            needs_cluster: true
     steps:
       - name: Filter by input
         id: filter
@@ -50,11 +59,12 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Skip cluster-debug without cluster
+      # Hosted runners have no Argo CD cluster. The remaining steps are already gated on
+      # needs_cluster == false; this step only surfaces why the skill was skipped.
+      - name: Note cluster-dependent skill
         if: steps.filter.outputs.skip == 'false' && matrix.needs_cluster == true
         run: |
-          echo "::warning::Skipping ${{ matrix.skill }} — requires a live Kubernetes cluster"
-          echo "skip=true" >> "$GITHUB_OUTPUT"
+          echo "::warning::Skipping ${{ matrix.skill }} — requires a live Kubernetes cluster. Run 'make eval-${{ matrix.skill }}' locally against a real cluster."
 
       - name: Checkout
         if: steps.filter.outputs.skip == 'false' && matrix.needs_cluster == false

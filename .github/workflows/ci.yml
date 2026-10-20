@@ -52,3 +52,6 @@ jobs:
             head -1 "$f" | grep -q '^---' || { echo "Missing frontmatter: $f"; exit 1; }
             echo "OK: $f"
           done
+
+      - name: Check skill registration
+        run: bash scripts/check-skill-registration.sh

@@ -113,12 +113,12 @@ brew bundle
 The agent automatically selects the right skill based on what you ask:
 
 ```
- Ask a question ──────────► argo-knowledge    "How do I..."
- Audit a repo ────────────► argo-repo-audit   "Audit this repo"
- Debug a cluster ─────────► argo-cluster-debug "Why is X failing?"
- Make a change ───────────► argo-operations    "Install/create/promote/upgrade..."
- Tune performance ────────► argo-performance-tuning "Why is this slow at scale?"
- Onboard a team ──────────► argo-team-onboard  "Set up a new team on Argo CD"
+ Ask a question ────► argo-knowledge           "How do I...?"
+ Audit a repo ──────► argo-repo-audit          "Audit this repo"
+ Debug a cluster ───► argo-cluster-debug       "Why is X failing?"
+ Make a change ─────► argo-operations          "Install / create / promote / upgrade..."
+ Tune performance ──► argo-performance-tuning  "Why is this slow at scale?"
+ Onboard a team ────► argo-team-onboard        "Set up a new team on Argo CD"
 ```
 
 You don't need to invoke skills manually — just describe what you need.
@@ -162,6 +162,7 @@ Generate an ArgoCD CR for the OpenShift GitOps operator with OAuth and Routes.
 | argocd-agent hub-and-spoke architecture | `agent-mode.md` |
 | Multi-tenancy, apps-in-any-namespace, Autopilot | `multi-tenancy.md` |
 | OpenShift GitOps Operator, ArgoCD CRD, Routes, SCCs, OAuth | `openshift.md` |
+| GitOps Promoter, PromotionStrategy, branch-per-env promotion, commit status gating | `gitops-promoter.md` |
 
 </details>
 
@@ -321,6 +322,19 @@ Use when you need to onboard app teams onto Argo CD. The skill discovers what
 each team already has (CI, registry, source type) and generates only the Argo CD
 pieces — no assumptions about your stack.
 
+**Onboarding output is a commit, not a `kubectl apply`.** The tenant boundary —
+AppProject, RBAC, namespace, quotas, NetworkPolicies — is GitOps config like anything
+else, so the skill writes it to your GitOps repo and hands off to Argo CD to reconcile.
+Applying it directly would put the boundary outside Git: invisible in review, missing
+from the audit trail, and reverted the next time anything reconciles. The only exception
+is a one-time bootstrap when no control loop exists yet, and the skill names it as such.
+
+The recommended model follows Thomas Jungbauer's
+[project onboarding with GitOps and Helm](https://www.redhat.com/en/blog/project-onboarding-using-gitops-and-helm):
+onboarding a tenant means adding one small `values.yaml`, which a shared onboarding chart
+renders and an ApplicationSet discovers. Committing rendered manifests or Kustomize
+overlays is also supported.
+
 ```text
 # Single team onboarding
 Onboard the payments team. They use Kustomize, deploy from
@@ -345,9 +359,11 @@ Production should require manual approval.
 | AppProject | Always | Security boundary — scoped sourceRepos, destinations, RBAC |
 | Application | Always | Points to team's repo with correct source type (Helm/Kustomize/directory) |
 | RBAC role | Always | Project-scoped permissions for team's SSO group |
-| Namespace + Quota | If needed | When namespaces don't exist yet |
+| Namespace | Always | With Pod Security Standards (`enforce: restricted`) and monitoring labels |
+| NetworkPolicies | Always | Default-deny egress (with DNS allowed) plus router, monitoring, and same-namespace ingress — without these the namespace is open to every pod on the cluster |
+| ResourceQuota + LimitRange | If needed | Capacity limits, via t-shirt size or explicit values |
 | PromotionStrategy | If multi-env | Branch-per-environment promotion with health gates |
-| ApplicationSet | If self-service | teams.yaml + git-file generator for scaling |
+| ApplicationSet | If self-service | Per-tenant values discovered by a `**/values.yaml` git generator |
 
 **What it refuses:**
 
@@ -357,14 +373,16 @@ Production should require manual approval.
 | `clusterResourceWhitelist: '*/*'` | Scopes to specific CRD groups needed |
 | `exec` permission | Redirects to kubectl exec with scoped RBAC |
 | Hardcoded secrets | References ExternalSecret or SealedSecret patterns |
+| "Just apply it to the cluster" | Explains the drift cost and offers the commit path; proceeds only if it's a genuine bootstrap, and commits the same manifests alongside |
 
 <details>
 <summary>Reference docs included</summary>
 
 | Topic | Reference |
 |-------|-----------|
+| **Recommended model** — per-tenant values + onboarding chart, discovery ApplicationSet, t-shirt sizes, default NetworkPolicies, Pod Security Standards, two-instance split | `gitops-onboarding.md` |
 | What gets created, AppProject/Application/RBAC templates, validation checklist | `onboarding-guide.md` |
-| Self-service via ApplicationSet + teams.yaml, PR workflow, guard rails | `self-service-pattern.md` |
+| Self-service via ApplicationSet, PR workflow, guard rails | `self-service-pattern.md` |
 | Helm/Kustomize/directory variants, Rollouts, notifications, sync windows, promoter | `onboarding-variants.md` |
 
 </details>
@@ -474,9 +492,8 @@ Tested on real repos and a live OpenShift cluster.
 </tbody>
 </table>
 
-`—` meant that condition was never run for that skill — as of this run, every cell in this table
-has a real score and no skill has an unrun condition left. See each skill's `benchmarks/*.md`
-for the full per-eval breakdown and methodology notes (in particular, `argo-team-onboard`'s
+Every cell above is a real score — no skill has an unrun condition left. See each skill's
+`benchmarks/*.md` for the full per-eval breakdown and methodology notes (in particular, `argo-team-onboard`'s
 baseline runs were not given the same "simulate a committed outcome" instruction as the
 with-skill runs, which affects one eval; `argo-repo-audit` is a static-file-audit skill, so its
 baseline runs had real read access to the same fixture files as the with-skill runs, differing

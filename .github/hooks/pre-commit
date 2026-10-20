@@ -37,7 +37,6 @@ ALLOWLIST=(
   "k8s\\.example\\.com"
   "kubernetes\\.default\\.svc"
   "noreply@anthropic\\.com"
-  "argo-skills@example\\.com"
   "cncf-flux-dev@lists\\.cncf\\.io"
   "supersecretpassword123"
   "xxxxx"
