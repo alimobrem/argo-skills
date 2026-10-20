@@ -3,7 +3,7 @@
 
 # Canonical YAML Patterns
 
-Ten validated starting points covering the four Argo projects. Every manifest uses
+Eleven validated starting points covering the four Argo projects. Every manifest uses
 `apiVersion: argoproj.io/v1alpha1` and real field names from the Argo CRD schemas.
 
 | # | Pattern | Project |
@@ -18,6 +18,7 @@ Ten validated starting points covering the four Argo projects. Every manifest us
 | 8 | EventSource + Sensor triggering a Workflow | Events |
 | 9 | Notifications config (`argocd-notifications-cm`) | Argo CD |
 | 10 | Image updater annotations | Argo CD |
+| 11 | Multi-source Application (chart + external values) | Argo CD |
 
 ## Pattern 1: Application with Helm Source
 
@@ -671,3 +672,60 @@ annotation and point the updater at the chart's value keys instead:
 The `helm.image-name`/`helm.image-tag` annotations are silently ignored on a Kustomize
 source, and `write-back-target: kustomization` is ignored on a Helm source — mixing them
 produces an updater that appears configured but never writes anything back.
+
+## Pattern 11: Multi-Source Application (Helm chart + external values)
+
+GA since v2.6. Use `spec.sources[]` (plural) — **not** `spec.source` — when a chart lives
+in one repo and its values live in another. This is the canonical shape for "chart from a
+registry, config from our GitOps repo".
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: webapp
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    # 1. The chart. For an OCI registry the oci:// scheme is OMITTED from repoURL —
+    #    it is implied by enableOCI: "true" on the repository Secret.
+    - repoURL: registry.example.com/charts
+      chart: webapp
+      targetRevision: 2.*                 # semver constraint
+      helm:
+        releaseName: webapp
+        valueFiles:
+          - $values/envs/production/values.yaml   # $values resolves to the ref below
+    # 2. The values repo, exposed to the chart source as $values
+    - repoURL: https://github.com/org/config.git
+      targetRevision: main
+      ref: values                         # defines $values; no `path` needed for a pure ref
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: webapp-prod
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: false
+    syncOptions:
+      - ServerSideApply=true
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas                  # HPA owns replica count
+```
+
+**The three things that go wrong here:**
+
+1. **Using `spec.source` (singular) with a list.** Multi-source requires the `sources`
+   array. The singular field silently takes only one source.
+2. **Putting `oci://` in `repoURL`.** Per the Argo CD docs, *"the `oci://` syntax is not
+   included"* — register the repo with `enableOCI: "true"` instead.
+3. **Referencing `$values` without a `ref` on the other source.** The `ref` name is what
+   `$values` resolves to; without it the path is treated as literal and the chart renders
+   with defaults rather than failing loudly.
+
+A source used purely as a `ref` target does not need a `path` — it is mounted so other
+sources can read files out of it.

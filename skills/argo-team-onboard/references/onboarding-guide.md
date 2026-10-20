@@ -32,7 +32,7 @@ templates for every resource, and a post-onboarding validation checklist.
 | Container registry | Registry provisioning is infrastructure, not GitOps onboarding. | Platform team's registry provisioning runbook |
 | Secrets backend | External Secrets Operator, Sealed Secrets, or Vault CSI are separate platform services. | `external-secrets` or `sealed-secrets` operator docs |
 | Ingress/DNS | Domain provisioning and TLS cert issuance are infrastructure concerns. | Platform team's ingress/DNS runbook |
-| NetworkPolicy | Network segmentation is platform-managed, not team-managed. | Platform team's network policy templates |
+| ~~NetworkPolicy~~ | **No longer out of scope — this skill generates the tenant's default policies.** Network segmentation is platform-managed, and this skill *is* the platform team's onboarding path, so it must create them. The AppProject `namespaceResourceBlacklist` stops the *team* editing them; it does not create them. See *Default NetworkPolicies* below. | — |
 
 ## AppProject Template
 
@@ -49,11 +49,16 @@ spec:
   description: "Project for {{TEAM_NAME}} team"
 
   # --- Source restrictions ---
-  # List ONLY team's repos. Never use '*'.
+  # Prefer an explicit list. A bounded org+team prefix glob is acceptable when the team
+  # genuinely adds repos often; a bare '*' never is. The line to hold: the pattern must
+  # not match repos outside this team's namespace in the org.
+  #   OK       https://github.com/acme/payments-*.git
+  #   OK       explicit list of 3 repo URLs
+  #   NOT OK   '*'  |  https://github.com/acme/*  |  https://github.com/*
   sourceRepos:
-    - https://github.com/{{ORG}}/{{TEAM_NAME}}-*.git  # Wildcard for team's repos
+    - https://github.com/{{ORG}}/{{TEAM_NAME}}-*.git  # bounded: org AND team prefix
     # - https://charts.example.com                    # Add Helm repos if needed
-    # - oci://registry.example.com/charts             # OCI Helm registry
+    # - registry.example.com/charts                   # OCI Helm registry (no oci:// scheme)
 
   # --- Destination restrictions ---
   # List ONLY team's namespaces. Never use server: '*' or namespace: '*'.
@@ -125,7 +130,7 @@ spec:
   #     duration: 62h                                # Until Monday 8am UTC
   #     applications: ['*']
   #     namespaces: ['{{TEAM_NAME}}-prod']
-  #     manualSync: false                            # Allow manual syncs during deny
+  #     manualSync: false                            # (default) manual syncs blocked too; set true to allow them
 ```
 
 ## Application Templates
@@ -210,8 +215,8 @@ spec:
     chart: "{{CHART_NAME}}"
     targetRevision: "1.2.3"                          # Pin chart version, never '*'
 
-    # Option B: OCI registry
-    # repoURL: oci://registry.example.com/charts
+    # Option B: OCI registry (no oci:// scheme — implied by enableOCI on the repo Secret)
+    # repoURL: registry.example.com/charts
     # chart: "{{CHART_NAME}}"
     # targetRevision: "1.2.3"
 
@@ -613,7 +618,7 @@ syncWindows:
     duration: 10h                                    # Until 6pm UTC
     applications: ['*']
     namespaces: ['{{TEAM_NAME}}-prod']
-    manualSync: true                                 # Block manual syncs outside window too
+    manualSync: true                                 # ESCAPE HATCH: lets a human sync outside the window
 
   # Deny weekends for production
   - kind: deny
@@ -621,7 +626,7 @@ syncWindows:
     duration: 62h                                    # Until Monday 8am UTC
     applications: ['*']
     namespaces: ['{{TEAM_NAME}}-prod']
-    manualSync: false                                # Allow manual syncs for emergencies
+    manualSync: false                                # (default) emergency manual syncs are ALSO blocked
 ```
 
 ## Validation Checklist
@@ -667,5 +672,5 @@ Run after every onboarding to verify isolation and access controls.
 ### Sync Window Verification (If Configured)
 
 - [ ] Sync blocked outside allow window: `argocd app sync` returns window error
-- [ ] Manual sync permitted during deny window (if `manualSync: false`)
+- [ ] Break-glass path is correct: `manualSync: true` PERMITS manual syncs the window blocks; `false` (default) blocks them too. Confirm which the team actually wants — this is routinely implemented backwards.
 - [ ] Dev/staging environments not affected by production sync windows

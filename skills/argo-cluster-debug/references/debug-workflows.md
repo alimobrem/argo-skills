@@ -20,28 +20,71 @@ Use when: user asks if Argo CD is installed, reports general Argo CD failures, o
    ```
    Expected CRDs: `applications.argoproj.io`, `appprojects.argoproj.io`, `applicationsets.argoproj.io`. If missing, Argo CD is not installed.
 
-2. Identify the Argo CD namespace. It defaults to `argocd` but can be customized:
+2. Identify every Argo CD instance and its namespace. **Do not rely on the
+   `part-of=argocd` label alone** — Operator-managed installs (OpenShift GitOps) do not
+   set it on pods, so the label selector reports nothing on a cluster running several
+   instances, and this step wrongly concludes "Argo CD is not installed":
+
    ```bash
-   kubectl get pods --all-namespaces -l app.kubernetes.io/part-of=argocd --no-headers | awk '{print $1}' | sort -u
+   # Operator-managed (OpenShift GitOps / argocd-operator): the ArgoCD CR is authoritative
+   if kubectl get crd argocds.argoproj.io >/dev/null 2>&1; then
+     kubectl get argocd -A --no-headers 2>/dev/null | awk '{print $1"\t"$2"\t(operator)"}'
+   fi
+   # Helm / plain-manifest installs do carry the label
+   kubectl get pods -A -l app.kubernetes.io/part-of=argocd --no-headers 2>/dev/null \
+     | awk '{print $1}' | sort -u | sed 's/$/\t-\t(helm)/'
    ```
 
-3. Check all pods in the Argo CD namespace:
+   Set `NS` to the instance you are debugging and use it for every command below. **There
+   is frequently more than one instance** — if so, confirm with the user which one before
+   continuing, and note that an ArgoCD CR *named* `argocd` may live in a namespace that is
+   not `argocd`.
+
    ```bash
-   kubectl get pods -n argocd -o wide
+   NS=<argo-cd-namespace>    # e.g. openshift-gitops, argocd, team-x-gitops
    ```
 
-4. Verify core components are running. All required components must be `Running` with `READY` containers:
-   | Component | Label Selector | Required |
-   |-----------|---------------|----------|
-   | argocd-server | `app.kubernetes.io/name=argocd-server` | Yes |
-   | argocd-repo-server | `app.kubernetes.io/name=argocd-repo-server` | Yes |
-   | argocd-application-controller | `app.kubernetes.io/name=argocd-application-controller` | Yes |
-   | argocd-applicationset-controller | `app.kubernetes.io/name=argocd-applicationset-controller` | Yes |
-   | argocd-redis | `app.kubernetes.io/name=argocd-redis` | Yes |
-   | argocd-dex-server | `app.kubernetes.io/name=argocd-dex-server` | Yes |
-   | argocd-notifications-controller | `app.kubernetes.io/name=argocd-notifications-controller` | No (optional) |
+3. Check all pods in that namespace:
+   ```bash
+   kubectl get pods -n "$NS" -o wide
+   ```
+   Operator-managed components are named `<cr-name>-server`, `<cr-name>-repo-server`,
+   `<cr-name>-application-controller` — not `argocd-*`. Match on suffix, not prefix.
 
-   **Note:** `argocd-notifications-controller` is not deployed in all installations. Its absence should not be treated as a failure.
+4. Verify core components are running. All required components must be `Running` with
+   `READY` containers:
+
+   | Component | Required |
+   |-----------|----------|
+   | server | Yes |
+   | repo-server | Yes |
+   | application-controller | Yes |
+   | applicationset-controller | Yes |
+   | redis | Yes |
+   | dex-server | Yes (when SSO is configured) |
+   | notifications-controller | No (optional) |
+
+   **The `app.kubernetes.io/name=argocd-<component>` selectors do not work on
+   Operator-managed installs.** The Operator sets `app.kubernetes.io/name=<cr-name>-<component>`,
+   so a hardcoded `argocd-` prefix silently matches nothing and every component looks
+   absent. Enumerate instead of guessing the label:
+
+   ```bash
+   kubectl get deploy,sts -n "$NS" -o custom-columns=NAME:.metadata.name,READY:.status.readyReplicas,WANT:.spec.replicas
+   ```
+
+   Then match components by **suffix** (`-server`, `-repo-server`,
+   `-application-controller`, …). To target one component's pods, read its selector off
+   the workload rather than assuming a label:
+
+   ```bash
+   kubectl get deploy -n "$NS" <cr-name>-repo-server -o jsonpath='{.spec.selector.matchLabels}'
+   ```
+
+   **Note:** `notifications-controller` is not deployed in all installations. Its absence
+   should not be treated as a failure. On OpenShift you will also see non-Argo-CD
+   workloads in the namespace (`gitops-plugin`, `argo-rollouts`) — not components of the
+   Argo CD instance itself.
 
 5. If argocd CLI is available, check version compatibility:
    ```bash
@@ -87,11 +130,11 @@ Use when: user reports Application sync failure, health degradation, OutOfSync, 
      ```
    - kubectl:
      ```bash
-     kubectl get application <name> -n argocd -o yaml
+     kubectl get applications.argoproj.io <name> -n argocd -o yaml
      ```
    If the Application is in a non-default namespace, the user must specify it or check:
    ```bash
-   kubectl get applications --all-namespaces | grep <name>
+   kubectl get applications.argoproj.io --all-namespaces | grep <name>
    ```
 
 2. Extract and assess sync status from `.status.sync.status`:
@@ -132,13 +175,13 @@ Use when: user reports Application sync failure, health degradation, OutOfSync, 
 7. Check the source configuration. Applications may use either `spec.source` (single-source) or `spec.sources[]` (multi-source, GA since v2.6). Check both:
    ```bash
    # Check if multi-source
-   kubectl get application <name> -n argocd -o jsonpath='{.spec.sources}' 2>/dev/null | grep -q '\[' && echo "multi-source" || echo "single-source"
+   kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{.spec.sources}' 2>/dev/null | grep -q '\[' && echo "multi-source" || echo "single-source"
 
    # Single-source
-   kubectl get application <name> -n argocd -o jsonpath='{.spec.source}' | python3 -m json.tool
+   kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{.spec.source}' | python3 -m json.tool
 
    # Multi-source — iterate all sources
-   kubectl get application <name> -n argocd -o jsonpath='{range .spec.sources[*]}repoURL={.repoURL} targetRevision={.targetRevision} path={.path} chart={.chart}{"\n"}{end}'
+   kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{range .spec.sources[*]}repoURL={.repoURL} targetRevision={.targetRevision} path={.path} chart={.chart}{"\n"}{end}'
    ```
    For multi-source Applications, each source can fail independently — verify `repoURL`, `targetRevision`, `path`, and Helm `valueFiles` for every entry in `spec.sources[]`.
 
@@ -149,7 +192,7 @@ Use when: user reports Application sync failure, health degradation, OutOfSync, 
 
 9. Inspect managed resources. List resources from `.status.resources` with non-Healthy or non-Synced status:
    ```bash
-   kubectl get application <name> -n argocd -o jsonpath='{range .status.resources[*]}{.kind}/{.namespace}/{.name}: sync={.status}, health={.health.status}{"\n"}{end}'
+   kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{range .status.resources[*]}{.kind}/{.namespace}/{.name}: sync={.status}, health={.health.status}{"\n"}{end}'
    ```
 
 10. For each unhealthy managed resource, inspect it:
@@ -200,7 +243,7 @@ Use when: user reports ApplicationSet not generating Applications, generating wr
 
 4. List generated Applications:
    ```bash
-   kubectl get applications -n argocd -l 'app.kubernetes.io/managed-by=applicationset-controller' --show-labels
+   kubectl get applications.argoproj.io -n argocd -l 'app.kubernetes.io/managed-by=applicationset-controller' --show-labels
    ```
    Cross-reference with expected output from the generator.
 

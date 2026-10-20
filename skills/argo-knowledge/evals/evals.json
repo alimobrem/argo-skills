@@ -9,7 +9,7 @@
       "expectations": [
         "Output uses spec.sources (plural array) not spec.source (singular) \u2014 multi-source Applications require the array form",
         "Output contains exactly two entries in the sources array",
-        "First source is Helm with repoURL: oci://registry.example.com/charts/webapp and chart field",
+        "First source is the Helm/OCI chart: repoURL is the registry host and path WITHOUT the oci:// scheme (registry.example.com/charts) and chart: webapp is a separate field \u2014 per Argo CD docs, \"the oci:// syntax is not included\" in repoURL",
         "Helm source uses targetRevision with semver constraint 2.x or similar",
         "Second source is Git with repoURL: https://github.com/org/config.git",
         "Git source has ref.targetRevision: main and path containing envs/production",

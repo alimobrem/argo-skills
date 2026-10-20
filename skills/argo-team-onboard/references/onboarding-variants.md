@@ -26,12 +26,18 @@ spec:
 
 ### Helm: OCI Registry
 
-Delta: change `repoURL` prefix to `oci://`.
+Delta: point `repoURL` at the registry host + path, and register the repository with
+`enableOCI: "true"`.
+
+**Do not add an `oci://` prefix to `repoURL`** — the Argo CD docs state *"note: the
+`oci://` syntax is not included."* The scheme is implied by the repository Secret's
+`enableOCI` flag; including it fails the chart pull in a way that reads like an auth
+error.
 
 ```yaml
 spec:
   source:
-    repoURL: oci://registry.example.com/charts       # OCI prefix
+    repoURL: registry.example.com/charts             # registry host + path, no oci://
     chart: "{{CHART_NAME}}"
     targetRevision: "1.2.3"
     helm:
@@ -325,7 +331,7 @@ spec:
       duration: 10h                                  # Until 6pm UTC
       applications: ['*']
       namespaces: ['{{TEAM_NAME}}-prod']
-      manualSync: true                               # Also block manual syncs outside window
+      manualSync: true                               # ESCAPE HATCH: lets a human sync outside the window
 ```
 
 **Deny weekends:**
@@ -338,7 +344,7 @@ spec:
       duration: 62h                                  # Until Monday 8am UTC
       applications: ['*']
       namespaces: ['{{TEAM_NAME}}-prod']
-      manualSync: false                              # Allow emergency manual syncs
+      manualSync: false                              # (default) emergency manual syncs are ALSO blocked
 ```
 
 **Combined (business hours + deny weekends):**

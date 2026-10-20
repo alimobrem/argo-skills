@@ -54,10 +54,39 @@ spec:
 **OCI Helm source:**
 ```yaml
 source:
-  repoURL: oci://registry.example.com/charts
+  # NOTE: the oci:// scheme is OMITTED here — registry host + path only.
+  # Including it is the most common OCI mistake; see the warning below.
+  repoURL: registry.example.com/charts
   chart: my-app
   targetRevision: ">=2.0.0 <3.0.0"    # Semver constraint
 ```
+
+> **Do not put `oci://` in `repoURL`.** The Argo CD docs state explicitly: *"note: the
+> `oci://` syntax is not included."* The scheme is implied by registering the repository
+> with `enableOCI: "true"` — see below. Including it produces a chart-pull failure that
+> reads like an auth or network problem rather than a URL format problem.
+
+**Registering the OCI registry** (required before the Application can pull):
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: oci-helm-registry
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  name: my-oci-registry
+  url: registry.example.com/charts   # again, no oci:// scheme
+  type: helm                         # OCI Helm registries are type: helm
+  enableOCI: "true"                  # string, not boolean — this is what enables OCI
+  # username: <user>                 # add for private registries
+  # password: <token>
+```
+
+`enableOCI` must be the **string** `"true"`. A YAML boolean in a Secret `stringData`
+block is a common silent failure.
 
 ### Kustomize Source
 
@@ -150,7 +179,7 @@ kubectl apply --dry-run=client -f application.yaml
 kubectl apply -f application.yaml
 
 # 5. Verify
-kubectl get application <name> -n argocd -o jsonpath='{.status.sync.status}'
+kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{.status.sync.status}'
 ```
 
 ### Using argocd CLI

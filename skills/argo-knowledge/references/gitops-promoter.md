@@ -39,8 +39,55 @@ through environment sequences.
 | ClusterScmProvider | promoter.argoproj.io/v1alpha1 | Cluster-scoped SCM provider config |
 | GitRepository | promoter.argoproj.io/v1alpha1 | Repository reference (owner, name, SCM provider ref) |
 | CommitStatus | promoter.argoproj.io/v1alpha1 | Set commit status on a SHA (pending/success/failure) |
+| ArgocdCommitStatus | promoter.argoproj.io/v1alpha1 | Auto-reports Argo CD Application health as a CommitStatus — see *Integration with Argo CD* |
 | PullRequest | promoter.argoproj.io/v1alpha1 | Manage PR lifecycle (open/merged/closed) |
 | RevertCommit | promoter.argoproj.io/v1alpha1 | Revert a specific commit |
+| GitCommitStatus | promoter.argoproj.io/v1alpha1 | Commit status derived from Git state |
+| TimedCommitStatus | promoter.argoproj.io/v1alpha1 | Time-based gate — soak/bake period before promotion |
+| WebRequestCommitStatus | promoter.argoproj.io/v1alpha1 | Gate on an external HTTP check |
+| ControllerConfiguration | promoter.argoproj.io/v1alpha1 | Promoter controller settings |
+
+> To see what is actually installed on a cluster:
+> `kubectl get crd -o name | grep promoter.argoproj.io`
+
+### How a gate is matched to a commit status
+
+A `PromotionStrategy` references gates by **key**, not by resource name:
+
+```yaml
+spec:
+  activeCommitStatuses:
+    - key: argocd-app-health      # matches a CommitStatus whose spec.name is this key
+  proposedCommitStatuses:
+    - key: security-scan
+```
+
+The key is matched against the CommitStatus resource's `spec.name`. Writing one from CI:
+
+```yaml
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: CommitStatus
+metadata:
+  name: security-scan-abc1234
+spec:
+  name: security-scan          # <- the key the PromotionStrategy gates on
+  sha: abc1234def5678          # the commit being gated
+  phase: success               # pending | success | failure
+  description: "Trivy scan passed, 0 critical"
+  url: https://ci.example.com/runs/4821   # surfaced in the SCM status check
+  gitRepositoryRef:
+    name: my-repo
+```
+
+Verified `spec` fields: `name`, `sha`, `phase`, `description`, `url`, `gitRepositoryRef`.
+
+A gate whose key has no corresponding CommitStatus **blocks the promotion indefinitely**
+rather than erroring — the PR simply never merges. When a promotion appears stuck with no
+failure, list the statuses and compare keys before looking anywhere else:
+
+```bash
+kubectl get commitstatus -A -o custom-columns=NS:.metadata.namespace,NAME:.metadata.name,KEY:.spec.name,PHASE:.status.phase
+```
 
 ## Supported SCM Providers
 

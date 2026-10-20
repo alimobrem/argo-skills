@@ -4,6 +4,107 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed (found by running the full eval suite against a live OpenShift cluster)
+
+Six skills, 81 eval prompts, run against a real OpenShift cluster with three Argo CD
+instances, Rollouts, Events and GitOps Promoter. Everything below was verified against
+that cluster or its CRDs, not inferred.
+
+**Severe — commands that silently report the wrong answer:**
+
+- **`kubectl get applications` resolves to the wrong CRD.** Both
+  `applications.app.k8s.io/v1beta1` and `applications.argoproj.io/v1alpha1` register the
+  name `applications`. The unqualified form returns `No resources found` — with no error —
+  while a real Argo CD Application exists. Proven on-cluster: bare form found nothing,
+  `applications.argoproj.io` found `team-b-guestbook`. Healthy apps looked nonexistent and
+  ApplicationSet output looked empty. Qualified across 9 files.
+- **`-l app.kubernetes.io/part-of=argocd` matches nothing on Operator installs.** Measured
+  0 of 9 pods on this cluster. Workflow 1 of `argo-cluster-debug` therefore concludes
+  "Argo CD is not installed" on a cluster running three instances — and the edge-case
+  table tells the user to stop there. Discovery now checks the `ArgoCD` CR first and falls
+  back to the label for Helm installs.
+- **`app.kubernetes.io/name=argocd-<component>` selectors never match on Operator
+  installs** — the Operator labels workloads `<cr-name>-<component>`. Worst case was
+  `argo-performance-tuning`'s OOM check, which silently reported no OOMs on a cluster
+  actively OOMKilling `openshift-gitops-server` (10 restarts, exit 137). Both the replica
+  and OOM checks now enumerate workloads and match on suffix; the replacement was run
+  against the cluster and does surface the OOMKills.
+- **`manualSync` was documented backwards in every occurrence.** The CRD says
+  *"ManualSync enables manual syncs when they would otherwise be blocked"* — it is an
+  escape hatch. The skills said `true` = "also block manual syncs" and `false` = "allow
+  emergency syncs", which is the inverse. Anyone following it ships the opposite of their
+  intended change-control policy and finds out during an incident. Fixed in
+  `app-projects.md`, `onboarding-guide.md` (incl. its validation checklist) and
+  `onboarding-variants.md`.
+
+**`argo-performance-tuning` — new symptom coverage:**
+
+- Added an `argocd-server` OOMKilled row. The table covered repo-server OOM but not
+  server OOM, so a real, observed condition on this cluster routed nowhere.
+
+**`argo-team-onboard` — defects in the GitOps-first rewrite itself:**
+
+- `git status --short` + `git diff --stat` shows **nothing** for new tenant files, because
+  they are untracked — which is every new-tenant onboarding, i.e. the main path. Now uses
+  `git add -N` first.
+- Safety Rules skipped number 5; Reference Index labelled self-service as Phase 3 when it
+  is Phase 4.
+- `onboarding-guide.md` listed NetworkPolicy as "Never (Out of Scope)" while SKILL.md
+  Phase 2 made it *Always Generated* — same skill, both positions. The out-of-scope entry
+  is retracted with an explanation.
+- "Argo CD not installed" said *"Stop immediately"* in Edge Cases but *"you can still
+  generate and commit"* in Prerequisites. Resolved in favour of not stopping, which is
+  what the skill's own cluster-optional premise implies.
+- The AppProject template shipped `sourceRepos: .../{{TEAM_NAME}}-*.git` directly under a
+  comment saying "Never use '*'", while Rule 3 banned wildcards flatly. Both now draw the
+  real line: a bounded org+team prefix glob is fine, anything that can match another
+  team's repo is not.
+
+
+### Fixed (content gaps found by the argo-knowledge eval run)
+
+All verified against official Argo CD docs and a live OpenShift cluster running Argo CD,
+Rollouts, and GitOps Promoter — not from memory.
+
+- **`oci://` must not appear in a Helm `repoURL`.** Argo CD's docs state *"note: the
+  `oci://` syntax is not included"*; the scheme is implied by `enableOCI: "true"` on the
+  repository Secret. The repo had it wrong in `argo-operations/references/deployment.md`
+  and in two `argo-team-onboard` references, and `argo-knowledge` documented OCI nowhere
+  at all. Added the correct Application source form, the repository Secret registration
+  (including that `enableOCI` must be the *string* `"true"`), and a Common Mistakes entry.
+  Also corrected `argo-knowledge` eval 1, whose expectation asserted the `oci://` form.
+- **Top-level `spec.dex` on the ArgoCD CR is dead.** Per the operator reference,
+  *"`.spec.dex` is no longer supported in Argo CD operator v0.8.0 onwards, use
+  `.spec.sso.dex` instead."* `argo-knowledge/references/openshift.md` and
+  `argo-operations/references/setup.md` both generated the old form, so SSO would quietly
+  never come up. Confirmed against the live cluster, whose ArgoCD CR uses
+  `spec.sso.provider: dex` with `spec.dex` empty. (`day2-operations.md` already documented
+  the migration correctly — the install reference just hadn't followed it.)
+- **`ignoreApplicationDifferences` was absent from `argo-knowledge`.** Documented in
+  `applicationsets.md` with its `name`/`jsonPointers`/`jqPathExpressions` fields, the
+  image-updater case that needs it, and the distinction from the generated Application's
+  own `ignoreDifferences`.
+- **Multi-source Applications were undiscoverable.** The section existed but the
+  SKILL.md index row never mentioned it and `patterns.md` had no multi-source pattern,
+  despite Rule 5 directing the model to start from a numbered pattern. Added Pattern 11
+  (chart + external values via `$values`) and fixed the index rows.
+- **`oncePer` is scoped per trigger.** A single trigger driving pending → success/failure
+  fires once per revision and leaves the commit status stuck on `pending`. Documented the
+  one-trigger-per-state pattern, and that `operationState.syncResult.revision` is empty
+  while the operation is `Running`.
+- **Slack template fields were undocumented** (`username`, `icon`, `groupingKey`,
+  `notifyBroadcast`, `deliveryPolicy`), and the example set both `attachments` and
+  `blocks` with no note that they are two different rendering APIs.
+- **GitOps Promoter CRD coverage was incomplete.** `ArgocdCommitStatus` appeared only in
+  an example, and there was no `CommitStatus` field example or explanation of how a
+  `PromotionStrategy` gate key is matched. Verified against the live cluster's 13
+  promoter CRDs: gates reference `activeCommitStatuses[].key`, matched against
+  `CommitStatus.spec.name`; an unmatched key blocks promotion silently rather than
+  erroring. Also corrects the partial promoter list added to the CRD table in #1.
+- **`agent-mode.md` now states its scope.** It is architecture prose with zero manifests;
+  it now says so and routes installable questions upstream, rather than letting the model
+  reconstruct pre-v1 setup steps from memory.
+
 ### Fixed (argo-repo-audit missed the escalation its own fixture tests for)
 
 Surfaced by running the `argo-repo-audit` evals. The `tests/argo-repo-audit/targeted-bugs/subtle-rbac`

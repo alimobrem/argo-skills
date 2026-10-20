@@ -384,6 +384,43 @@ When the ApplicationSet is deleted:
 
 This is a safety mechanism. Use `true` in production to prevent accidental mass deletion.
 
+## ignoreApplicationDifferences
+
+Stops the ApplicationSet controller from reverting specific fields on the Applications it
+generates. Without it, the controller continuously reconciles generated Applications back
+to the template — so anything that legitimately mutates an Application after creation
+fights the controller in a loop.
+
+```yaml
+spec:
+  ignoreApplicationDifferences:
+    - jsonPointers:
+        - /spec/source/targetRevision      # let the image updater bump the revision
+    - name: my-app-staging                 # scope to one generated Application
+      jqPathExpressions:
+        - .spec.source.helm.values
+```
+
+Per-item fields (all optional except that you need one of the two expression forms):
+
+| Field | Purpose |
+|-------|---------|
+| `name` | Limit the rule to a single generated Application. Omit to apply to all of them. |
+| `jsonPointers` | RFC 6901 pointers, e.g. `/spec/source/targetRevision` |
+| `jqPathExpressions` | jq paths, e.g. `.spec.source.helm.values` — use for anything a pointer cannot express |
+
+**When you need it:**
+- **argocd-image-updater with `write-back-method: argocd`** — the updater writes
+  `targetRevision`/Helm parameters onto the live Application; without this the
+  ApplicationSet reverts them on the next reconcile and the image never sticks.
+- **Manually paused or pinned Applications** in an otherwise generated fleet.
+- **Controller- or user-mutated fields** you deliberately do not manage from the template.
+
+Do not confuse this with `spec.template.spec.ignoreDifferences`, which is the generated
+*Application's* own setting for ignoring drift between Git and the **cluster**.
+`ignoreApplicationDifferences` governs drift between the **template and the Application
+object** — a different layer entirely.
+
 ## templatePatch
 
 Apply a JSON merge patch to the generated Application template based on generator parameters:

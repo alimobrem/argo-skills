@@ -296,12 +296,12 @@ done
 
 ```bash
 # Export all Applications
-kubectl get applications -n argocd -o yaml > applications-backup.yaml
+kubectl get applications.argoproj.io -n argocd -o yaml > applications-backup.yaml
 
 # Export individual Applications
-for app in $(kubectl get applications -n argocd -o name); do
+for app in $(kubectl get applications.argoproj.io -n argocd -o name); do
   name=$(basename $app)
-  kubectl get application $name -n argocd -o yaml > "backup/application-${name}.yaml"
+  kubectl get applications.argoproj.io $name -n argocd -o yaml > "backup/application-${name}.yaml"
 done
 
 # Count exported
@@ -354,7 +354,7 @@ mkdir -p "$BACKUP_DIR"
 echo "Backing up Argo CD resources to $BACKUP_DIR..."
 
 # Applications
-kubectl get applications -n argocd -o yaml > "$BACKUP_DIR/applications.yaml" 2>/dev/null && \
+kubectl get applications.argoproj.io -n argocd -o yaml > "$BACKUP_DIR/applications.yaml" 2>/dev/null && \
   echo "[OK] Applications" || echo "[SKIP] No Applications found"
 
 # ApplicationSets
@@ -402,7 +402,7 @@ kubectl apply -f backup/cluster-secrets.yaml
 kubectl apply -f backup/applications.yaml
 
 # 6. Verify
-argocd app list 2>/dev/null || kubectl get applications -n argocd
+argocd app list 2>/dev/null || kubectl get applications.argoproj.io -n argocd
 ```
 
 ---
@@ -506,7 +506,7 @@ kubectl apply -f root-application.yaml
 
 # 4. Wait for reconciliation
 argocd app list --watch 2>/dev/null || \
-  watch kubectl get applications -n argocd
+  watch kubectl get applications.argoproj.io -n argocd
 ```
 
 ### Autopilot Recovery

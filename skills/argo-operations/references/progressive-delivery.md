@@ -129,7 +129,7 @@ spec:
 ```bash
 # 1. Check current state
 argocd app get <name> 2>/dev/null || \
-  kubectl get application <name> -n argocd -o jsonpath='sync={.status.sync.status} health={.status.health.status}'
+  kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='sync={.status.sync.status} health={.status.health.status}'
 
 # 2. Preview diff
 argocd app diff <name> 2>/dev/null || \
@@ -141,7 +141,7 @@ argocd app sync <name> 2>/dev/null || \
 
 # 4. Wait for sync to complete
 argocd app wait <name> --timeout 300 2>/dev/null || \
-  echo "Monitor: kubectl get application <name> -n argocd -o jsonpath='{.status.operationState.phase}'"
+  echo "Monitor: kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{.status.operationState.phase}'"
 ```
 
 ### Sync with Options

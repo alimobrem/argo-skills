@@ -89,20 +89,47 @@ Before executing any destructive operation, verify:
 
 ## Prerequisites
 
-Before any operation, check the environment:
+### Resolving the cluster CLI
+
+**`kubectl` in this skill means "the cluster CLI" — resolve it once, then substitute it
+into every command below.** Do not report a broken environment just because the binary is
+literally named `kubectl` and is absent; on OpenShift hosts `oc` is frequently the only
+one installed, and it accepts every `kubectl` command in this skill verbatim.
+
+Run this first and use `$KCTL` for every cluster command afterwards:
 
 ```bash
-# Required
-command -v kubectl >/dev/null && echo "kubectl: $(kubectl version --client -o json 2>/dev/null | grep gitVersion)" || echo "kubectl: MISSING"
+# Detect the platform and pick the CLI — on OpenShift, oc is the default.
+if command -v oc >/dev/null 2>&1 && oc api-resources --api-group=route.openshift.io 2>/dev/null | grep -q routes; then
+  KCTL=oc; PLATFORM=OpenShift
+elif command -v kubectl >/dev/null 2>&1; then
+  KCTL=kubectl
+  PLATFORM=$(kubectl api-resources --api-group=route.openshift.io 2>/dev/null | grep -q routes && echo OpenShift || echo Kubernetes)
+elif command -v oc >/dev/null 2>&1; then
+  KCTL=oc; PLATFORM=Kubernetes
+else
+  echo "ERROR: no cluster CLI found — install kubectl or oc" >&2; exit 1
+fi
+echo "Platform: $PLATFORM — using '$KCTL'"
+```
 
+**On OpenShift, default to `oc`.** `Route`, `project`, `SecurityContextConstraints`, and
+`oc adm` have no `kubectl` equivalent, and they are exactly what you need when a Route is
+misconfigured or an SCC is blocking a pod. `oc` also accepts every `kubectl` command in
+this skill verbatim, so there is no downside.
+
+This also replaces the separate OpenShift check in Phase 1 — `$PLATFORM` is already set.
+Only report a missing prerequisite when **neither** binary exists.
+
+```bash
 # Optional — enhances capabilities
 command -v argocd >/dev/null && echo "argocd: $(argocd version --client -o json 2>/dev/null | grep Version)" || echo "argocd: not installed"
 command -v helm >/dev/null && echo "helm: $(helm version --short 2>/dev/null)" || echo "helm: not installed"
 command -v kubectl-argo-rollouts >/dev/null && echo "rollouts plugin: available" || echo "rollouts plugin: not installed"
 
-# Cluster context
-kubectl config current-context
-kubectl cluster-info --request-timeout=5s 2>/dev/null || echo "WARN: cluster not reachable"
+# Cluster context — use the CLI resolved above
+$KCTL config current-context
+$KCTL cluster-info --request-timeout=5s 2>/dev/null || echo "WARN: cluster not reachable"
 ```
 
 If the cluster is not reachable, stop and report the error. Do not generate manifests
@@ -144,7 +171,7 @@ Load `references/setup.md` for detailed procedures.
 
 1. Detect the cluster platform:
    ```bash
-   kubectl api-resources --api-group=route.openshift.io 2>/dev/null && echo "OpenShift" || echo "Kubernetes"
+   echo "$PLATFORM"   # already resolved in Prerequisites — do not re-detect
    ```
 2. Ask the user which install method they prefer (if not specified).
 3. Load `references/setup.md` and follow the matching procedure.
@@ -185,7 +212,7 @@ Load `references/deployment.md` for detailed procedures.
 4. **Confirm** — wait for user approval.
 5. Apply and verify:
    ```bash
-   argocd app get <name> 2>/dev/null || kubectl get application <name> -n argocd -o jsonpath='{.status.sync.status}'
+   argocd app get <name> 2>/dev/null || kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{.status.sync.status}'
    ```
 
 **Covers:**
@@ -212,7 +239,7 @@ Load `references/progressive-delivery.md` for detailed procedures.
    For Application syncs:
    ```bash
    argocd app get <name> -o json 2>/dev/null | jq '.status.sync.status, .status.health.status' || \
-     kubectl get application <name> -n argocd -o jsonpath='sync={.status.sync.status} health={.status.health.status}'
+     kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='sync={.status.sync.status} health={.status.health.status}'
    ```
 2. Show the user the current state and what the operation will do.
 3. **Preview** — show what will change (new weight, promoted ReplicaSet, synced resources).
