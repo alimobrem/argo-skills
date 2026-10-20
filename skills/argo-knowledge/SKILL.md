@@ -742,8 +742,6 @@ metadata:
     argocd-image-updater.argoproj.io/myapp.update-strategy: semver
     argocd-image-updater.argoproj.io/myapp.allow-tags: "regexp:^v[0-9]+\\.[0-9]+\\.[0-9]+$"
     argocd-image-updater.argoproj.io/myapp.ignore-tags: "latest,dev-*"
-    argocd-image-updater.argoproj.io/myapp.helm.image-name: image.repository
-    argocd-image-updater.argoproj.io/myapp.helm.image-tag: image.tag
     argocd-image-updater.argoproj.io/myapp.pull-secret: pullsecret:argocd/registry-creds
     argocd-image-updater.argoproj.io/write-back-method: git
     argocd-image-updater.argoproj.io/write-back-target: kustomization
@@ -762,6 +760,21 @@ spec:
       prune: true
       selfHeal: true
 ```
+
+**Match the write-back target to the source type.** The example above is a Kustomize
+overlay, so it uses `write-back-target: kustomization`. For a **Helm** source, drop that
+annotation and point the updater at the chart's value keys instead:
+
+```yaml
+    argocd-image-updater.argoproj.io/myapp.helm.image-name: image.repository
+    argocd-image-updater.argoproj.io/myapp.helm.image-tag: image.tag
+    argocd-image-updater.argoproj.io/write-back-method: git
+    argocd-image-updater.argoproj.io/write-back-target: helmvalues:./values.yaml
+```
+
+The `helm.image-name`/`helm.image-tag` annotations are silently ignored on a Kustomize
+source, and `write-back-target: kustomization` is ignored on a Helm source — mixing them
+produces an updater that appears configured but never writes anything back.
 
 ## Common Mistakes
 

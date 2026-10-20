@@ -113,12 +113,12 @@ brew bundle
 The agent automatically selects the right skill based on what you ask:
 
 ```
- Ask a question ──────────► argo-knowledge    "How do I..."
- Audit a repo ────────────► argo-repo-audit   "Audit this repo"
- Debug a cluster ─────────► argo-cluster-debug "Why is X failing?"
- Make a change ───────────► argo-operations    "Install/create/promote/upgrade..."
- Tune performance ────────► argo-performance-tuning "Why is this slow at scale?"
- Onboard a team ──────────► argo-team-onboard  "Set up a new team on Argo CD"
+ Ask a question ────► argo-knowledge           "How do I...?"
+ Audit a repo ──────► argo-repo-audit          "Audit this repo"
+ Debug a cluster ───► argo-cluster-debug       "Why is X failing?"
+ Make a change ─────► argo-operations          "Install / create / promote / upgrade..."
+ Tune performance ──► argo-performance-tuning  "Why is this slow at scale?"
+ Onboard a team ────► argo-team-onboard        "Set up a new team on Argo CD"
 ```
 
 You don't need to invoke skills manually — just describe what you need.
@@ -162,6 +162,7 @@ Generate an ArgoCD CR for the OpenShift GitOps operator with OAuth and Routes.
 | argocd-agent hub-and-spoke architecture | `agent-mode.md` |
 | Multi-tenancy, apps-in-any-namespace, Autopilot | `multi-tenancy.md` |
 | OpenShift GitOps Operator, ArgoCD CRD, Routes, SCCs, OAuth | `openshift.md` |
+| GitOps Promoter, PromotionStrategy, branch-per-env promotion, commit status gating | `gitops-promoter.md` |
 
 </details>
 
@@ -474,9 +475,8 @@ Tested on real repos and a live OpenShift cluster.
 </tbody>
 </table>
 
-`—` meant that condition was never run for that skill — as of this run, every cell in this table
-has a real score and no skill has an unrun condition left. See each skill's `benchmarks/*.md`
-for the full per-eval breakdown and methodology notes (in particular, `argo-team-onboard`'s
+Every cell above is a real score — no skill has an unrun condition left. See each skill's
+`benchmarks/*.md` for the full per-eval breakdown and methodology notes (in particular, `argo-team-onboard`'s
 baseline runs were not given the same "simulate a committed outcome" instruction as the
 with-skill runs, which affects one eval; `argo-repo-audit` is a static-file-audit skill, so its
 baseline runs had real read access to the same fixture files as the with-skill runs, differing

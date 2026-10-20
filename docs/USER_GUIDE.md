@@ -158,6 +158,31 @@ We have 5,000 applications and no Git webhooks — baseline CPU is very high
   even when nothing changed.
 ```
 
+### Team Onboarding — Set Up New Teams on Argo CD
+
+Discovery-first: the skill asks what the team already has (CI, registry, source type,
+secrets backend) and generates only the Argo CD pieces — AppProject, Application, RBAC.
+
+```text
+# Single team
+Onboard the payments team. They use Kustomize, deploy from
+  https://github.com/acme/payments.git, need dev/staging/prod namespaces.
+
+# Helm-based team
+Onboard analytics — they deploy a Helm chart from OCI registry
+  oci://registry.acme.com/charts/analytics with values in a separate config repo.
+
+# Just the security boundary
+Generate a scoped AppProject for the frontend team — no wildcards.
+
+# Self-service at scale
+Set up self-service onboarding so teams can add themselves via PR.
+
+# Multi-environment with promotion
+Onboard the checkout team with gitops-promoter gating dev → staging → prod.
+  Production should require manual approval.
+```
+
 ## Make Commands (Developer)
 
 ```shell
@@ -180,7 +205,9 @@ make eval
 make eval-knowledge
 make eval-repo-audit
 make eval-cluster-debug
+make eval-operations
 make eval-performance-tuning
+make eval-team-onboard
 
 # Clean schemas
 make clean-schemas

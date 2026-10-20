@@ -31,8 +31,12 @@ Inventory all Argo and Kubernetes resources in the repository.
 
 **Option A — If `awk` is available**, run the discovery script for structured counts:
 ```bash
-bash skills/argo-repo-audit/scripts/discover.sh -d <repo-root>
+bash <skill-dir>/scripts/discover.sh -d <repo-root>
 ```
+
+`<skill-dir>` is the directory containing this `SKILL.md`, **not** the repo being audited —
+when installed as a plugin the two are different. Use the absolute path to this skill's
+directory. `-d` is the root of the repo under audit.
 
 **Option B — Otherwise**, scan YAML files directly:
 - Find all `.yaml`/`.yml` files (skip `.git/`, `Chart.yaml` dirs, `.tf` dirs)
@@ -59,7 +63,7 @@ With the inventory:
 
 **If `yq`, `kustomize`, and `kubeconform` are available**, run the validation script:
 ```bash
-bash skills/argo-repo-audit/scripts/validate.sh -d <repo-root>
+bash <skill-dir>/scripts/validate.sh -d <repo-root>
 ```
 
 This performs YAML syntax checks, Kubernetes schema validation (using Argo CRD schemas
