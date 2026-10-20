@@ -4,6 +4,43 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed (argo-team-onboard is now GitOps-first) — BREAKING for existing users
+
+Review feedback: *"I'm not a fan of argo-team-onboard if it's directly updating the Argo
+CD config, this should be handled in git and managed by GitOps."* Correct, and it was a
+design flaw — a GitOps onboarding skill whose write path was `kubectl apply` put the
+tenant boundary outside Git: invisible in review, absent from the audit trail, and liable
+to be reverted the next time anything reconciled.
+
+- **The write is now a commit**, not an apply. The safety model changed from
+  Generate → dry-run → apply to **Generate → `git diff` → confirm → commit/PR**, and the
+  skill states that the tenant is not onboarded until Argo CD syncs.
+- **`kubectl apply` is now the documented exception**, allowed only to bootstrap the first
+  control loop, and the skill must label it as such and commit the same manifests.
+- **Phase 1 Discovery now locates the GitOps repo first** and matches the existing tenant
+  layout instead of inventing one. New Phase 3 covers the commit and handoff.
+- **`git` is now the only hard requirement**; `kubectl`/`argocd` are optional and
+  read-only. Onboarding works with no cluster access at all.
+- New *Choosing the Onboarding Model* section: per-tenant values + chart (recommended),
+  rendered manifests, or Kustomize overlay.
+
+### Added (argo-team-onboard — security baseline and recommended model)
+
+- `references/gitops-onboarding.md` — the recommended model, following Thomas Jungbauer's
+  [project onboarding with GitOps and Helm](https://www.redhat.com/en/blog/project-onboarding-using-gitops-and-helm):
+  per-tenant `values.yaml` rendered by a shared onboarding chart and discovered by an
+  ApplicationSet with a `**/values.yaml` git generator. Includes t-shirt sizing with
+  per-tenant override, and the two-Argo-CD-instance platform/tenant split.
+- **Default NetworkPolicies are now generated for every tenant namespace.** The skill
+  previously blacklisted `NetworkPolicy` via `namespaceResourceBlacklist` but never
+  created any — so tenant namespaces shipped fully open to lateral traffic *and* teams
+  were blocked from fixing it. Adds default-deny egress (with the DNS exception that
+  makes it survivable), same-namespace, router ingress, and monitoring ingress.
+- **Pod Security Standards labels on the Namespace template** —
+  `pod-security.kubernetes.io/enforce: restricted` plus audit/warn and cluster monitoring.
+  Previously absent entirely, so a tenant could run privileged pods regardless of how
+  carefully the AppProject was scoped.
+
 ### Fixed (six-skill consistency)
 
 - `assets/banner.svg` now shows a pill for all six skills; `performance-tuning` and

@@ -161,7 +161,13 @@ We have 5,000 applications and no Git webhooks — baseline CPU is very high
 ### Team Onboarding — Set Up New Teams on Argo CD
 
 Discovery-first: the skill asks what the team already has (CI, registry, source type,
-secrets backend) and generates only the Argo CD pieces — AppProject, Application, RBAC.
+secrets backend) and generates only the Argo CD pieces — AppProject, Application, RBAC,
+namespace, quotas, NetworkPolicies.
+
+**The output is a commit to your GitOps repo, not a `kubectl apply`.** The skill asks
+where the repo is and how tenants are laid out in it, writes the config there, shows you
+the `git diff`, and hands off to Argo CD to reconcile. The tenant is live once Argo CD
+syncs — not at commit time.
 
 ```text
 # Single team
@@ -181,6 +187,14 @@ Set up self-service onboarding so teams can add themselves via PR.
 # Multi-environment with promotion
 Onboard the checkout team with gitops-promoter gating dev → staging → prod.
   Production should require manual approval.
+
+# Per-tenant values model (recommended)
+Add a new tenant to our onboarding chart — repo is github.com/acme/gitops-platform,
+  tenants live under tenant-projects/. Size M, restricted pod security.
+
+# Tenant security baseline
+Generate the default NetworkPolicies and Pod Security Standards labels for the
+  payments-prod namespace.
 ```
 
 ## Make Commands (Developer)

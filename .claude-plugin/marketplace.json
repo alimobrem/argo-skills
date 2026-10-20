@@ -2,7 +2,7 @@
   "name": "argocd",
   "owner": {
     "name": "The Argo Skills authors",
-    "email": "argo-skills@example.com"
+    "url": "https://github.com/alimobrem/argo-skills"
   },
   "metadata": {
     "description": "AI skills for GitOps engineering with the Argo ecosystem and Kubernetes",

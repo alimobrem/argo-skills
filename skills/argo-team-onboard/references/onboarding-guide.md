@@ -409,12 +409,46 @@ kind: Namespace
 metadata:
   name: "{{TEAM_NAME}}-{{ENV}}"
   labels:
+    # Pod Security Standards — restricted is the correct default for a tenant namespace.
+    # Relax deliberately per workload; onboarding at privileged and tightening later
+    # rarely happens once workloads depend on the looser setting.
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    openshift.io/cluster-monitoring: "true"         # opt into platform monitoring
     app.kubernetes.io/part-of: tenant-onboarding
     team: "{{TEAM_NAME}}"
     env: "{{ENV}}"
   annotations:
     openshift.io/description: "{{TEAM_NAME}} {{ENV}} namespace"
     # openshift.io/requester: "{{SSO_GROUP}}"       # OpenShift-specific
+```
+
+### Default NetworkPolicies
+
+**Generate these for every tenant namespace.** A namespace with no NetworkPolicy accepts
+traffic from every pod on the cluster — which undoes the AppProject boundary. Note that
+`namespaceResourceBlacklist` stops *teams* from editing policies; it does not create them.
+That is the platform team's job, which means this skill's job.
+
+See `references/gitops-onboarding.md`, *Default NetworkPolicies*, for the full four-policy
+set (default-deny egress with DNS allowed, same-namespace, router ingress, monitoring
+ingress) and the version-specific selector caveats.
+
+**The one mistake to avoid:** a bare default-deny-egress policy with no DNS exception
+breaks name resolution, and the failures present as application bugs rather than policy
+bugs. Always pair deny-all egress with:
+
+```yaml
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-dns   # 'kube-system' on vanilla K8s
+      ports:
+        - {protocol: UDP, port: 5353}
+        - {protocol: TCP, port: 5353}
 ```
 
 ### ResourceQuota (3 Tiers)

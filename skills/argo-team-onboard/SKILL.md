@@ -1,125 +1,167 @@
 ---
 name: argo-team-onboard
 description: >
-  Onboard app teams onto Argo CD with discovery-first workflows. Generates
-  AppProject, Application, and RBAC configuration tailored to the team's
-  existing stack (Helm, Kustomize, or plain YAML). Supports manual single-team
-  onboarding and self-service scaling via ApplicationSet + teams.yaml.
-  Does NOT generate CI pipelines, registry config, or secrets backends —
-  focuses on Argo CD resources only. Use when users ask about onboarding
-  teams, adding tenants, setting up new teams, bootstrapping first apps,
-  or self-service onboarding patterns.
+  Onboard app teams onto Argo CD the GitOps way — generates tenant onboarding
+  config (AppProject, Application, RBAC, Namespace, quotas, NetworkPolicies)
+  and commits it to the GitOps repo for Argo CD to reconcile, rather than
+  applying it to the cluster imperatively. Discovery-first: adapts to the
+  team's existing stack (Helm, Kustomize, or plain YAML). Recommended path is
+  a per-tenant values file rendered by an onboarding Helm chart and discovered
+  by an ApplicationSet. Does NOT generate CI pipelines, registry config, or
+  secrets backends. Use when users ask about onboarding teams, adding tenants,
+  setting up new teams, bootstrapping first apps, or self-service onboarding.
 license: MIT
-compatibility: Requires kubectl; optionally argocd CLI
+compatibility: Requires git; optionally kubectl and argocd CLI for read-only verification
 ---
 
 # Argo Team Onboard
 
 Onboard application teams onto Argo CD with discovery-first workflows.
 
-This is a **write** skill focused on multi-tenancy setup. It generates AppProjects,
-Applications, and RBAC resources tailored to each team's existing stack. The read-only
-skills (`argo-knowledge`, `argo-repo-audit`, `argo-cluster-debug`) answer questions,
-audit repos, and diagnose problems without changes. This skill **acts**.
+This is a **write** skill focused on multi-tenancy setup. It generates tenant onboarding
+config and **commits it to Git**, where Argo CD reconciles it. The read-only skills
+(`argo-knowledge`, `argo-repo-audit`, `argo-cluster-debug`) answer questions, audit repos,
+and diagnose problems without changes. This skill **acts** — by writing to a repo.
 
-**Scope boundary:** This skill generates Argo CD resources only — AppProject, Application,
-ApplicationSet, RBAC ConfigMap entries, and optionally Namespace/ResourceQuota/LimitRange.
-It does NOT generate CI pipelines, container registry configuration, or secrets backend
-setup. It references how to wire those in but delegates the actual config to the
-appropriate tools.
+**Scope boundary:** This skill generates Argo CD and tenant-boundary resources only —
+AppProject, Application, ApplicationSet, RBAC entries, and optionally Namespace,
+ResourceQuota, LimitRange, and NetworkPolicy. It does NOT generate CI pipelines, container
+registry configuration, or secrets backend setup. It references how to wire those in but
+delegates the actual config to the appropriate tools.
+
+## The GitOps Rule (read this first)
+
+**Onboarding artifacts are GitOps artifacts. Write them to the repo; do not `kubectl apply`
+them.**
+
+An onboarding tool that applies AppProjects and Applications straight to the cluster
+creates exactly the drift that Argo CD exists to eliminate: the tenant boundary now lives
+only in cluster state, is invisible in review, has no audit trail, and will be silently
+reverted or duplicated the first time anyone reconciles from Git. "If it is not in Git, it
+does not exist" applies to the onboarding config itself, not just to the team's workloads.
+
+So the default output of this skill is **a commit or pull request**, not an apply.
+
+**The one exception — bootstrap.** If there is no GitOps control loop yet (no Argo CD, or
+no onboarding ApplicationSet watching the repo), someone must apply the very first
+resources imperatively to break the circular dependency. That is the only case where
+`kubectl apply` is correct here. When you do it, say explicitly that it is a one-time
+bootstrap, apply the *minimum* needed to start the control loop, and commit the same
+manifests to Git in the same session so the cluster and the repo agree.
 
 ## Rules
 
-1. **Always discover before generating.** Never assume the team's stack. Ask what CI
-   system, container registry, source type (Helm/Kustomize/directory), and secrets
-   management they use. The discovery phase is non-negotiable — skipping it produces
-   generic output that will need rework.
+1. **Commit, don't apply.** Generate into the GitOps repo and hand off to Argo CD. Use
+   `kubectl apply` only for the documented bootstrap exception above, and name it as such.
 
-2. **AppProject is the security boundary — get it right.** Scope `sourceRepos` to exact
+2. **Always discover before generating.** Never assume the team's stack. Ask what CI
+   system, container registry, source type (Helm/Kustomize/directory), and secrets
+   management they use — **and where the GitOps repo lives and how tenants are laid out in
+   it**. The discovery phase is non-negotiable — skipping it produces generic output that
+   will need rework.
+
+3. **AppProject is the security boundary — get it right.** Scope `sourceRepos` to exact
    repo URLs, `destinations` to exact namespace/cluster pairs, and `clusterResourceWhitelist`
    to only what the team needs. Never use wildcards (`*`). This is the single most
    important resource in the onboarding output.
 
-3. **Generate only Argo CD resources.** Do not generate CI pipelines, registry setup, or
-   secrets backend config. When the team's answers reveal they need those, reference how
-   to wire them into the Argo CD config (e.g., "add your registry credentials as an
-   `argocd-image-updater` annotation") but do not create the external resource itself.
+4. **Generate only Argo CD and tenant-boundary resources.** Do not generate CI pipelines,
+   registry setup, or secrets backend config. When the team's answers reveal they need
+   those, reference how to wire them into the Argo CD config (e.g., "add your registry
+   credentials as an `argocd-image-updater` annotation") but do not create the external
+   resource itself.
 
-4. **Use the team's existing source type.** If they use Helm, generate a Helm Application.
+5. **Use the team's existing source type.** If they use Helm, generate a Helm Application.
    If Kustomize, Kustomize. If plain YAML, directory. Do not convert between source types
    unless the user explicitly asks.
 
-5. **Redirect non-Argo questions.** CI/pipeline questions go to `argo-knowledge` or
+6. **Redirect non-Argo questions.** CI/pipeline questions go to `argo-knowledge` or
    platform-skills. Secrets backend setup goes to the relevant tool's docs. Cluster setup
    questions go to `argo-operations`. Be explicit about the redirect.
 
-6. **Follow the safety model.** Generate -> preview (dry-run) -> confirm for all write
-   operations. Read-only discovery operations do not need confirmation.
+7. **Follow the safety model.** Generate -> show diff -> confirm -> commit. Read-only
+   discovery operations do not need confirmation.
 
 ## Safety Model
 
-**Every write operation follows a 3-step protocol: Generate, Preview, Confirm.**
+**Every write operation follows a 3-step protocol: Generate, Diff, Confirm — and the
+write is a commit to the GitOps repo, not an apply to the cluster.**
 
 **Read-only operations** (cluster detection, namespace listing, version queries, RBAC
-checks) do NOT require confirmation — just execute them and report results. The safety
-model applies only to operations that modify cluster or repo state.
+checks, `git status`) do NOT require confirmation — just execute them and report results.
 
 ### Step 1: Generate
 
-Produce the YAML manifests for the requested onboarding resources. Show them to the
-user in fenced code blocks, grouped by resource type. Do not execute anything yet.
+Produce the onboarding config for the requested tenant and **place it at the correct path
+in the GitOps repo** (discovered in Phase 1). Show the user the files and their paths.
+Do not commit anything yet.
 
-### Step 2: Preview
+### Step 2: Diff
 
-Show what the operation would change on the cluster before applying:
+Show exactly what will enter the repo:
 
 | Operation | Preview Command |
 |-----------|----------------|
-| Create AppProject | `kubectl apply --dry-run=server -f appproject.yaml -o yaml` |
-| Create Application | `kubectl apply --dry-run=server -f application.yaml -o yaml` |
-| Create Namespace/Quota | `kubectl apply --dry-run=server -f namespace.yaml -o yaml` |
-| Update RBAC ConfigMap | `kubectl diff -f argocd-rbac-cm.yaml` |
-| Update existing AppProject | `kubectl diff -f appproject.yaml` |
+| New tenant files | `git status --short` + `git diff --stat` |
+| Content review | `git diff` (or `git diff --cached` once staged) |
+| Change to an existing tenant | `git diff -- <tenant-path>` |
+| What Argo CD will then do (read-only, optional) | `argocd app diff <onboarding-app>` |
+| Render check before commit (optional) | `helm template <chart> -f <tenant-values>` |
 
-Show the preview output to the user. Explain what will change in plain language.
+Show the diff and explain in plain language what Argo CD will create once this merges.
+
+For an existing tenant, always show the *diff against the committed file* — never
+overwrite a tenant's config without showing what changed.
 
 ### Step 3: Confirm
 
-Ask the user explicitly: **"Apply this? (yes/no)"**
+Ask the user explicitly: **"Commit this? (yes/no)"** — and, if they use a review flow,
+**"Open a PR or commit to a branch?"**
 
 Do not proceed without an affirmative response. Acceptable confirmations: "yes", "y",
-"apply", "do it", "go ahead", "ship it". Anything else is a no.
+"commit", "do it", "go ahead", "ship it". Anything else is a no.
+
+After committing, state plainly that **the tenant is not onboarded until Argo CD syncs**,
+and how to watch it:
+
+```bash
+argocd app get <onboarding-app> --refresh
+```
 
 ### Safety Rules
 
-1. **NEVER apply without showing the user what will change first.**
-2. **NEVER use wildcards in AppProject sourceRepos or destinations.** This is the
+1. **NEVER commit without showing the diff first.**
+2. **NEVER `kubectl apply` onboarding resources** except for the documented one-time
+   bootstrap. If you bootstrap, commit the same manifests in the same session.
+3. **NEVER use wildcards in AppProject sourceRepos or destinations.** This is the
    entire point of scoped onboarding.
-3. **NEVER modify an existing AppProject without showing the diff first.** If a project
-   with the same name exists, show the current state and the proposed changes.
-4. **NEVER create cluster-admin-equivalent RBAC.** Team roles should be scoped to their
+4. **NEVER overwrite an existing tenant's config without showing the diff first.**
+6. **NEVER create cluster-admin-equivalent RBAC.** Team roles should be scoped to their
    project's resources.
-5. **Log every applied change.** After each successful apply, report:
-   `[APPLIED] <timestamp> <kind>/<namespace>/<name> -- <action>`
-6. **If a command fails, show the error and suggest recovery.** Do not retry automatically.
+7. **Log every committed change.** After each successful commit, report:
+   `[COMMITTED] <timestamp> <repo-path> -- <action>` and the resulting commit SHA or PR URL.
+8. **If a command fails, show the error and suggest recovery.** Do not retry automatically.
 
 ## Prerequisites
 
-Before any onboarding operation, check the environment:
+The GitOps repo is the primary target, so `git` is what's actually required. `kubectl` and
+`argocd` are optional and used only for read-only verification.
 
 ```bash
-# Required
-command -v kubectl >/dev/null && echo "kubectl: $(kubectl version --client -o json 2>/dev/null | grep gitVersion)" || echo "kubectl: MISSING"
+# Required — the repo you will write to
+command -v git >/dev/null && echo "git: $(git --version)" || echo "git: MISSING"
+git -C <gitops-repo> rev-parse --abbrev-ref HEAD   # confirm the branch you're writing to
+git -C <gitops-repo> status --short                # must be clean before generating
 
-# Optional — enhances capabilities
-command -v argocd >/dev/null && echo "argocd: $(argocd version --client -o json 2>/dev/null | grep Version)" || echo "argocd: not installed"
-
-# Cluster context
-kubectl config current-context
-kubectl cluster-info --request-timeout=5s 2>/dev/null || echo "WARN: cluster not reachable"
+# Optional — read-only verification that Argo CD picked the change up
+command -v kubectl >/dev/null && echo "kubectl: available" || echo "kubectl: not installed"
+command -v argocd  >/dev/null && echo "argocd: available"  || echo "argocd: not installed"
 ```
 
-Then verify Argo CD is installed:
+Working without cluster access is fine and expected — you can generate, diff, and commit a
+complete onboarding without ever reaching a cluster. Say so rather than blocking.
+
+If `kubectl` is available, optionally verify Argo CD is installed (read-only):
 
 ```bash
 # Check for Argo CD
@@ -136,7 +178,23 @@ kubectl get pods -n argocd -l app.kubernetes.io/name=argocd-server -o jsonpath='
   kubectl get pods -n openshift-gitops -l app.kubernetes.io/name=openshift-gitops-server -o jsonpath='{.items[0].spec.containers[0].image}' 2>/dev/null
 ```
 
-If Argo CD is not installed, stop and redirect to `argo-operations` for setup.
+If Argo CD is not installed at all, redirect to `argo-operations` for setup — but you can
+still generate and commit the tenant config now; it will reconcile once Argo CD exists.
+
+## Choosing the Onboarding Model
+
+Pick this before generating anything. All three commit to Git; they differ in what gets
+committed.
+
+| Model | What you commit per tenant | Use when | Reference |
+|-------|---------------------------|----------|-----------|
+| **Helm values (recommended)** | One small `values.yaml` describing the tenant; a shared onboarding chart renders every object | You onboard tenants repeatedly and want one reviewed template, not N copies of the same YAML | `references/gitops-onboarding.md` |
+| Rendered manifests | The literal AppProject / Application / Namespace / quota YAML | One-off onboarding, or no appetite for a chart | `references/onboarding-guide.md` |
+| Kustomize overlay | A per-tenant overlay on an immutable platform base | You already standardize on Kustomize and want platform-enforced bases | `references/self-service-pattern.md` |
+
+**Default to the Helm values model** when the user has more than a couple of tenants or
+asks about self-service: the per-tenant diff stays a few readable lines, and changing the
+standard for everyone is a single chart change rather than an N-file sweep.
 
 ## Workflow Phases
 
@@ -144,11 +202,12 @@ If Argo CD is not installed, stop and redirect to `argo-operations` for setup.
 
 | User says | Phase | Reference |
 |-----------|-------|-----------|
-| "Onboard team X" / "Add a new team" | Phase 1 + 2 | `references/onboarding-guide.md` |
-| "Set up self-service onboarding" | Phase 3 | `references/self-service-pattern.md` |
-| "Bootstrap first app for team" | Phase 1 + 2 | `references/onboarding-guide.md` + `references/onboarding-variants.md` |
+| "Onboard team X" / "Add a new team" | Phase 1 + 2 + 3 | `references/gitops-onboarding.md` (or `onboarding-guide.md` for raw manifests) |
+| "Set up self-service onboarding" | Phase 4 | `references/gitops-onboarding.md` + `references/self-service-pattern.md` |
+| "Bootstrap first app for team" | Phase 1 + 2 + 3 | `references/onboarding-guide.md` + `references/onboarding-variants.md` |
 | "Generate AppProject for team" | Phase 2 (skip discovery if info given) | `references/onboarding-guide.md` |
-| "Scale onboarding to many teams" | Phase 3 | `references/self-service-pattern.md` |
+| "Scale onboarding to many teams" | Phase 4 | `references/gitops-onboarding.md` |
+| "Just apply it to the cluster" | Push back — see **The GitOps Rule**; offer the commit path, or confirm it is a genuine bootstrap | -- |
 | "Install Argo CD" | Redirect to `argo-operations` | -- |
 | "How do AppProjects work?" | Redirect to `argo-knowledge` | -- |
 | "Set up CI pipeline" | Redirect: out of scope | -- |
@@ -162,9 +221,31 @@ Load the matching reference file before starting. Max 1-2 reference files per re
 
 **This phase is mandatory.** Do not skip it even if the user provides partial information.
 
-#### Step 1: Cluster Check
+#### Step 1: Locate the GitOps Repo
 
-Run read-only checks (no confirmation needed):
+**This is the most important discovery step — it is where the output goes.** Establish it
+before anything else:
+
+- **Which repo** holds tenant/platform config? (May differ from the teams' app repos.)
+- **What is the existing tenant layout?** Inspect it rather than inventing one:
+  ```bash
+  git -C <gitops-repo> ls-files | grep -Ei 'tenant|project|onboard|team' | head -30
+  ```
+  Match the convention already in the repo. A new tenant should be indistinguishable in
+  shape from the existing ones.
+- **Which onboarding model is in use** — per-tenant values + chart, rendered manifests, or
+  Kustomize overlays? (See *Choosing the Onboarding Model*.) An existing repo has already
+  decided this; follow it.
+- **What picks the files up** — an ApplicationSet, an app-of-apps, or nothing yet?
+- **Branch and review flow** — direct commit, or branch + PR?
+
+If there is no GitOps repo yet, say so plainly and offer to scaffold one — that is a
+larger decision than onboarding a single team and the user should make it deliberately.
+
+#### Step 2: Cluster Check (optional, read-only)
+
+Only if `kubectl` is available. Skip without blocking if it is not — you do not need
+cluster access to produce a correct commit.
 
 ```bash
 # Platform detection
@@ -180,10 +261,11 @@ kubectl get appprojects -A --no-headers 2>/dev/null
 kubectl get namespaces --no-headers 2>/dev/null | awk '{print $1}'
 ```
 
-If Argo CD is not installed, stop: "Argo CD is not installed on this cluster.
-Use `argo-operations` to set it up first."
+Treat anything found here as *observed state to cross-check against Git*, not as the
+source of truth. If a tenant exists on the cluster but not in the repo, that is drift
+worth flagging to the user.
 
-#### Step 2: Team Profile Questions
+#### Step 3: Team Profile Questions
 
 Ask the user about the team. Do not assume answers. If the user provides all info
 up front, acknowledge and confirm rather than re-asking.
@@ -207,7 +289,7 @@ up front, acknowledge and confirm rather than re-asking.
 - Need progressive delivery? (Rollouts) — generates scaffold if yes
 - Notification preferences (Slack, email) — generates annotations if yes
 
-#### Step 3: Build Team Profile
+#### Step 4: Build Team Profile
 
 Summarize the gathered information as a profile block:
 
@@ -236,10 +318,17 @@ Show this profile to the user and confirm before proceeding to generation.
 
 ### Phase 2: Generate
 
-Generate Argo CD resources from the team profile, grouped by resource type.
+Generate the tenant's onboarding config from the team profile and **write it into the
+GitOps repo** at the path discovered in Phase 1.
 
-**`references/onboarding-guide.md` holds the authoritative templates — load it and
-fill in the team profile. Do not write these manifests from memory.** This section
+If the user chose the **Helm values model** (the default), what you generate is a single
+per-tenant `values.yaml` — load `references/gitops-onboarding.md` for the schema and the
+chart contract, and stop here; the chart renders everything below. The table that follows
+describes what that chart produces, and is also the checklist for the rendered-manifest
+model.
+
+**`references/onboarding-guide.md` holds the authoritative manifest templates — load it
+and fill in the team profile. Do not write these manifests from memory.** This section
 covers *what* to generate and the decisions behind it; the guide has the YAML.
 
 #### Always Generated
@@ -249,6 +338,14 @@ covers *what* to generate and the decisions behind it; the guide has the YAML.
 | 1 | AppProject — the security boundary, the most important resource | *AppProject Template* |
 | 2 | Application — one per environment, matching the team's source type | *Application Templates* (Kustomize / Helm / Multi-Source Helm / Directory) |
 | 3 | RBAC — `argocd-rbac-cm` entry binding the team's SSO group to the project role | *RBAC Template* |
+| 4 | Namespace with Pod Security Standards + monitoring labels | *Namespace* |
+| 5 | Default NetworkPolicies — deny-all egress plus explicit allows | *Default NetworkPolicies* |
+
+**Namespaces and NetworkPolicies are not optional extras.** A tenant namespace with no
+`pod-security.kubernetes.io/enforce` label and no NetworkPolicy is open to lateral traffic
+from every other tenant on the cluster, which defeats the AppProject boundary you just
+scoped so carefully. Generate them unless the user has a platform-wide mechanism already
+doing it — and if they do, confirm that rather than assuming it.
 
 **AppProject constraints** — these are what make onboarding safe:
 - `sourceRepos`: exact URLs, never `*`
@@ -266,11 +363,12 @@ covers *what* to generate and the decisions behind it; the guide has the YAML.
 - Always include `retry` with backoff
 - `targetRevision`: environment-specific branches or tags, never `HEAD`
 
-**RBAC is a patch, not a replacement.** Read the live ConfigMap first and show the user
-the existing content alongside the lines being added:
+**RBAC is a patch, not a replacement.** The `argocd-rbac-cm` entry is the one piece most
+likely to already exist in Git with other tenants' lines in it. Read the committed file,
+add the team's lines, and show the diff — never regenerate the whole ConfigMap:
 
 ```bash
-kubectl get cm argocd-rbac-cm -n <argocd-namespace> -o yaml
+git -C <gitops-repo> diff -- <path-to-argocd-rbac-cm.yaml>
 ```
 
 #### Conditionally Generated
@@ -279,7 +377,9 @@ Generate these only when discovery indicates they are needed:
 
 | Resource | When to Generate | Template section |
 |----------|-----------------|------------------|
-| Namespace + ResourceQuota + LimitRange | Team namespaces do not exist yet | *Conditional Resources* |
+| ResourceQuota + LimitRange | Tenant needs enforced capacity limits | *Conditional Resources* |
+| Custom NetworkPolicies | Tenant needs ingress/egress beyond the defaults | *Default NetworkPolicies* |
+| Local admin Group + RoleBinding | SSO groups are not synced from the IdP | *RoleBinding (kubectl Access)* |
 | RoleBinding | Team needs `kubectl` access beyond the Argo CD UI | *RoleBinding (kubectl Access)* |
 | Notification annotations | Team requested Slack/email notifications | *Notification Subscriptions* |
 | Rollout scaffold | Team wants progressive delivery | `references/onboarding-variants.md` |
@@ -290,7 +390,30 @@ confirm or adjust the values for their team.
 
 ---
 
-### Phase 3: Self-Service (if requested)
+### Phase 3: Commit and Hand Off to Argo CD
+
+This is where onboarding actually happens. Do not skip it, and do not substitute an apply.
+
+1. **Show the diff** — `git -C <repo> status --short` then `git -C <repo> diff`. Walk the
+   user through what Argo CD will create.
+2. **Confirm** — "Commit this? (yes/no)", and whether they want a branch + PR or a direct
+   commit to the tracked branch.
+3. **Commit** with a message naming the tenant and what was granted, e.g.
+   `onboard: add tenant checkout (dev/staging/prod, scoped to checkout-svc.git)`.
+4. **Push**, and open a PR if that is their flow.
+5. **Report** `[COMMITTED] <timestamp> <path> -- <action>` plus the commit SHA or PR URL.
+6. **State the handoff explicitly:** the tenant exists once Argo CD syncs the change, not
+   at commit time. Give them the command to watch it:
+   ```bash
+   argocd app get <onboarding-app> --refresh
+   ```
+
+If the repo has CI validation on tenant configs (see *PR Validation Script* in
+`references/self-service-pattern.md`), mention that it will gate the merge.
+
+---
+
+### Phase 4: Self-Service (if requested)
 
 Use when the platform team wants to scale onboarding beyond manual generation: teams
 submit a PR adding their own config, and an ApplicationSet generates their resources.
@@ -325,11 +448,19 @@ change, and *PR Validation Script* for automated scope checks on incoming PRs.
 
 ---
 
-### Phase 4: Validate
+### Phase 5: Validate
 
-After applying resources, verify the onboarding was successful.
+Run this **after Argo CD has synced the commit**, not immediately after committing — the
+resources do not exist until reconciliation completes. If the onboarding Application is
+still `OutOfSync` or `Progressing`, wait or refresh before concluding anything failed.
+
+All checks below are read-only and require cluster access. If you have none, say the
+onboarding is committed but unverified rather than implying it is live.
 
 ```bash
+# Confirm Argo CD actually reconciled the commit before checking anything else
+argocd app get <onboarding-app> --refresh
+
 # Verify AppProject was created with correct restrictions
 kubectl get appproject <team-name> -n <argocd-namespace> -o yaml
 
@@ -395,13 +526,34 @@ Cross-reference `argo-knowledge` for full CRD documentation.
    in AppProject roles gives teams more power than they need. Scope to `get`, `sync`,
    and `override` at most. Never grant `delete` or `exec` without explicit justification.
 
+6. **Onboarding by `kubectl apply`.** The most common one, and the reason this skill is
+   commit-first. Applying the AppProject directly means the tenant boundary exists only
+   in cluster state: invisible in review, absent from the audit trail, and liable to be
+   reverted the next time anything reconciles from Git. Commit it instead.
+
+7. **Namespace with no Pod Security Standards labels.** Without
+   `pod-security.kubernetes.io/enforce`, the tenant can run privileged pods regardless of
+   how carefully the AppProject is scoped. Default to `restricted`.
+
+8. **Blacklisting NetworkPolicy without creating any.** `namespaceResourceBlacklist`
+   stops teams from editing policies; it does not create them. Blacklisting alone leaves
+   the namespace fully open to lateral traffic *and* prevents the team from fixing it.
+   Generate the defaults.
+
+9. **Default-deny egress with no DNS exception.** Breaks name resolution cluster-wide for
+   the tenant, and the symptoms look like application bugs. Always allow UDP/TCP 5353 to
+   the DNS namespace.
+
 ## Edge Cases
 
 | Scenario | Behavior |
 |----------|----------|
 | Argo CD not installed | Stop immediately. Redirect to `argo-operations` for setup. |
 | Single-tenant cluster | Generate a simpler AppProject — less restrictive destinations OK, but still scope sourceRepos. Note that `namespaceResourceBlacklist` may not be needed. |
-| Existing AppProject with same name | Run `kubectl get appproject <name> -n <ns> -o yaml`. Show the current state. Ask the user whether to update or use a different name. Show diff before applying. |
+| Existing AppProject with same name | Find it in Git first (`git -C <repo> grep -l "name: <name>"`). Show the committed definition and ask whether to update it or pick a different name. Show the `git diff` before committing. |
+| Tenant exists on the cluster but not in Git | Drift — the tenant was applied imperatively at some point. Flag it, and offer to import the live definition into the repo so Argo CD owns it going forward. |
+| User asks to apply directly instead of committing | Explain the drift cost in one sentence and offer the commit path. If they confirm it is a genuine bootstrap (no control loop yet), proceed, label it a bootstrap, and commit the same manifests in the same session. If they simply prefer apply, say plainly that it puts the tenant boundary outside GitOps, then respect their decision. |
+| No GitOps repo exists yet | Do not silently fall back to applying. Offer to scaffold the repo structure and the onboarding ApplicationSet — that is the actual blocker. |
 | Multiple Argo CD instances | Detect by checking for ArgoCD CRs or argocd-labeled pods in multiple namespaces. Ask which instance to target. |
 | OpenShift with GitOps operator | Check for `ArgoCD` CR (`kubectl get argocd -A`). Use the operator-managed namespace (typically `openshift-gitops` or a namespace-scoped instance). Adjust RBAC to use OpenShift groups. |
 | Team namespaces already exist | Skip Namespace creation. Still offer ResourceQuota and LimitRange if missing. |
@@ -416,6 +568,7 @@ rather than writing manifests from memory.
 
 | Topic | Reference File | When to Load |
 |-------|---------------|-------------|
-| AppProject / Application / RBAC templates, conditional resources (Namespace, quota tiers, LimitRange, RoleBinding, notifications, sync windows), validation checklist | `references/onboarding-guide.md` | **Every onboarding request** — Phase 2 |
+| **Recommended model** — per-tenant values + onboarding Helm chart, discovery ApplicationSet, t-shirt sizes, default NetworkPolicies, Pod Security Standards labels, two-instance split | `references/gitops-onboarding.md` | **Default for Phase 2 and Phase 4** — any repeat or self-service onboarding |
+| AppProject / Application / RBAC templates, conditional resources (Namespace, quota tiers, LimitRange, NetworkPolicies, RoleBinding, notifications, sync windows), validation checklist | `references/onboarding-guide.md` | Phase 2 when committing rendered manifests rather than values |
 | `teams.yaml` schema, both ApplicationSet approaches, PR workflow, platform-vs-team guard rails | `references/self-service-pattern.md` | Phase 3 — scaling or self-service requests |
 | Source type variants (Helm / Kustomize / directory), Rollouts, notifications, sync windows, gitops-promoter | `references/onboarding-variants.md` | When adapting to a specific stack |
