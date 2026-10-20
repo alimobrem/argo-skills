@@ -236,284 +236,92 @@ Show this profile to the user and confirm before proceeding to generation.
 
 ### Phase 2: Generate
 
-Generate Argo CD resources based on the team profile. Group output by resource type.
+Generate Argo CD resources from the team profile, grouped by resource type.
+
+**`references/onboarding-guide.md` holds the authoritative templates — load it and
+fill in the team profile. Do not write these manifests from memory.** This section
+covers *what* to generate and the decisions behind it; the guide has the YAML.
 
 #### Always Generated
 
-**1. AppProject**
+| # | Resource | Template section in `onboarding-guide.md` |
+|---|----------|-------------------------------------------|
+| 1 | AppProject — the security boundary, the most important resource | *AppProject Template* |
+| 2 | Application — one per environment, matching the team's source type | *Application Templates* (Kustomize / Helm / Multi-Source Helm / Directory) |
+| 3 | RBAC — `argocd-rbac-cm` entry binding the team's SSO group to the project role | *RBAC Template* |
 
-The security boundary. This is the most important resource.
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: AppProject
-metadata:
-  name: <team-name>
-  namespace: <argocd-namespace>
-spec:
-  description: "AppProject for <team-name> team"
-  sourceRepos:
-    - <exact-repo-url-1>
-    - <exact-repo-url-2>
-  destinations:
-    - namespace: <team-ns-1>
-      server: https://kubernetes.default.svc
-    - namespace: <team-ns-2>
-      server: https://kubernetes.default.svc
-  clusterResourceWhitelist: []  # No cluster-scoped resources by default
-  namespaceResourceBlacklist:
-    - group: ""
-      kind: ResourceQuota
-    - group: ""
-      kind: LimitRange
-    - group: "networking.k8s.io"
-      kind: NetworkPolicy
-  orphanedResources:
-    warn: true
-  roles:
-    - name: team-member
-      description: "Read-only access for <team-name> team members"
-      policies:
-        - "p, proj:<team-name>:team-member, applications, get, <team-name>/*, allow"
-        - "p, proj:<team-name>:team-member, applications, sync, <team-name>/*, allow"
-      groups:
-        - <sso-group>
-```
-
-Key constraints:
+**AppProject constraints** — these are what make onboarding safe:
 - `sourceRepos`: exact URLs, never `*`
-- `destinations`: exact namespaces, never `*`
-- `clusterResourceWhitelist`: empty by default, only add if needed
-- `namespaceResourceBlacklist`: prevent teams from creating ResourceQuotas, LimitRanges,
-  and NetworkPolicies (platform team manages these)
+- `destinations`: exact namespace/server pairs, never `*`
+- `clusterResourceWhitelist`: empty by default; add only the specific CRD groups the team needs
+- `namespaceResourceBlacklist`: block ResourceQuota, LimitRange, and NetworkPolicy — the
+  platform team owns those
 - `orphanedResources.warn: true`: always enable drift detection
 - `roles`: scoped to this project's Applications only
 
-**2. Application (source-type-aware)**
+**Application decisions:**
+- `CreateNamespace=false` by default — the platform team manages namespaces
+- `automated.selfHeal: true` + `prune: true` for non-production environments
+- For production: consider manual sync, or add `syncWindows` for change control
+- Always include `retry` with backoff
+- `targetRevision`: environment-specific branches or tags, never `HEAD`
 
-Generate based on the team's source type. See `references/onboarding-variants.md` for
-all variants.
+**RBAC is a patch, not a replacement.** Read the live ConfigMap first and show the user
+the existing content alongside the lines being added:
 
-Helm source:
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: <team>-<app>-<env>
-  namespace: <argocd-namespace>
-spec:
-  project: <team-name>
-  source:
-    repoURL: <repo-url>
-    targetRevision: <branch-or-tag>
-    path: <chart-path>
-    helm:
-      valueFiles:
-        - values-<env>.yaml
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: <team-ns>
-  syncPolicy:
-    automated:
-      selfHeal: true
-      prune: true
-    syncOptions:
-      - CreateNamespace=false
-    retry:
-      limit: 3
-      backoff:
-        duration: 5s
-        factor: 2
-        maxDuration: 1m
+```bash
+kubectl get cm argocd-rbac-cm -n <argocd-namespace> -o yaml
 ```
-
-Kustomize source:
-```yaml
-spec:
-  source:
-    repoURL: <repo-url>
-    targetRevision: <branch-or-tag>
-    path: overlays/<env>
-```
-
-Directory source:
-```yaml
-spec:
-  source:
-    repoURL: <repo-url>
-    targetRevision: <branch-or-tag>
-    path: manifests/<env>
-    directory:
-      recurse: true
-```
-
-Key decisions:
-- `CreateNamespace=false` by default — platform team manages namespaces
-- `automated.selfHeal: true` and `prune: true` for non-prod environments
-- For production: consider `automated: false` (manual sync) or add `syncWindows`
-- `retry` with backoff — always include
-- `targetRevision`: use environment-specific branches or tags, not `HEAD`
-
-**3. RBAC (argocd-rbac-cm patch)**
-
-Generate the ConfigMap patch to add the team's SSO group binding:
-
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: argocd-rbac-cm
-  namespace: <argocd-namespace>
-data:
-  policy.csv: |
-    # Existing policies above — DO NOT overwrite
-    # <team-name> team
-    g, <sso-group>, proj:<team-name>:team-member
-```
-
-**Important:** This is a patch, not a full replacement. Show the user the existing
-`argocd-rbac-cm` content and the lines to add. Use `kubectl get cm argocd-rbac-cm
--n <ns> -o yaml` to read current state before generating the patch.
 
 #### Conditionally Generated
 
-Generate these only when the discovery phase indicates they are needed:
+Generate these only when discovery indicates they are needed:
 
-| Resource | When to Generate |
-|----------|-----------------|
-| Namespace + ResourceQuota + LimitRange | Team namespaces do not exist yet |
-| RoleBinding | Team needs `kubectl` access beyond Argo CD UI |
-| Notification annotations | Team requested Slack/email notifications |
-| Rollout scaffold | Team wants progressive delivery |
-| SyncWindow | Production environment needs change control |
+| Resource | When to Generate | Template section |
+|----------|-----------------|------------------|
+| Namespace + ResourceQuota + LimitRange | Team namespaces do not exist yet | *Conditional Resources* |
+| RoleBinding | Team needs `kubectl` access beyond the Argo CD UI | *RoleBinding (kubectl Access)* |
+| Notification annotations | Team requested Slack/email notifications | *Notification Subscriptions* |
+| Rollout scaffold | Team wants progressive delivery | `references/onboarding-variants.md` |
+| SyncWindow | Production environment needs change control | *Sync Windows* |
 
-**Namespace + ResourceQuota + LimitRange** (when namespaces don't exist):
-
-```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: <team>-<env>
-  labels:
-    team: <team-name>
-    environment: <env>
----
-apiVersion: v1
-kind: ResourceQuota
-metadata:
-  name: <team>-quota
-  namespace: <team>-<env>
-spec:
-  hard:
-    requests.cpu: "4"
-    requests.memory: 8Gi
-    limits.cpu: "8"
-    limits.memory: 16Gi
-    pods: "50"
----
-apiVersion: v1
-kind: LimitRange
-metadata:
-  name: <team>-limits
-  namespace: <team>-<env>
-spec:
-  limits:
-    - default:
-        cpu: 500m
-        memory: 512Mi
-      defaultRequest:
-        cpu: 100m
-        memory: 128Mi
-      type: Container
-```
-
-Ask the user to adjust quota values — these are reasonable defaults, not universal.
-
-**SyncWindow** (for production environments):
-
-Add to the AppProject spec:
-
-```yaml
-spec:
-  syncWindows:
-    - kind: allow
-      schedule: "0 14 * * 1-5"  # Weekdays 2 PM UTC
-      duration: 2h
-      applications: ["*"]
-      namespaces: ["<team>-prod"]
-```
+The guide's ResourceQuota tiers are reasonable defaults, not universal — ask the user to
+confirm or adjust the values for their team.
 
 ---
 
 ### Phase 3: Self-Service (if requested)
 
-Load `references/self-service-pattern.md` for detailed implementation.
+Use when the platform team wants to scale onboarding beyond manual generation: teams
+submit a PR adding their own config, and an ApplicationSet generates their resources.
 
-Use when the platform team wants to scale onboarding beyond manual generation.
-The pattern: teams submit a PR adding their config to `teams.yaml`, an ApplicationSet
-reads it and generates all resources.
+**Load `references/self-service-pattern.md` — it holds the authoritative `teams.yaml`
+schema, both ApplicationSet approaches, and the PR workflow. Do not improvise the file
+schema or the generator; the two must agree or the ApplicationSet fails to render.**
 
-#### teams.yaml Format
+Two approaches, both in the reference:
 
-```yaml
-teams:
-  - name: frontend
-    sso_group: team-frontend
-    repos:
-      - https://github.com/org/frontend-app.git
-    namespaces: [frontend-dev, frontend-staging, frontend-prod]
-    source_type: helm
-    chart_path: charts/frontend
-    environments:
-      - name: dev
-        branch: main
-        auto_sync: true
-      - name: staging
-        branch: release
-        auto_sync: true
-      - name: prod
-        branch: release
-        auto_sync: false
-```
+| Approach | Use when |
+|----------|----------|
+| Per-team AppProject + Applications via git **file** generator (recommended) | One `teams/<name>/config.yaml` per team; platform team reviews each PR |
+| Kustomize overlay with an immutable platform base | Platform team needs to enforce non-negotiable settings teams cannot override |
 
-#### ApplicationSet with Git File Generator
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: ApplicationSet
-metadata:
-  name: team-onboarding
-  namespace: <argocd-namespace>
-spec:
-  goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
-  generators:
-    - git:
-        repoURL: https://github.com/org/gitops-config.git
-        revision: main
-        files:
-          - path: "teams/*/config.yaml"
-  template:
-    metadata:
-      name: "{{.team.name}}-{{.app.name}}-{{.env.name}}"
-    spec:
-      project: "{{.team.name}}"
-      source:
-        repoURL: "{{.app.repo}}"
-        targetRevision: "{{.env.branch}}"
-        path: "{{.app.path}}/overlays/{{.env.name}}"
-      destination:
-        server: https://kubernetes.default.svc
-        namespace: "{{.team.name}}-{{.env.name}}"
-```
+**Schema and generator must match.** The recommended pattern uses one file per team at
+`teams/*/config.yaml`, each with a top-level `team:` key, which is what makes
+`{{ .team.name }}` resolve. A single central file containing a `teams:` *array* is a
+different shape and will not populate those template variables — with
+`goTemplateOptions: [missingkey=error]` set, it fails loudly rather than silently.
 
 #### Onboarding Workflow
 
-1. New team forks the gitops-config repo
+1. New team forks the GitOps config repo
 2. Adds their `teams/<team-name>/config.yaml`
 3. Opens a PR — platform team reviews AppProject scope and quotas
 4. PR merges — ApplicationSet auto-generates all resources
 5. Team's Applications appear in Argo CD within the sync interval
+
+See *Guard Rails: Platform vs Team* in the reference for what teams may and may not
+change, and *PR Validation Script* for automated scope checks on incoming PRs.
 
 ---
 
@@ -602,8 +410,12 @@ Cross-reference `argo-knowledge` for full CRD documentation.
 
 ## Reference Index
 
+These files hold the **authoritative manifests** for this skill. Phase 2 and Phase 3 above
+describe what to generate and why; the YAML itself lives here. Load the relevant file
+rather than writing manifests from memory.
+
 | Topic | Reference File | When to Load |
 |-------|---------------|-------------|
-| What gets created, templates, validation checklist | `references/onboarding-guide.md` | All onboarding requests |
-| Self-service scaling, ApplicationSet, teams.yaml | `references/self-service-pattern.md` | When user asks about scaling or self-service |
-| Source type variants, optional components | `references/onboarding-variants.md` | When adapting to specific stack |
+| AppProject / Application / RBAC templates, conditional resources (Namespace, quota tiers, LimitRange, RoleBinding, notifications, sync windows), validation checklist | `references/onboarding-guide.md` | **Every onboarding request** — Phase 2 |
+| `teams.yaml` schema, both ApplicationSet approaches, PR workflow, platform-vs-team guard rails | `references/self-service-pattern.md` | Phase 3 — scaling or self-service requests |
+| Source type variants (Helm / Kustomize / directory), Rollouts, notifications, sync windows, gitops-promoter | `references/onboarding-variants.md` | When adapting to a specific stack |
