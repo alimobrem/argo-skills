@@ -1,13 +1,12 @@
 ---
 name: argo-cluster-debug
 description: >
-  Debug and troubleshoot the Argo ecosystem on live Kubernetes clusters — inspects
-  Argo CD Application sync status, health checks, and controller logs; diagnoses
-  Argo Rollouts canary/blue-green failures and AnalysisRun results; traces Argo
-  Workflow step failures and artifact issues; and debugs Argo Events EventSource
-  and Sensor connectivity. Prefers argocd/argo CLIs when available, falls back to
-  kubectl for CRD inspection. Use when users report failing, stuck, or degraded
-  Argo resources on a cluster.
+  Debug and troubleshoot Red Hat OpenShift GitOps on live clusters — inspects Argo CD
+  Application sync status, health checks, and controller logs; diagnoses Argo Rollouts
+  canary/blue-green failures and AnalysisRun results; and handles multi-instance,
+  operator-managed installs. Prefers argocd/oc CLIs when available, falls back to kubectl
+  for CRD inspection. Argo Workflows and Argo Events are out of scope. Use when users
+  report failing, stuck, or degraded Argo CD or Rollouts resources on a cluster.
 license: MIT
 compatibility: Requires kubectl; optionally argocd, argo (workflows CLI), kubectl-argo-rollouts
 ---
@@ -88,7 +87,7 @@ of the investigation, not just finding the first error.
 
 ## Debugging Workflows
 
-Seven self-contained workflows live in `references/debug-workflows.md`. Match the reported
+Five self-contained workflows live in `references/debug-workflows.md`. Match the reported
 symptom to a workflow below, **load that file, and work its steps in order** — each step
 builds context for the next. The value is in completing the investigation, not in stopping
 at the first error.
@@ -99,9 +98,7 @@ at the first error.
 | 2 | Application Debugging | Application sync failure, health degradation, `OutOfSync`, or `Unknown` status |
 | 3 | ApplicationSet Debugging | ApplicationSet not generating Applications, generating the wrong ones, or reporting errors |
 | 4 | Rollout Debugging | Canary or blue-green Rollout stuck, aborted, or degraded |
-| 5 | Workflow Debugging | Argo Workflow failure, stuck steps, or artifact errors |
-| 6 | EventSource / Sensor Debugging | Events not flowing, Sensor not triggering, EventSource failures |
-| 7 | Log Analysis | Cross-component log correlation when the failing component is not yet known |
+| 5 | Log Analysis | Cross-component log correlation when the failing component is not yet known |
 
 Run **Workflow 1 first** whenever Argo CD's own health is unverified — a broken controller
 or repo-server explains most Application-level symptoms, and skipping it leads to
@@ -135,7 +132,6 @@ Map the full dependency chain relevant to the problem:
 - Argo CD: `Git Repo -> Repo Server -> Application -> Managed Resources -> Pods`
 - Rollouts: `Rollout -> ReplicaSets -> Pods`, `Rollout -> AnalysisRun -> Metric Provider`
 - Workflows: `Workflow -> DAG/Steps -> Pods -> Artifacts`
-- Events: `EventSource -> EventBus -> Sensor -> Trigger Target`
 
 ### 4. Root Cause
 
@@ -168,8 +164,6 @@ Handle these scenarios explicitly:
 | Unknown health status | Check for custom health check Lua scripts in `argocd-cm` under `resource.customizations.health.<group_kind>` |
 | Rollout without traffic management | Note that canary is replica-based only — weight percentages are approximated by replica ratio |
 | Workflow pods cleaned up by GC | Report that logs are unavailable due to pod GC — suggest increasing `spec.podGC.strategy` or checking archived workflows |
-| CronWorkflow not firing | Check `spec.timezone`, `spec.concurrencyPolicy`, `spec.startingDeadlineSeconds`, and whether previous run is still active |
-| Argo Events NATS cluster split | Check NATS pod logs for cluster connectivity, check PDB and pod anti-affinity |
 | Helm source with missing values files | Check `spec.source.helm.valueFiles` paths relative to the chart, not the repo root |
 | Multi-source Application | Iterate all entries in `spec.sources[]` — each source can fail independently |
 
@@ -187,17 +181,10 @@ All CRDs use `apiVersion: argoproj.io/v1alpha1` unless noted:
 | ClusterAnalysisTemplate | Argo Rollouts | Cluster-scoped AnalysisTemplate |
 | AnalysisRun | Argo Rollouts | Instance of an analysis execution |
 | Experiment | Argo Rollouts | Temporary ReplicaSet for A/B testing |
-| Workflow | Argo Workflows | DAG/step-based job execution (`argoproj.io/v1alpha1`) |
-| WorkflowTemplate | Argo Workflows | Reusable workflow definition |
-| ClusterWorkflowTemplate | Argo Workflows | Cluster-scoped WorkflowTemplate |
-| CronWorkflow | Argo Workflows | Scheduled workflow execution |
-| EventSource | Argo Events | Event ingestion (webhooks, SNS, SQS, etc.) |
-| EventBus | Argo Events | Event transport (NATS, JetStream, Kafka) |
-| Sensor | Argo Events | Event-driven trigger execution |
 
 ## Reference Index
 
 | Topic | Reference File | When to Load |
 |-------|---------------|-------------|
 | The seven step-by-step debugging workflows (installation, Application, ApplicationSet, Rollout, Workflow, Events, log analysis) | `references/debug-workflows.md` | **Every debugging session** — load the workflow matching the symptom |
-| Symptom → cause → fix tables across all four Argo projects | `references/troubleshooting.md` | Alongside a workflow, or when a workflow is inconclusive |
+| Symptom → cause → fix tables for Argo CD and Argo Rollouts | `references/troubleshooting.md` | Alongside a workflow, or when a workflow is inconclusive |

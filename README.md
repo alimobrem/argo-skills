@@ -11,11 +11,28 @@
 </p>
 
 <p align="center">
-  <b>Give your AI agent deep expertise in Argo CD, Rollouts, Workflows, and Events.</b><br>
-  Generate manifests, audit repos, debug clusters, tune performance, and manage operations — all from your terminal.
+  <b>Give your AI agent deep expertise in Red Hat OpenShift GitOps.</b><br>
+  Argo CD and Argo Rollouts as the operator ships them — generate manifests, audit repos,
+  debug clusters, tune performance, onboard teams, and manage operations from your terminal.
 </p>
 
 ---
+
+> **Scope — Red Hat OpenShift GitOps.** These skills cover Argo CD and Argo Rollouts as
+> shipped and supported by the OpenShift GitOps operator, including the operator-managed
+> CRDs (`ArgoCD`, `RolloutManager`, `NotificationsConfiguration`, `NamespaceManagement`,
+> `ImageUpdater`). They work against vanilla Argo CD too, but OpenShift GitOps is the
+> target.
+>
+> **Argo Workflows and Argo Events are deliberately out of scope** — they are separate
+> upstream projects the operator does not ship, and on OpenShift pipelines are normally
+> [OpenShift Pipelines](https://docs.redhat.com/en/documentation/openshift_pipelines)
+> (Tekton). For those, see the [Argo Workflows](https://argo-workflows.readthedocs.io/)
+> and [Argo Events](https://argoproj.github.io/argo-events/) docs.
+>
+> [GitOps Promoter](https://github.com/argoproj-labs/gitops-promoter) **is** covered for
+> environment promotion, but is installed separately — it is argoproj-labs, not
+> operator-owned.
 
 <details>
 <summary><b>Quick Start</b></summary>
@@ -94,7 +111,6 @@ Optional (enhances capabilities):
 - `kubeconform` — schema validation against Argo CRDs
 - `yq` — YAML parsing
 - `argocd` — richer Application debugging and sync operations
-- `argo` — Workflow inspection
 - `kubectl-argo-rollouts` — Rollout status and promotion
 
 Install all on macOS:
@@ -153,8 +169,6 @@ Generate an ArgoCD CR for the OpenShift GitOps operator with OAuth and Routes.
 | ApplicationSet generators, progressive syncs, templates | `applicationsets.md` |
 | AppProject RBAC, source/destination restrictions, sync windows | `app-projects.md` |
 | Rollout canary/blue-green, traffic management, AnalysisTemplate | `rollouts.md` |
-| Workflow DAG/steps, parameters, artifacts, CronWorkflow | `workflows.md` |
-| EventSource types, EventBus, Sensor triggers, filters | `events.md` |
 | Notification services, templates, triggers, subscriptions | `notifications.md` |
 | Image updater annotations, strategies, write-back | `image-updater.md` |
 | Repository patterns (app-of-apps, ApplicationSet, monorepo) | `repo-patterns.md` |
@@ -192,7 +206,7 @@ Just validate YAML syntax and schemas, don't do a full audit.
 | Severity | Examples |
 |----------|---------|
 | Critical | Wildcard `*` in AppProject sourceRepos/destinations, plain-text Secrets, hardcoded passwords in Helm values, `clusterResourceWhitelist: */*` |
-| Warning | Missing syncPolicy, `targetRevision: HEAD` in production, no retry/backoff, missing `activeDeadlineSeconds` on Workflows |
+| Warning | Missing syncPolicy, `targetRevision: HEAD` in production, no retry/backoff, missing `ignoreDifferences` for controller-managed fields |
 | Info | Missing `ignoreDifferences` for HPA-managed replicas, no progressive sync on multi-cluster ApplicationSets |
 
 ### Cluster Debug — Troubleshoot Live Issues

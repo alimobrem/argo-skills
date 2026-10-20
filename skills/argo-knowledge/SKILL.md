@@ -1,12 +1,13 @@
 ---
 name: argo-knowledge
 description: >
-  Comprehensive knowledge base for the Argo ecosystem including Argo CD, Argo Rollouts,
-  Argo Workflows, and Argo Events. Use this skill when generating, reviewing, debugging,
-  or explaining Argo CRDs (Application, ApplicationSet, AppProject, Rollout, AnalysisTemplate,
-  Workflow, WorkflowTemplate, CronWorkflow, EventSource, Sensor, EventBus), configuring
-  notifications, image updater, sync policies, progressive delivery strategies, or
-  designing GitOps repository patterns. Also use when the user asks about Argo best practices,
+  Knowledge base for Red Hat OpenShift GitOps — Argo CD and Argo Rollouts as shipped by
+  the OpenShift GitOps operator. Use when generating, reviewing, debugging, or explaining
+  CRDs (Application, ApplicationSet, AppProject, ArgoCD, Rollout, AnalysisTemplate,
+  Experiment, RolloutManager, NotificationsConfiguration, NamespaceManagement,
+  ImageUpdater), configuring notifications, image updater, sync policies, progressive
+  delivery strategies, or designing GitOps repository patterns. Argo Workflows and Argo
+  Events are out of scope. Also use when the user asks about Argo best practices,
   common mistakes, or needs to choose between Argo approaches (e.g., app-of-apps vs
   ApplicationSet, canary vs blue-green, steps vs DAG workflows).
 license: MIT
@@ -27,19 +28,41 @@ license: MIT
 5. **Prefer canonical patterns.** When the user needs a manifest, load `references/patterns.md` and start from the matching numbered pattern. Adapt it to the user's specifics rather than writing YAML from memory or inventing from scratch.
 6. **State trade-offs.** When recommending an approach, briefly note what you give up.
 
-## What is Argo
+## Scope: OpenShift GitOps
 
-The Argo project is a set of Kubernetes-native tools for running and managing jobs and applications on Kubernetes.
+These skills target **Red Hat OpenShift GitOps** — the productized Argo CD distribution —
+not the whole Argo ecosystem. The boundary is what the OpenShift GitOps operator actually
+ships and supports:
 
-- **Argo CD** — Declarative GitOps continuous delivery. Watches Git repos and syncs Kubernetes resources to match the desired state. Supports Helm, Kustomize, plain YAML, Jsonnet, and plugin-based config management tools. Provides a UI, CLI, and API for managing applications across multiple clusters.
+- **Argo CD** — Declarative GitOps continuous delivery. Watches Git repos and syncs
+  Kubernetes resources to match desired state. Supports Helm, Kustomize, plain YAML,
+  Jsonnet, and config management plugins. On OpenShift it is operator-managed through the
+  `ArgoCD` CR (`argoproj.io/v1beta1`), not a raw Helm install.
+- **Argo Rollouts** — Progressive delivery. Extends Deployments with canary, blue-green,
+  experimentation, and analysis-driven promotion/rollback. Deployed via the operator's
+  `RolloutManager` CR.
+- **Argo CD Image Updater** — Automated image bumps, operator-managed via the
+  `ImageUpdater` CR.
+- **Notifications** — operator-managed via `ArgoCD.spec.notifications` and the
+  `NotificationsConfiguration` CR.
 
-- **Argo Rollouts** — Progressive delivery controller. Extends Kubernetes Deployments with canary releases, blue-green deployments, experimentation, and automated analysis-driven promotion/rollback. Integrates with service meshes and ingress controllers for traffic management.
+**Out of scope — Argo Workflows and Argo Events.** They are separate upstream projects,
+not part of OpenShift GitOps, and the operator does not own their CRDs. For those, see the
+[Argo Workflows](https://argo-workflows.readthedocs.io/) and
+[Argo Events](https://argoproj.github.io/argo-events/) docs. On OpenShift, CI/CD pipelines
+are generally OpenShift Pipelines (Tekton) rather than Argo Workflows. Say this plainly if
+asked rather than improvising coverage.
 
-- **Argo Workflows** — Container-native workflow engine for Kubernetes. Runs DAG and step-based workflows where each step is a container. Used for CI/CD pipelines, data processing, ML pipelines, and infrastructure automation.
+**GitOps Promoter** is covered (`references/gitops-promoter.md`) but is **installed
+separately** — it is an argoproj-labs project, not operator-owned. Flag that when
+recommending it.
 
-- **Argo Events** — Event-driven workflow automation. Connects external event sources (webhooks, message queues, cloud events, cron schedules) to triggers that create Argo Workflows or any Kubernetes resource.
+**Determine what a given cluster actually has** rather than assuming:
 
-**How they relate:** Argo CD deploys your applications via GitOps. Argo Rollouts handles the progressive delivery strategy during those deployments. Argo Workflows orchestrates complex multi-step jobs. Argo Events wires external events to trigger Workflows or other actions. Together they form a complete GitOps + progressive delivery + automation platform.
+```bash
+kubectl get csv -n openshift-gitops-operator -o json | \
+  jq -r '.items[].spec.customresourcedefinitions.owned[]?.name' | sort -u
+```
 
 ## CRD Table
 
@@ -53,14 +76,12 @@ The Argo project is a set of Kubernetes-native tools for running and managing jo
 | ClusterAnalysisTemplate | argoproj.io/v1alpha1 | Rollouts | Cluster-scoped AnalysisTemplate |
 | AnalysisRun | argoproj.io/v1alpha1 | Rollouts | Instance of an AnalysisTemplate execution (auto-created) |
 | Experiment | argoproj.io/v1alpha1 | Rollouts | Runs multiple ReplicaSet versions simultaneously for comparison |
-| Workflow | argoproj.io/v1alpha1 | Workflows | A single workflow execution |
-| WorkflowTemplate | argoproj.io/v1alpha1 | Workflows | Reusable workflow definition (namespace-scoped) |
-| ClusterWorkflowTemplate | argoproj.io/v1alpha1 | Workflows | Reusable workflow definition (cluster-scoped) |
-| CronWorkflow | argoproj.io/v1alpha1 | Workflows | Scheduled workflow execution |
-| EventSource | argoproj.io/v1alpha1 | Events | Defines external event sources to consume |
-| EventBus | argoproj.io/v1alpha1 | Events | Message transport layer between EventSources and Sensors |
-| Sensor | argoproj.io/v1alpha1 | Events | Listens to EventBus, applies filters, fires triggers |
-| ArgoCD | **argoproj.io/v1beta1** | OpenShift GitOps / Argo CD Operator | Operator-managed Argo CD instance (`v1alpha1` is deprecated for this kind) |
+| ArgoCD | **argoproj.io/v1beta1** | OpenShift GitOps | Operator-managed Argo CD instance (`v1alpha1` is deprecated for this kind) |
+| RolloutManager | argoproj.io/v1alpha1 | OpenShift GitOps | **How Rollouts is deployed on OpenShift** — the operator reconciles the argo-rollouts controller from this CR, not a raw install |
+| NotificationsConfiguration | argoproj.io/v1alpha1 | OpenShift GitOps | Operator-managed notification triggers/templates. Enable via `ArgoCD.spec.notifications.enabled`. **A hand-written `argocd-notifications-cm` is reconciled away by the operator** |
+| NamespaceManagement | **argoproj.io/v1beta1** | OpenShift GitOps | Declares which namespaces an Argo CD instance may manage — relevant to multi-tenant onboarding |
+| ImageUpdater | **argocd-image-updater.argoproj.io/v1alpha1** | OpenShift GitOps | Operator-managed Image Updater. Note the **separate API group** |
+| GitopsService | pipelines.openshift.io/v1alpha1 | OpenShift GitOps | Owns the default `openshift-gitops` instance. Manual edits to that ArgoCD CR are reverted (`blockOwnerDeletion: true`) |
 | PromotionStrategy | **promoter.argoproj.io/v1alpha1** | GitOps Promoter | Environment sequence and gating rules |
 | ChangeTransferPolicy | **promoter.argoproj.io/v1alpha1** | GitOps Promoter | How changes move between branches (auto-generated) |
 | GitRepository | **promoter.argoproj.io/v1alpha1** | GitOps Promoter | Repository reference (owner, name, SCM provider ref) |
@@ -153,11 +174,9 @@ user needs a manifest** — do not reproduce these from memory.
 | 4 | ApplicationSet with cluster generator + matrix | N apps across M registered clusters |
 | 5 | Rollout with canary + AnalysisTemplate | Metric-gated progressive delivery |
 | 6 | Rollout with blue-green strategy | Preview/active cutover with promotion gates |
-| 7 | Workflow DAG pattern | Multi-step CI/CD or data pipelines |
-| 8 | EventSource + Sensor triggering a Workflow | Event-driven automation from webhooks |
-| 9 | Notifications config (`argocd-notifications-cm`) | Slack/email alerts on sync or health events |
-| 10 | Image updater annotations | Automated image bumps written back to Git |
-| 11 | Multi-source Application (chart + external values) | Chart in one repo, values in another — `spec.sources[]` + `$values` |
+| 7 | Notifications config (`argocd-notifications-cm`) | Slack/email alerts on sync or health events |
+| 8 | Image updater annotations | Automated image bumps written back to Git |
+| 9 | Multi-source Application (chart + external values) | Chart in one repo, values in another — `spec.sources[]` + `$values` |
 
 ## Common Mistakes
 
@@ -177,21 +196,17 @@ user needs a manifest** — do not reproduce these from memory.
 
 8. **ApplicationSet with `goTemplate: true` but using `{{name}}` syntax.** Go templates use `{{.name}}`, not `{{name}}` (which is fasttemplate syntax). Mixing them produces empty strings silently.
 
-9. **EventSource and Sensor in different namespaces without cross-namespace EventBus config.** They must reference the same EventBus. By default, they look for an EventBus named `default` in their own namespace.
+9. **Notification trigger `when` expression referencing wrong fields.** Common mistake: `app.status.sync.status` vs `app.status.operationState.phase`. Sync status is Synced/OutOfSync. Operation phase is Succeeded/Failed/Error/Running.
 
-10. **Workflow `activeDeadlineSeconds` not set.** Without a deadline, stuck workflows run forever, consuming cluster resources. Always set a reasonable deadline.
+10. **Image updater `write-back-method: git` without write access.** The image updater needs push access to the Git repo. Without it, updates silently fail. Check the image updater logs.
 
-11. **Notification trigger `when` expression referencing wrong fields.** Common mistake: `app.status.sync.status` vs `app.status.operationState.phase`. Sync status is Synced/OutOfSync. Operation phase is Succeeded/Failed/Error/Running.
+11. **Putting `oci://` in a Helm `repoURL`.** The Argo CD docs are explicit: *"the `oci://` syntax is not included."* Use the registry host and path (`registry.example.com/charts`) with the chart name in `chart:`, and register the repository with `enableOCI: "true"`. The resulting failure looks like an auth or network error, not a URL format error.
 
-12. **Image updater `write-back-method: git` without write access.** The image updater needs push access to the Git repo. Without it, updates silently fail. Check the image updater logs.
+12. **`preserveResourcesOnDeletion` at `spec` level on an ApplicationSet.** It only exists at `spec.syncPolicy.preserveResourcesOnDeletion`. The CRD is a structural schema, so the misplaced key is silently pruned — you get no deletion protection and no error.
 
-13. **Putting `oci://` in a Helm `repoURL`.** The Argo CD docs are explicit: *"the `oci://` syntax is not included."* Use the registry host and path (`registry.example.com/charts`) with the chart name in `chart:`, and register the repository with `enableOCI: "true"`. The resulting failure looks like an auth or network error, not a URL format error.
+13. **Top-level `spec.dex` on an ArgoCD CR.** Unsupported since Argo CD Operator v0.8.0; use `spec.sso.provider: dex` with `spec.sso.dex`. The old form does not take effect, so SSO quietly never comes up.
 
-14. **`preserveResourcesOnDeletion` at `spec` level on an ApplicationSet.** It only exists at `spec.syncPolicy.preserveResourcesOnDeletion`. The CRD is a structural schema, so the misplaced key is silently pruned — you get no deletion protection and no error.
-
-15. **Top-level `spec.dex` on an ArgoCD CR.** Unsupported since Argo CD Operator v0.8.0; use `spec.sso.provider: dex` with `spec.sso.dex`. The old form does not take effect, so SSO quietly never comes up.
-
-16. **One notification trigger driving multiple commit-status states.** `oncePer` is scoped per trigger, so a single trigger fires once per revision and then stops — typically leaving the commit status stuck on `pending`. Use one trigger per state. Also note `operationState.syncResult.revision` is empty while the operation is `Running`.
+14. **One notification trigger driving multiple commit-status states.** `oncePer` is scoped per trigger, so a single trigger fires once per revision and then stops — typically leaving the commit status stuck on `pending`. Use one trigger per state. Also note `operationState.syncResult.revision` is empty while the operation is `Running`.
 
 ## Reference Index
 
@@ -202,8 +217,6 @@ user needs a manifest** — do not reproduce these from memory.
 | ApplicationSet generators, templates, progressive syncs, `preserveResourcesOnDeletion`, `ignoreApplicationDifferences` | `references/applicationsets.md` | Questions about ApplicationSet generators, templating, progressive rollout, or suppressing drift on generated Applications |
 | AppProject RBAC, source/destination restrictions, sync windows | `references/app-projects.md` | Questions about RBAC, project policies, sync windows |
 | Rollout canary/blue-green, traffic management, AnalysisTemplate, experiments | `references/rollouts.md` | Questions about progressive delivery, canary/blue-green, analysis metrics |
-| Workflow DAG/steps, parameters, artifacts, CronWorkflow | `references/workflows.md` | Questions about workflow orchestration, scheduling, parameters |
-| EventSource types, EventBus, Sensor triggers, filters | `references/events.md` | Questions about event-driven automation |
 | Notification services, templates, triggers, subscriptions | `references/notifications.md` | Questions about alerting and notifications |
 | Image updater annotations, strategies, write-back | `references/image-updater.md` | Questions about automated image updates |
 | App-of-apps, monorepo, multi-repo patterns | `references/repo-patterns.md` | Questions about repository structure and GitOps patterns |

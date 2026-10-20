@@ -4,6 +4,49 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — scope narrowed to Red Hat OpenShift GitOps (BREAKING)
+
+These skills target **OpenShift GitOps**, the productized Argo CD distribution, not the
+whole Argo ecosystem. The boundary is what the operator actually owns, taken from the CSV
+on a live cluster:
+
+```
+$ oc get csv -n openshift-gitops-operator -o json | jq -r \
+    '.items[].spec.customresourcedefinitions.owned[]?.name' | sort -u
+applications / applicationsets / appprojects / argocds
+analysisruns / analysistemplates / clusteranalysistemplates / experiments / rollouts / rolloutmanagers
+imageupdaters.argocd-image-updater / notificationsconfigurations / namespacemanagements / gitopsservices
+```
+
+**Removed — Argo Workflows and Argo Events** (~1,500 lines). They are separate upstream
+projects; the operator owns none of their CRDs, and on OpenShift pipelines are normally
+OpenShift Pipelines (Tekton). Removed: `references/workflows.md`, `references/events.md`,
+2 of 11 canonical patterns, 2 of 7 debug workflows, the Workflow/Events CRD table rows and
+troubleshooting sections, the Workflow audit checklist, 5 evals and 2 fixtures, 7 CRD
+schemas, and the `argo` CLI from the Brewfile. README, manifests, agent definitions and
+the banner now say OpenShift GitOps, with an explicit out-of-scope note pointing upstream
+so the omission reads as deliberate.
+
+**Kept — GitOps Promoter**, now labelled clearly as installed separately (argoproj-labs,
+not operator-owned).
+
+### Added — operator-owned CRDs that were missing entirely
+
+Cutting out-of-scope content surfaced in-scope content that was never documented. All
+verified against a live cluster:
+
+| CRD | Previous coverage | Why it matters |
+|-----|-------------------|----------------|
+| `RolloutManager` (`argoproj.io/v1alpha1`) | **none** | How Argo Rollouts is actually deployed on OpenShift GitOps |
+| `NotificationsConfiguration` (`argoproj.io/v1alpha1`) | **none** | Operator-managed notifications — a hand-written `argocd-notifications-cm` is reconciled away, which the operations eval hit |
+| `NamespaceManagement` (`argoproj.io/v1beta1`) | passing mention | Which namespaces an instance may manage — directly relevant to onboarding |
+| `ImageUpdater` (`argocd-image-updater.argoproj.io/v1alpha1`) | annotations only | It is an operator-owned CRD, in a **separate API group** |
+| `GitopsService` (`pipelines.openshift.io/v1alpha1`) | **none** | Owns the default `openshift-gitops` instance; explains why manual edits to that CR revert |
+
+Eval count 81 → 76; markdown 16,167 → 15,364 lines; CRD schemas now cover every in-scope
+kind.
+
+
 ### Added (eval harness can now catch bad expectations)
 
 - `scripts/check-eval-expectations.sh` — validates every `spec.*` path asserted in an eval

@@ -11,8 +11,8 @@
         "Counts Application resources (should find approximately 9)",
         "Counts AppProject resources (should find 2)",
         "Identifies sync policy configuration per Application (which have automated sync, which don't)",
-        "Checks AppProject sourceRepos — identifies whether wildcards are used",
-        "Checks AppProject destinations — identifies whether wildcards are used",
+        "Checks AppProject sourceRepos \u2014 identifies whether wildcards are used",
+        "Checks AppProject destinations \u2014 identifies whether wildcards are used",
         "Checks for ignoreDifferences configuration on Applications that need it",
         "Checks for retry configuration on sync policies",
         "Identifies sync wave ordering via annotations",
@@ -32,7 +32,7 @@
         "Checks for preserveResourcesOnDeletion setting",
         "Evaluates template completeness (destination, source, syncPolicy)",
         "Checks for goTemplateOptions (missingkey=error)",
-        "Identifies that ApplicationSets deploy to the default project — flags if concerning",
+        "Identifies that ApplicationSets deploy to the default project \u2014 flags if concerning",
         "Checks whether prune is enabled in generated Applications' sync policy",
         "Produces a structured report with ApplicationSet-specific findings",
         "Includes ApplicationSet-specific recommendations"
@@ -43,7 +43,6 @@
       "name": "mixed-issues-audit",
       "prompt": "Audit the Argo CD GitOps repository at tests/argo-repo-audit/mixed-issues/ using the argo-repo-audit skill.",
       "expectations": [
-        "Finds Application, AppProject, Rollout, AnalysisTemplate, Workflow, and WorkflowTemplate resources",
         "Flags the AppProject with wildcard (*) in sourceRepos as Critical security issue",
         "Flags the AppProject with wildcard (*) in destinations as Critical security issue",
         "Flags wildcard clusterResourceWhitelist ('*/*') as Critical",
@@ -53,7 +52,6 @@
         "Flags Application with prune: false (frontend.yaml) as incomplete sync config",
         "Flags Application using targetRevision: HEAD as risky for production",
         "Checks Rollout for AnalysisTemplate with both successCondition and failureCondition",
-        "Checks Workflow for missing activeDeadlineSeconds and resource limits",
         "Reports overall status as FAIL due to Critical security issues",
         "Recommendations include at least 3 Critical-severity items"
       ]
@@ -80,7 +78,7 @@
         "Flags destinations with server: '*' and namespace: '*' as Critical",
         "Flags clusterResourceWhitelist with group: '*' kind: '*' as Critical",
         "Reports overall status as FAIL due to Critical security findings",
-        "Does NOT flag the Application — it has proper syncPolicy, pinned targetRevision, and retry config"
+        "Does NOT flag the Application \u2014 it has proper syncPolicy, pinned targetRevision, and retry config"
       ]
     },
     {
@@ -88,10 +86,10 @@
       "name": "detect-plain-secret",
       "prompt": "Audit the Argo CD GitOps repository at tests/argo-repo-audit/targeted-bugs/plain-secret/ using the argo-repo-audit skill. This repo has one Application and one plain-text Secret.",
       "expectations": [
-        "Detects kind: Secret (db-credentials.yaml) as Critical security issue — plain-text secret committed to Git",
+        "Detects kind: Secret (db-credentials.yaml) as Critical security issue \u2014 plain-text secret committed to Git",
         "Recommends using SealedSecret, ExternalSecret, SOPS, or Vault instead",
         "Reports overall status as FAIL due to Critical security finding",
-        "Does NOT flag the Application itself — it has proper syncPolicy"
+        "Does NOT flag the Application itself \u2014 it has proper syncPolicy"
       ]
     },
     {
@@ -101,7 +99,7 @@
       "expectations": [
         "Flags the Application as missing syncPolicy (no automated sync, no prune, no selfHeal)",
         "Recommends adding syncPolicy with automated, prune, selfHeal, and retry",
-        "Severity is Warning (not Critical — missing sync is operational risk, not security vulnerability)",
+        "Severity is Warning (not Critical \u2014 missing sync is operational risk, not security vulnerability)",
         "Does NOT produce false positives on other aspects of this Application"
       ]
     },
@@ -113,7 +111,7 @@
         "Flags targetRevision: HEAD as risky for a production Application",
         "Explains the risk: HEAD means any commit to the default branch is immediately synced to production without review",
         "Recommends pinning to a specific tag, commit SHA, or release branch",
-        "Severity is Warning (not Critical — it's a best practice violation, not a security vulnerability)"
+        "Severity is Warning (not Critical \u2014 it's a best practice violation, not a security vulnerability)"
       ]
     },
     {
@@ -124,22 +122,11 @@
         "Identifies the AnalysisTemplate has successCondition but no failureCondition",
         "Explains the risk: without failureCondition, the analysis may not fail fast enough on degraded metrics",
         "Recommends adding a failureCondition (e.g., result[0] < threshold) and failureLimit",
-        "Does NOT flag the Rollout's canary steps as problematic — the step configuration itself is valid"
+        "Does NOT flag the Rollout's canary steps as problematic \u2014 the step configuration itself is valid"
       ]
     },
     {
       "id": 10,
-      "name": "detect-no-deadline-workflow",
-      "prompt": "Audit the Argo CD GitOps repository at tests/argo-repo-audit/targeted-bugs/no-deadline-workflow/ using the argo-repo-audit skill. This repo has a WorkflowTemplate.",
-      "expectations": [
-        "Flags the WorkflowTemplate as missing activeDeadlineSeconds — workflows without a deadline can run indefinitely and consume cluster resources",
-        "Flags the container steps as missing resource requests and limits",
-        "Recommends adding activeDeadlineSeconds at the workflow level and resource limits on each container step",
-        "Does NOT invent issues that aren't present in this specific fixture"
-      ]
-    },
-    {
-      "id": 11,
       "name": "detect-hardcoded-helm-password",
       "prompt": "Audit the Argo CD GitOps repository at tests/argo-repo-audit/targeted-bugs/hardcoded-helm-password/ using the argo-repo-audit skill. This repo has one Application that deploys a Redis Helm chart with inline values.",
       "expectations": [
@@ -150,7 +137,7 @@
       ]
     },
     {
-      "id": 12,
+      "id": 11,
       "name": "clean-repo-zero-findings",
       "prompt": "Audit the Argo CD GitOps repository at tests/argo-repo-audit/clean-repo/ using the argo-repo-audit skill. This repo should follow best practices.",
       "expectations": [
@@ -162,19 +149,19 @@
         "Recognizes the AnalysisTemplate has both successCondition and failureCondition with failureLimit",
         "Recognizes the Rollout has Istio traffic routing configured",
         "Reports overall status as PASS",
-        "Does NOT produce false positives — this repo is intentionally clean"
+        "Does NOT produce false positives \u2014 this repo is intentionally clean"
       ]
     },
     {
-      "id": 13,
+      "id": 12,
       "name": "Subtle RBAC: looks restricted but has privilege escalation",
-      "prompt": "Audit the Argo CD GitOps repository at tests/argo-repo-audit/targeted-bugs/subtle-rbac/ using the argo-repo-audit skill. This repo has one AppProject and one Application. The AppProject looks well-configured at first glance — restricted sourceRepos, scoped destinations, explicit clusterResourceWhitelist. Look carefully.",
+      "prompt": "Audit the Argo CD GitOps repository at tests/argo-repo-audit/targeted-bugs/subtle-rbac/ using the argo-repo-audit skill. This repo has one AppProject and one Application. The AppProject looks well-configured at first glance \u2014 restricted sourceRepos, scoped destinations, explicit clusterResourceWhitelist. Look carefully.",
       "expectations": [
-        "Flags clusterResourceWhitelist allowing ClusterRole and ClusterRoleBinding as a privilege escalation risk — the data team can create ClusterRoleBindings that grant themselves (or their apps) cluster-admin",
-        "Flags the exec permission in the project role (exec, create) as a security risk — allows terminal access into running pods, which can be used to access node-level resources, service account tokens, and secrets",
-        "Does NOT flag sourceRepos or destinations — those are properly restricted",
-        "Does NOT flag the Application — it has proper syncPolicy, pinned targetRevision, and retry",
-        "Explains why ClusterRole+ClusterRoleBinding in clusterResourceWhitelist is dangerous even when destinations are scoped — the created ClusterRoleBinding applies cluster-wide, not just to the allowed namespaces",
+        "Flags clusterResourceWhitelist allowing ClusterRole and ClusterRoleBinding as a privilege escalation risk \u2014 the data team can create ClusterRoleBindings that grant themselves (or their apps) cluster-admin",
+        "Flags the exec permission in the project role (exec, create) as a security risk \u2014 allows terminal access into running pods, which can be used to access node-level resources, service account tokens, and secrets",
+        "Does NOT flag sourceRepos or destinations \u2014 those are properly restricted",
+        "Does NOT flag the Application \u2014 it has proper syncPolicy, pinned targetRevision, and retry",
+        "Explains why ClusterRole+ClusterRoleBinding in clusterResourceWhitelist is dangerous even when destinations are scoped \u2014 the created ClusterRoleBinding applies cluster-wide, not just to the allowed namespaces",
         "Reports overall status as FAIL or WARN due to the privilege escalation path"
       ]
     }

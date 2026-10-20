@@ -10,5 +10,3 @@ brew "argocd"
 # Argo Rollouts
 brew "argoproj/tap/kubectl-argo-rollouts"
 
-# Argo Workflows
-brew "argoproj/tap/argo"

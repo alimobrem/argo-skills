@@ -55,7 +55,7 @@
 
   <!-- Subtitle -->
   <text x="145" y="130" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="18" fill="#8b949e">
-    AI-powered GitOps engineering for the Argo ecosystem
+    AI-powered engineering for Red Hat OpenShift GitOps
   </text>
 
   <!-- Skill pills -->
