@@ -239,41 +239,6 @@ spec:
 - [ ] Configure traffic routing if available
 - [ ] Set up Rollouts dashboard/notifications
 
-## Workflow Resource Management
-
-### Checklist
-
-- [ ] **Always set `activeDeadlineSeconds`** — stuck workflows consume resources forever
-- [ ] **Configure `podGC`** — completed pods accumulate without it
-- [ ] **Set `ttlStrategy`** — auto-delete completed workflow CRs
-- [ ] **Use `retryStrategy`** with `backoff` for transient failures
-- [ ] **Limit `parallelism`** — prevent thundering herd
-- [ ] **Use `resourceQuota`** in the workflow namespace
-- [ ] **Archive workflows** to PostgreSQL/MySQL for long-term storage
-- [ ] **Use `workflowTemplateRef`** — avoid duplicating templates
-- [ ] **Set `podPriorityClassName`** for production workflows
-
-### Resource Defaults
-
-Configure defaults in the Workflow Controller ConfigMap:
-
-```yaml
-# workflow-controller-configmap
-data:
-  workflowDefaults: |
-    spec:
-      activeDeadlineSeconds: 7200
-      ttlStrategy:
-        secondsAfterCompletion: 86400
-        secondsAfterSuccess: 3600
-        secondsAfterFailure: 259200
-      podGC:
-        strategy: OnPodSuccess
-        deleteDelayDuration: 120s
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-```
 
 ## Secret Management Approaches
 

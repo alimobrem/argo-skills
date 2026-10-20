@@ -131,6 +131,12 @@ else
   echo "ERROR: no cluster CLI found — install kubectl or oc" >&2; exit 1
 fi
 echo "Platform: $PLATFORM — using '$KCTL'"
+
+# Resolve the Argo CD namespace too — `argocd` is the upstream default and is almost
+# never right on OpenShift, where it is `openshift-gitops` (and often several instances).
+$KCTL get argocd -A --no-headers 2>/dev/null || \
+  $KCTL get pods -A -l app.kubernetes.io/part-of=argocd --no-headers 2>/dev/null | awk '{print $1}' | sort -u
+NS=openshift-gitops      # set to the instance you are working on; every command below uses $NS
 ```
 
 **On OpenShift, default to `oc`.** `Route`, `project`, `SecurityContextConstraints`, and
@@ -232,7 +238,7 @@ Load `references/deployment.md` for detailed procedures.
 4. **Confirm** — wait for user approval.
 5. Apply and verify:
    ```bash
-   argocd app get <name> 2>/dev/null || kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{.status.sync.status}'
+   argocd app get <name> 2>/dev/null || kubectl get applications.argoproj.io <name> -n "$NS" -o jsonpath='{.status.sync.status}'
    ```
 
 **Covers:**
@@ -259,7 +265,7 @@ Load `references/progressive-delivery.md` for detailed procedures.
    For Application syncs:
    ```bash
    argocd app get <name> -o json 2>/dev/null | jq '.status.sync.status, .status.health.status' || \
-     kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='sync={.status.sync.status} health={.status.health.status}'
+     kubectl get applications.argoproj.io <name> -n "$NS" -o jsonpath='sync={.status.sync.status} health={.status.health.status}'
    ```
 2. Show the user the current state and what the operation will do.
 3. **Preview** — show what will change (new weight, promoted ReplicaSet, synced resources).
@@ -288,7 +294,7 @@ Load `references/day2-operations.md` for detailed procedures.
 
 1. Assess current state:
    ```bash
-   argocd version 2>/dev/null || kubectl get pods -n argocd -o jsonpath='{.items[0].spec.containers[0].image}'
+   argocd version 2>/dev/null || kubectl get pods -n "$NS" -o jsonpath='{.items[0].spec.containers[0].image}'
    ```
 2. Identify what needs to change and the target state.
 3. **For upgrades — always include these two items in your response:**

@@ -1,5 +1,20 @@
 # Progressive Delivery Reference — Promotion, Rollback, and Traffic Management
 
+> **Namespace:** `$NS` below is the Argo CD instance's namespace. It is **`openshift-gitops`
+> on OpenShift GitOps**, `argocd` on a standalone install, and something else entirely for a
+> second instance. There is frequently more than one — resolve it once and reuse it:
+>
+> ```bash
+> kubectl get argocd -A    # operator-managed instances and their namespaces
+> NS=openshift-gitops      # set to the instance you are working on
+> ```
+>
+> The same applies to `namespace: argocd` inside the YAML below — it is a placeholder for
+> the Argo CD instance's namespace. An Application created in `argocd` on a cluster whose
+> instance lives in `openshift-gitops` is never picked up, with no error anywhere.
+> (`namespace:` on an Application's **destination** is a different field — that one is the
+> workload's namespace and is unrelated.)
+
 Step-by-step procedures for promoting, aborting, and managing Rollouts and Application
 syncs. Every procedure follows the Generate-Preview-Confirm safety model.
 
@@ -129,7 +144,7 @@ spec:
 ```bash
 # 1. Check current state
 argocd app get <name> 2>/dev/null || \
-  kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='sync={.status.sync.status} health={.status.health.status}'
+  kubectl get applications.argoproj.io <name> -n "$NS" -o jsonpath='sync={.status.sync.status} health={.status.health.status}'
 
 # 2. Preview diff
 argocd app diff <name> 2>/dev/null || \
@@ -137,11 +152,11 @@ argocd app diff <name> 2>/dev/null || \
 
 # 3. Sync (after user confirms)
 argocd app sync <name> 2>/dev/null || \
-  kubectl patch application <name> -n argocd --type merge -p '{"operation":{"initiatedBy":{"username":"cli"},"sync":{"revision":"","prune":false}}}'
+  kubectl patch application <name> -n "$NS" --type merge -p '{"operation":{"initiatedBy":{"username":"cli"},"sync":{"revision":"","prune":false}}}'
 
 # 4. Wait for sync to complete
 argocd app wait <name> --timeout 300 2>/dev/null || \
-  echo "Monitor: kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{.status.operationState.phase}'"
+  echo "Monitor: kubectl get applications.argoproj.io <name> -n "$NS" -o jsonpath='{.status.operationState.phase}'"
 ```
 
 ### Sync with Options

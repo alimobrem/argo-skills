@@ -215,6 +215,43 @@
         "writeBackConfig.method: git with gitConfig.branch: main",
         "Warns that mismatching manifestTargets to the Application source type makes the updater silently write nothing"
       ]
+    },
+    {
+      "id": 14,
+      "name": "Resource tracking method and sync policy for a shared cluster",
+      "prompt": "We run Argo CD alongside Helm and a legacy deployment tool on the same cluster, and Applications keep showing resources as OutOfSync that nobody changed. What tracking and sync settings should we use?",
+      "expectations": [
+        "Identifies the label-based tracking method as the likely cause \u2014 app.kubernetes.io/instance collides with other tools that set the same label",
+        "Recommends resource.trackingMethod: annotation (argocd.argoproj.io/tracking-id), which avoids the collision, and notes it is the modern default",
+        "Mentions configuring this in argocd-cm (and on OpenShift via the ArgoCD CR rather than editing the ConfigMap directly)",
+        "Recommends ignoreDifferences for fields owned by other controllers (e.g. HPA-managed replicas) rather than fighting them with selfHeal",
+        "Does not recommend disabling selfHeal as the primary fix"
+      ]
+    },
+    {
+      "id": 15,
+      "name": "Secret management choice for a GitOps repo",
+      "prompt": "We need database credentials available to apps deployed by Argo CD. Someone suggested just base64-encoding them into a Secret manifest in the Git repo. Advise us.",
+      "expectations": [
+        "Rejects plain Secrets in Git, and states that base64 is encoding not encryption \u2014 anyone with repo read access has the credential",
+        "Presents the real options with trade-offs: Sealed Secrets, External Secrets Operator, SOPS, and Vault (via CSI or ESO)",
+        "Notes that External Secrets Operator / Vault keep the secret out of Git entirely, whereas Sealed Secrets and SOPS commit an encrypted form",
+        "Mentions that Argo CD needs to be able to decrypt or resolve whichever mechanism is chosen",
+        "Does not simply say 'use Sealed Secrets' without stating why it fits or does not fit their situation"
+      ]
+    },
+    {
+      "id": 16,
+      "name": "Choose a GitOps repository pattern",
+      "prompt": "We have 6 microservices going to dev, staging and prod across two clusters, and a platform team that owns cluster addons. Right now everything is one repo with a flat directory of Application manifests that we hand-edit. How should we structure this?",
+      "expectations": [
+        "Compares the real options rather than asserting one \u2014 app-of-apps, ApplicationSet, monorepo, multi-repo, environment-branch \u2014 with trade-offs",
+        "Recommends ApplicationSet for the 6 services x 3 envs x 2 clusters fan-out instead of hand-maintained Application manifests, and explains that generators remove the per-combination manifest",
+        "Separates platform/cluster addons from application workloads (different ownership, different review path, often a different AppProject)",
+        "Addresses environment promotion explicitly \u2014 directory-per-env vs branch-per-env \u2014 and notes the trade-off rather than silently picking one",
+        "Warns against targetRevision: HEAD for production regardless of pattern chosen",
+        "Flags at least one anti-pattern relevant to their current layout (e.g. a flat directory of hand-edited Applications does not scale, or mixing platform and tenant resources in one AppProject)"
+      ]
     }
   ]
 }

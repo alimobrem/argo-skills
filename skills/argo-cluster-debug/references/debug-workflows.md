@@ -3,6 +3,21 @@
 
 # Debugging Workflows
 
+> **Namespace:** `$NS` below is the Argo CD instance's namespace. It is **`openshift-gitops`
+> on OpenShift GitOps**, `argocd` on a standalone install, and something else entirely for a
+> second instance. There is frequently more than one — resolve it once and reuse it:
+>
+> ```bash
+> kubectl get argocd -A    # operator-managed instances and their namespaces
+> NS=openshift-gitops      # set to the instance you are working on
+> ```
+>
+> The same applies to `namespace: argocd` inside the YAML below — it is a placeholder for
+> the Argo CD instance's namespace. An Application created in `argocd` on a cluster whose
+> instance lives in `openshift-gitops` is never picked up, with no error anywhere.
+> (`namespace:` on an Application's **destination** is a different field — that one is the
+> workload's namespace and is unrelated.)
+
 Execute the workflow that matches the user's problem. Each workflow is self-contained.
 Work through the steps in order — each step builds context for the next.
 
@@ -94,25 +109,25 @@ Use when: user asks if Argo CD is installed, reports general Argo CD failures, o
 
 6. Check the argocd-cm ConfigMap for server configuration:
    ```bash
-   kubectl get configmap argocd-cm -n argocd -o yaml
+   kubectl get configmap argocd-cm -n "$NS" -o yaml
    ```
    Look for: `url` (server URL), `repositories` (legacy repo config), `resource.customizations` (custom health checks), `kustomize.buildOptions`, `configManagementPlugins`.
 
 7. Check argocd-rbac-cm for RBAC configuration:
    ```bash
-   kubectl get configmap argocd-rbac-cm -n argocd -o yaml
+   kubectl get configmap argocd-rbac-cm -n "$NS" -o yaml
    ```
    Look for: `policy.default`, `policy.csv`, `scopes`.
 
 8. If any component is CrashLoopBackOff or not ready, get its logs:
    ```bash
-   kubectl logs -n argocd -l app.kubernetes.io/name=<component-name> --tail=100 --previous
-   kubectl logs -n argocd -l app.kubernetes.io/name=<component-name> --tail=100
+   kubectl logs -n "$NS" -l app.kubernetes.io/name=<component-name> --tail=100 --previous
+   kubectl logs -n "$NS" -l app.kubernetes.io/name=<component-name> --tail=100
    ```
 
 9. Check Argo CD events:
    ```bash
-   kubectl get events -n argocd --sort-by='.lastTimestamp' | tail -30
+   kubectl get events -n "$NS" --sort-by='.lastTimestamp' | tail -30
    ```
 
 ---
@@ -130,7 +145,7 @@ Use when: user reports Application sync failure, health degradation, OutOfSync, 
      ```
    - kubectl:
      ```bash
-     kubectl get applications.argoproj.io <name> -n argocd -o yaml
+     kubectl get applications.argoproj.io <name> -n "$NS" -o yaml
      ```
    If the Application is in a non-default namespace, the user must specify it or check:
    ```bash
@@ -175,24 +190,24 @@ Use when: user reports Application sync failure, health degradation, OutOfSync, 
 7. Check the source configuration. Applications may use either `spec.source` (single-source) or `spec.sources[]` (multi-source, GA since v2.6). Check both:
    ```bash
    # Check if multi-source
-   kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{.spec.sources}' 2>/dev/null | grep -q '\[' && echo "multi-source" || echo "single-source"
+   kubectl get applications.argoproj.io <name> -n "$NS" -o jsonpath='{.spec.sources}' 2>/dev/null | grep -q '\[' && echo "multi-source" || echo "single-source"
 
    # Single-source
-   kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{.spec.source}' | python3 -m json.tool
+   kubectl get applications.argoproj.io <name> -n "$NS" -o jsonpath='{.spec.source}' | python3 -m json.tool
 
    # Multi-source — iterate all sources
-   kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{range .spec.sources[*]}repoURL={.repoURL} targetRevision={.targetRevision} path={.path} chart={.chart}{"\n"}{end}'
+   kubectl get applications.argoproj.io <name> -n "$NS" -o jsonpath='{range .spec.sources[*]}repoURL={.repoURL} targetRevision={.targetRevision} path={.path} chart={.chart}{"\n"}{end}'
    ```
    For multi-source Applications, each source can fail independently — verify `repoURL`, `targetRevision`, `path`, and Helm `valueFiles` for every entry in `spec.sources[]`.
 
 8. If repo-server is failing to render manifests, check repo-server logs:
    ```bash
-   kubectl logs -n argocd -l app.kubernetes.io/name=argocd-repo-server --tail=100
+   kubectl logs -n "$NS" -l app.kubernetes.io/name=argocd-repo-server --tail=100
    ```
 
 9. Inspect managed resources. List resources from `.status.resources` with non-Healthy or non-Synced status:
    ```bash
-   kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{range .status.resources[*]}{.kind}/{.namespace}/{.name}: sync={.status}, health={.health.status}{"\n"}{end}'
+   kubectl get applications.argoproj.io <name> -n "$NS" -o jsonpath='{range .status.resources[*]}{.kind}/{.namespace}/{.name}: sync={.status}, health={.health.status}{"\n"}{end}'
    ```
 
 10. For each unhealthy managed resource, inspect it:
@@ -221,7 +236,7 @@ Use when: user reports ApplicationSet not generating Applications, generating wr
 
 1. Get the ApplicationSet:
    ```bash
-   kubectl get applicationset <name> -n argocd -o yaml
+   kubectl get applicationset <name> -n "$NS" -o yaml
    ```
 
 2. Check `.status.conditions` for errors. Key conditions:
@@ -243,20 +258,20 @@ Use when: user reports ApplicationSet not generating Applications, generating wr
 
 4. List generated Applications:
    ```bash
-   kubectl get applications.argoproj.io -n argocd -l 'app.kubernetes.io/managed-by=applicationset-controller' --show-labels
+   kubectl get applications.argoproj.io -n "$NS" -l 'app.kubernetes.io/managed-by=applicationset-controller' --show-labels
    ```
    Cross-reference with expected output from the generator.
 
 5. If no Applications generated, check the applicationset-controller logs:
    ```bash
-   kubectl logs -n argocd -l app.kubernetes.io/name=argocd-applicationset-controller --tail=200
+   kubectl logs -n "$NS" -l app.kubernetes.io/name=argocd-applicationset-controller --tail=200
    ```
 
 6. If some Applications are generated but failing, debug each one using Workflow 2.
 
 7. For progressive sync issues, check `spec.strategy`:
    ```bash
-   kubectl get applicationset <name> -n argocd -o jsonpath='{.spec.strategy}' | python3 -m json.tool
+   kubectl get applicationset <name> -n "$NS" -o jsonpath='{.spec.strategy}' | python3 -m json.tool
    ```
    Check `rollingSync.steps`, `maxUpdate` values, and whether unhealthy apps are blocking progression.
 

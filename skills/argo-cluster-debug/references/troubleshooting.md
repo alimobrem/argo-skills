@@ -1,5 +1,20 @@
 # Argo Cluster Debug — Troubleshooting Reference
 
+> **Namespace:** `$NS` below is the Argo CD instance's namespace. It is **`openshift-gitops`
+> on OpenShift GitOps**, `argocd` on a standalone install, and something else entirely for a
+> second instance. There is frequently more than one — resolve it once and reuse it:
+>
+> ```bash
+> kubectl get argocd -A    # operator-managed instances and their namespaces
+> NS=openshift-gitops      # set to the instance you are working on
+> ```
+>
+> The same applies to `namespace: argocd` inside the YAML below — it is a placeholder for
+> the Argo CD instance's namespace. An Application created in `argocd` on a cluster whose
+> instance lives in `openshift-gitops` is never picked up, with no error anywhere.
+> (`namespace:` on an Application's **destination** is a different field — that one is the
+> workload's namespace and is unrelated.)
+
 Symptom-to-cause mappings organized by Argo component. Read this in full before starting any debugging workflow.
 
 ---
@@ -20,10 +35,10 @@ Symptom-to-cause mappings organized by Argo component. Read this in full before 
 **Debug:**
 ```bash
 # Check the condition message
-kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{.status.conditions[*].message}'
+kubectl get applications.argoproj.io <name> -n "$NS" -o jsonpath='{.status.conditions[*].message}'
 
 # Check repo-server logs for manifest generation errors
-kubectl logs -n argocd -l app.kubernetes.io/name=argocd-repo-server --tail=200 | grep -i error
+kubectl logs -n "$NS" -l app.kubernetes.io/name=argocd-repo-server --tail=200 | grep -i error
 
 # For Helm: try rendering locally
 helm template <chart-path> -f <values-file>
@@ -44,10 +59,10 @@ kustomize build <path>
 **Debug:**
 ```bash
 # Check the operation state
-kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{.status.operationState.syncResult.resources[*]}' | python3 -m json.tool
+kubectl get applications.argoproj.io <name> -n "$NS" -o jsonpath='{.status.operationState.syncResult.resources[*]}' | python3 -m json.tool
 
 # Check AppProject restrictions
-kubectl get appproject <project-name> -n argocd -o yaml
+kubectl get appproject <project-name> -n "$NS" -o yaml
 
 # Verify the controller can create the resource
 kubectl auth can-i create <resource> --as=system:serviceaccount:argocd:argocd-application-controller -n <target-namespace>
@@ -67,16 +82,16 @@ kubectl auth can-i create <resource> --as=system:serviceaccount:argocd:argocd-ap
 **Debug:**
 ```bash
 # Check syncPolicy
-kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{.spec.syncPolicy}'
+kubectl get applications.argoproj.io <name> -n "$NS" -o jsonpath='{.spec.syncPolicy}'
 
 # Check for sync error backoff
-kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{.status.operationState.retryCount}'
+kubectl get applications.argoproj.io <name> -n "$NS" -o jsonpath='{.status.operationState.retryCount}'
 
 # Check sync windows on the AppProject
-kubectl get appproject <project> -n argocd -o jsonpath='{.spec.syncWindows}'
+kubectl get appproject <project> -n "$NS" -o jsonpath='{.spec.syncWindows}'
 
 # Check application-controller logs for sync decisions
-kubectl logs -n argocd -l app.kubernetes.io/name=argocd-application-controller --tail=200 | grep <app-name>
+kubectl logs -n "$NS" -l app.kubernetes.io/name=argocd-application-controller --tail=200 | grep <app-name>
 ```
 
 ### Sync stuck in Progressing
@@ -93,7 +108,7 @@ kubectl logs -n argocd -l app.kubernetes.io/name=argocd-application-controller -
 **Debug:**
 ```bash
 # Check which resources are not synced/healthy
-kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{range .status.resources[*]}{.kind}/{.name}: sync={.status}, health={.health.status}{"\n"}{end}' | grep -v 'Synced.*Healthy'
+kubectl get applications.argoproj.io <name> -n "$NS" -o jsonpath='{range .status.resources[*]}{.kind}/{.name}: sync={.status}, health={.health.status}{"\n"}{end}' | grep -v 'Synced.*Healthy'
 
 # Check for stuck deletions (finalizers)
 kubectl get <kind> <name> -n <namespace> -o jsonpath='{.metadata.finalizers}'
@@ -115,19 +130,19 @@ kubectl get events -n <namespace> --field-selector reason=FailedCreate
 **Debug:**
 ```bash
 # Check repo-server health
-kubectl get pods -n argocd -l app.kubernetes.io/name=argocd-repo-server
+kubectl get pods -n "$NS" -l app.kubernetes.io/name=argocd-repo-server
 
 # Check repo-server resource usage
-kubectl top pods -n argocd -l app.kubernetes.io/name=argocd-repo-server
+kubectl top pods -n "$NS" -l app.kubernetes.io/name=argocd-repo-server
 
 # Check repo connectivity (repo-server no longer ships git binary since v2.5+)
 # Option 1: Use argocd CLI if available
 argocd repo list
 # Option 2: Check repo-server logs for fetch errors
-kubectl logs -n argocd -l app.kubernetes.io/name=argocd-repo-server --tail=200 | grep -i -E 'repo|fetch|clone|error'
+kubectl logs -n "$NS" -l app.kubernetes.io/name=argocd-repo-server --tail=200 | grep -i -E 'repo|fetch|clone|error'
 
 # Check timeout config
-kubectl get configmap argocd-cm -n argocd -o jsonpath='{.data.reposerver\.timeout\.seconds}'
+kubectl get configmap argocd-cm -n "$NS" -o jsonpath='{.data.reposerver\.timeout\.seconds}'
 ```
 
 ### Helm rendering failures
@@ -144,7 +159,7 @@ kubectl get configmap argocd-cm -n argocd -o jsonpath='{.data.reposerver\.timeou
 **Debug:**
 ```bash
 # Check the source config
-kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{.spec.source.helm}' | python3 -m json.tool
+kubectl get applications.argoproj.io <name> -n "$NS" -o jsonpath='{.spec.source.helm}' | python3 -m json.tool
 
 # Try rendering locally with the same values
 helm template <release-name> <chart> -f <values.yaml> --version <version>
@@ -164,7 +179,7 @@ helm template <release-name> <chart> -f <values.yaml> --version <version>
 **Debug:**
 ```bash
 # Check Kustomize version Argo CD is using
-kubectl get configmap argocd-cm -n argocd -o jsonpath='{.data.kustomize\.buildOptions}'
+kubectl get configmap argocd-cm -n "$NS" -o jsonpath='{.data.kustomize\.buildOptions}'
 
 # Try building locally
 kustomize build <path>
@@ -193,7 +208,7 @@ kustomize build <path>
 **Debug:**
 ```bash
 # Find the degraded resource
-kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{range .status.resources[?(@.health.status=="Degraded")]}{.kind}/{.namespace}/{.name}{"\n"}{end}'
+kubectl get applications.argoproj.io <name> -n "$NS" -o jsonpath='{range .status.resources[?(@.health.status=="Degraded")]}{.kind}/{.namespace}/{.name}{"\n"}{end}'
 
 # Get events for the degraded resource
 kubectl describe <kind> <name> -n <namespace>
@@ -252,10 +267,10 @@ kubectl auth can-i get <resource> --as=system:serviceaccount:argocd:argocd-appli
 **Debug:**
 ```bash
 # Check for custom health checks in argocd-cm
-kubectl get configmap argocd-cm -n argocd -o yaml | grep -A20 'resource.customizations.health'
+kubectl get configmap argocd-cm -n "$NS" -o yaml | grep -A20 'resource.customizations.health'
 
 # Check in argocd-cm data for the specific Kind
-kubectl get configmap argocd-cm -n argocd -o jsonpath='{.data}' | python3 -c "
+kubectl get configmap argocd-cm -n "$NS" -o jsonpath='{.data}' | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
 for k,v in data.items():
@@ -275,7 +290,7 @@ for k,v in data.items():
 
 ### No Applications generated
 
-**Symptoms:** ApplicationSet exists but `kubectl get applications.argoproj.io -n argocd` shows none owned by it.
+**Symptoms:** ApplicationSet exists but `kubectl get applications.argoproj.io -n "$NS"` shows none owned by it.
 
 **Causes:**
 - Generator returns an empty parameter set
@@ -288,15 +303,15 @@ for k,v in data.items():
 **Debug:**
 ```bash
 # Check applicationset-controller logs
-kubectl logs -n argocd -l app.kubernetes.io/name=argocd-applicationset-controller --tail=200
+kubectl logs -n "$NS" -l app.kubernetes.io/name=argocd-applicationset-controller --tail=200
 
 # Check ApplicationSet status
-kubectl get applicationset <name> -n argocd -o jsonpath='{.status}' | python3 -m json.tool
+kubectl get applicationset <name> -n "$NS" -o jsonpath='{.status}' | python3 -m json.tool
 
 # For cluster generator: list known clusters
 argocd cluster list
 # or
-kubectl get secrets -n argocd -l argocd.argoproj.io/secret-type=cluster
+kubectl get secrets -n "$NS" -l argocd.argoproj.io/secret-type=cluster
 ```
 
 ### Duplicate Applications
@@ -311,7 +326,7 @@ kubectl get secrets -n argocd -l argocd.argoproj.io/secret-type=cluster
 **Debug:**
 ```bash
 # List applications and their owning ApplicationSet
-kubectl get applications.argoproj.io -n argocd -o jsonpath='{range .items[*]}{.metadata.name}: {.metadata.ownerReferences[0].name}{"\n"}{end}'
+kubectl get applications.argoproj.io -n "$NS" -o jsonpath='{range .items[*]}{.metadata.name}: {.metadata.ownerReferences[0].name}{"\n"}{end}'
 ```
 
 ### Applications not updating after generator source changes
@@ -326,10 +341,10 @@ kubectl get applications.argoproj.io -n argocd -o jsonpath='{range .items[*]}{.m
 **Debug:**
 ```bash
 # Check requeueAfterSeconds
-kubectl get applicationset <name> -n argocd -o jsonpath='{.spec.generators[*].scmProvider.requeueAfterSeconds}'
+kubectl get applicationset <name> -n "$NS" -o jsonpath='{.spec.generators[*].scmProvider.requeueAfterSeconds}'
 
 # Force reconciliation by touching the ApplicationSet
-kubectl annotate applicationset <name> -n argocd refreshed-at="$(date +%s)" --overwrite
+kubectl annotate applicationset <name> -n "$NS" refreshed-at="$(date +%s)" --overwrite
 ```
 
 ### Progressive sync stuck
@@ -344,10 +359,10 @@ kubectl annotate applicationset <name> -n argocd refreshed-at="$(date +%s)" --ov
 **Debug:**
 ```bash
 # Check strategy configuration
-kubectl get applicationset <name> -n argocd -o jsonpath='{.spec.strategy}' | python3 -m json.tool
+kubectl get applicationset <name> -n "$NS" -o jsonpath='{.spec.strategy}' | python3 -m json.tool
 
 # Check Application health per step
-kubectl get applications.argoproj.io -n argocd -l 'app.kubernetes.io/managed-by=applicationset-controller' -o custom-columns='NAME:.metadata.name,SYNC:.status.sync.status,HEALTH:.status.health.status'
+kubectl get applications.argoproj.io -n "$NS" -l 'app.kubernetes.io/managed-by=applicationset-controller' -o custom-columns='NAME:.metadata.name,SYNC:.status.sync.status,HEALTH:.status.health.status'
 ```
 
 ---
@@ -474,16 +489,16 @@ Quick reference for the most-used debug commands across all Argo components.
 
 | Command | Purpose |
 |---------|---------|
-| `kubectl get applications.argoproj.io -n argocd` | List all Applications |
-| `kubectl get applications.argoproj.io -n argocd -o custom-columns='NAME:.metadata.name,SYNC:.status.sync.status,HEALTH:.status.health.status'` | Application status summary |
-| `kubectl get applicationsets -n argocd` | List all ApplicationSets |
-| `kubectl get appprojects -n argocd` | List all AppProjects |
-| `kubectl logs -n argocd -l app.kubernetes.io/name=argocd-application-controller --tail=100` | Controller logs |
-| `kubectl logs -n argocd -l app.kubernetes.io/name=argocd-repo-server --tail=100` | Repo server logs |
-| `kubectl logs -n argocd -l app.kubernetes.io/name=argocd-server --tail=100` | API server logs |
-| `kubectl get configmap argocd-cm -n argocd -o yaml` | Server configuration |
-| `kubectl get secrets -n argocd -l argocd.argoproj.io/secret-type=repository` | Configured repositories |
-| `kubectl get secrets -n argocd -l argocd.argoproj.io/secret-type=cluster` | Configured clusters |
+| `kubectl get applications.argoproj.io -n "$NS"` | List all Applications |
+| `kubectl get applications.argoproj.io -n "$NS" -o custom-columns='NAME:.metadata.name,SYNC:.status.sync.status,HEALTH:.status.health.status'` | Application status summary |
+| `kubectl get applicationsets -n "$NS"` | List all ApplicationSets |
+| `kubectl get appprojects -n "$NS"` | List all AppProjects |
+| `kubectl logs -n "$NS" -l app.kubernetes.io/name=argocd-application-controller --tail=100` | Controller logs |
+| `kubectl logs -n "$NS" -l app.kubernetes.io/name=argocd-repo-server --tail=100` | Repo server logs |
+| `kubectl logs -n "$NS" -l app.kubernetes.io/name=argocd-server --tail=100` | API server logs |
+| `kubectl get configmap argocd-cm -n "$NS" -o yaml` | Server configuration |
+| `kubectl get secrets -n "$NS" -l argocd.argoproj.io/secret-type=repository` | Configured repositories |
+| `kubectl get secrets -n "$NS" -l argocd.argoproj.io/secret-type=cluster` | Configured clusters |
 | `argocd app list` | List apps (CLI) |
 | `argocd app get <name>` | App detail (CLI) |
 | `argocd app diff <name>` | Show diff (CLI) |

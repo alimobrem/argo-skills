@@ -4,6 +4,64 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — three tuning defaults the OpenShift GitOps operator contradicts
+
+All three verified against a live operator-managed cluster. They matter more now the
+scope is OpenShift GitOps, because in each case the documented value is the *upstream*
+one and the operator ships something different:
+
+| Setting | Documented | Actual on OpenShift GitOps |
+|---------|-----------|---------------------------|
+| `ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT` | default `20` | operator passes `--kubectl-parallelism-limit 10` — "match or sit below `operation.processors`" was reasoning from double the real baseline |
+| `controller.resource.health.persist` | `false`, "leave it false" | `argocd-cmd-params-cm` has `"true"` and the controller runs `--persist-resource-health`. The advice inverts: you are already paying the churn, so `false` is an available *reduction* |
+| `resource.exclusions` → Operator location | `spec.extraConfig` | the CR has a dedicated **`spec.resourceExclusions`** |
+
+The `resource.exclusions` one was the most dangerous: it is a single YAML string that a
+merge patch replaces wholesale, and the operator ships a populated default. Following the
+old guidance would have deleted the shipped exclusions and *increased* watch load. The
+reference now says read-append-write and shows the command.
+
+Also documented why `spec.extraConfig` is the wrong home for it — not because it fails,
+but because per the CRD *"ExtraConfig takes precedence over Argo CD CRD"*, so it silently
+overrides the dedicated field and you debug the wrong layer.
+
+### Fixed — 113 hardcoded `-n argocd` references
+
+`argocd` is the upstream default namespace and is wrong on essentially every OpenShift
+cluster, where the instance lives in `openshift-gitops` (and there are often several).
+Every occurrence across 11 files is now `-n "$NS"`, with namespace resolution folded into
+the existing platform/CLI detection block so it is established once:
+
+```bash
+$KCTL get argocd -A --no-headers 2>/dev/null || \
+  $KCTL get pods -A -l app.kubernetes.io/part-of=argocd --no-headers | awk '{print $1}' | sort -u
+NS=openshift-gitops
+```
+
+Reference files that are loaded standalone carry a short namespace preamble. The note also
+covers the 62 `namespace: argocd` occurrences inside YAML manifests — an Application
+created in `argocd` on a cluster whose instance is in `openshift-gitops` is simply never
+picked up, with no error — while distinguishing that from an Application's *destination*
+namespace, which is unrelated.
+
+### Added — eval coverage for the last two uncovered references
+
+Every reference in the repo now has at least one eval. Previously five had none; the last
+two are closed here, plus `repo-patterns`:
+
+- `argo-team-onboard/gitops-onboarding.md` — choosing and scaffolding the values-based
+  model, and the tenant security baseline (PSS labels, default NetworkPolicies, and the
+  DNS-egress exception that makes deny-all survivable).
+- `argo-knowledge/best-practices.md` — resource tracking method collisions with other
+  tools, and secret-management trade-offs.
+- `argo-knowledge/repo-patterns.md` — choosing a repository pattern for a real fan-out.
+
+Evals 81 → 86. `argo-knowledge` goes from ~25 KB/eval at the start of this work to ~11.
+
+Also removed the leftover **Workflow Resource Management** section from
+`argo-knowledge/references/best-practices.md`, missed in the scope cut.
+
+
 ### Added — reference content for the five operator-owned CRDs
 
 `skills/argo-knowledge/references/openshift-gitops-operator.md` documents the CRDs with

@@ -1,5 +1,20 @@
 # Deployment Reference — Creating and Managing Applications
 
+> **Namespace:** `$NS` below is the Argo CD instance's namespace. It is **`openshift-gitops`
+> on OpenShift GitOps**, `argocd` on a standalone install, and something else entirely for a
+> second instance. There is frequently more than one — resolve it once and reuse it:
+>
+> ```bash
+> kubectl get argocd -A    # operator-managed instances and their namespaces
+> NS=openshift-gitops      # set to the instance you are working on
+> ```
+>
+> The same applies to `namespace: argocd` inside the YAML below — it is a placeholder for
+> the Argo CD instance's namespace. An Application created in `argocd` on a cluster whose
+> instance lives in `openshift-gitops` is never picked up, with no error anywhere.
+> (`namespace:` on an Application's **destination** is a different field — that one is the
+> workload's namespace and is unrelated.)
+
 Step-by-step procedures for creating Applications, ApplicationSets, and related
 configuration. Every procedure follows the Generate-Preview-Confirm safety model.
 
@@ -179,7 +194,7 @@ kubectl apply --dry-run=client -f application.yaml
 kubectl apply -f application.yaml
 
 # 5. Verify
-kubectl get applications.argoproj.io <name> -n argocd -o jsonpath='{.status.sync.status}'
+kubectl get applications.argoproj.io <name> -n "$NS" -o jsonpath='{.status.sync.status}'
 ```
 
 ### Using argocd CLI
