@@ -39,6 +39,12 @@ else
   echo "ERROR: no cluster CLI found — install kubectl or oc" >&2; exit 1
 fi
 echo "Platform: $PLATFORM — using '$KCTL'"
+
+# Resolve the Argo CD namespace too — `argocd` is the upstream default and is almost
+# never right on OpenShift, where it is `openshift-gitops` (and often several instances).
+$KCTL get argocd -A --no-headers 2>/dev/null || \
+  $KCTL get pods -A -l app.kubernetes.io/part-of=argocd --no-headers 2>/dev/null | awk '{print $1}' | sort -u
+NS=openshift-gitops      # set to the instance you are working on; every command below uses $NS
 ```
 
 Every `kubectl` in the workflows below means `$KCTL`. `oc` accepts all of them verbatim,

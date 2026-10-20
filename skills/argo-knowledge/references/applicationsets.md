@@ -1,5 +1,20 @@
 # ApplicationSet Reference
 
+> **Namespace:** `$NS` below is the Argo CD instance's namespace. It is **`openshift-gitops`
+> on OpenShift GitOps**, `argocd` on a standalone install, and something else entirely for a
+> second instance. There is frequently more than one — resolve it once and reuse it:
+>
+> ```bash
+> kubectl get argocd -A    # operator-managed instances and their namespaces
+> NS=openshift-gitops      # set to the instance you are working on
+> ```
+>
+> The same applies to `namespace: argocd` inside the YAML below — it is a placeholder for
+> the Argo CD instance's namespace. An Application created in `argocd` on a cluster whose
+> instance lives in `openshift-gitops` is never picked up, with no error anywhere.
+> (`namespace:` on an Application's **destination** is a different field — that one is the
+> workload's namespace and is unrelated.)
+
 ## Overview
 
 ApplicationSet is a controller that generates Argo CD Applications from a template combined with one or more generators. It enables managing many Applications at scale.
@@ -371,7 +386,7 @@ cleanly, `kubectl get` shows no error, and you believe you have deletion protect
 does not exist. Verify with:
 
 ```bash
-kubectl get applicationset <name> -n argocd -o jsonpath='{.spec.syncPolicy}'
+kubectl get applicationset <name> -n "$NS" -o jsonpath='{.spec.syncPolicy}'
 ```
 
 Do not confuse it with `spec.template.spec.syncPolicy`, which is the *generated

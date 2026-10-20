@@ -29,9 +29,9 @@ fragments work for a community **Argo CD Operator** install under `metadata.name
 | `controller.status.processors` | `20` | `50`–`100` at large scale | `argocd-cmd-params-cm` | `spec.controller.processors.status` |
 | `controller.operation.processors` | `10` | raise when sync queue backs up | `argocd-cmd-params-cm` | `spec.controller.processors.operation` |
 | `ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS` | `60` | `120`–`300` for slow manifest RPCs | `argocd-cmd-params-cm` `controller.repo.server.timeout.seconds` | `spec.controller.env` (**not** `extraConfig`) |
-| `ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT` | `20` | match or sit slightly below `operation.processors` | `argocd-cmd-params-cm` `controller.kubectl.parallelism.limit` | `spec.controller.env` |
+| `ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT` | upstream `20`; **OpenShift GitOps operator passes `--kubectl-parallelism-limit 10`** | match or sit slightly below `operation.processors` — and measure from 10, not 20, on OpenShift | `argocd-cmd-params-cm` `controller.kubectl.parallelism.limit` | `spec.controller.env` |
 | `resource.ignoreResourceUpdatesEnabled` | `true` | keep `true`; tune the ignore rules, don't disable it | `argocd-cm` key | `spec.extraConfig` |
-| `resource.exclusions` | ships with defaults (v3.0+) | keep enabled; extend for your own high-churn CRDs | `argocd-cm` key | `spec.extraConfig` |
+| `resource.exclusions` | ships with defaults (v3.0+) | keep enabled; **extend, never replace** | `argocd-cm` key | **`spec.resourceExclusions`** (dedicated field — NOT `spec.extraConfig`) |
 | `argocd.argoproj.io/manifest-generate-paths` | unset | set on each Application sharing a monorepo | Application annotation | Application annotation (same on both) |
 | `controller.app.state.cache.expiration` | `1h` | raise only with evidence of churn; distinct from `ARGOCD_REPO_CACHE_EXPIRATION` | `argocd-cmd-params-cm` | `spec.controller.env` |
 | `ARGOCD_K8S_CLIENT_QPS` / `ARGOCD_K8S_CLIENT_BURST` | `50` / `100` | `100`-`200` / `200`-`400`, watch managed-cluster API server | `argocd-cmd-params-cm` `controller.k8s.client.qps`/`.burst` | `spec.controller.env` |
@@ -39,7 +39,7 @@ fragments work for a community **Argo CD Operator** install under `metadata.name
 | `controller.sync.timeout.seconds` | `0` (no timeout) | set only if a specific hung sync needs a hard stop | `argocd-cmd-params-cm` | `spec.controller.env` |
 | `controller.sync.wave.delay.seconds` | `2s` | raise for multi-wave apps where downstream controllers need more reaction time | `argocd-cmd-params-cm` | `spec.controller.env` |
 | `ARGOCD_APPLICATION_TREE_SHARD_SIZE` | `0` (single Redis key) | `100` for apps with very large resource trees | env on `argocd-application-controller` | `spec.controller.env` |
-| `controller.resource.health.persist` | `false` (3.0+ default) | leave `false` unless you depend on health in `kubectl get applications.argoproj.io -o yaml` | `argocd-cmd-params-cm` | `spec.controller.env` |
+| `controller.resource.health.persist` | upstream `false` (3.0+); **OpenShift GitOps operator ships `true`** | on OpenShift you are already paying the in-CR health write cost — setting it `false` is a *reduction*, not a no-op | `argocd-cmd-params-cm` | `spec.extraConfig` |
 | Dynamic Cluster Distribution | disabled (alpha) | only for non-production / with restart-based fallback ready | `ARGOCD_ENABLE_DYNAMIC_CLUSTER_DISTRIBUTION` + Deployment (not StatefulSet) | same env var under `spec.controller.env` |
 
 ## Controller: Reduce reconciliation at the source
@@ -90,12 +90,49 @@ The shipped default excludes high-volume, high-churn, control-plane-owned kinds 
 `*AdmissionReport`/`*BackgroundScanReport` kinds:
 
 ```yaml
-# argocd-cm (Operator: spec.extraConfig)
+# Standalone Argo CD — argocd-cm key
 resource.exclusions: |
   - apiGroups: ['', 'discovery.k8s.io']
     kinds: ['Endpoints', 'EndpointSlice']
     clusters: ['*']
 ```
+
+```yaml
+# OpenShift GitOps — the ArgoCD CR has a DEDICATED field for this.
+# It is spec.resourceExclusions, not spec.extraConfig.
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: openshift-gitops
+  namespace: openshift-gitops
+spec:
+  resourceExclusions: |
+    - apiGroups: ['', 'discovery.k8s.io']
+      kinds: ['Endpoints', 'EndpointSlice']
+      clusters: ['*']
+    - apiGroups: ['wgpolicyk8s.io']          # your additions go here too
+      kinds: ['PolicyReport', 'ClusterPolicyReport']
+      clusters: ['*']
+```
+
+> **`spec.resourceExclusions` is a single YAML string, and a merge patch replaces it
+> wholesale.** The operator ships a populated default — on a live cluster it already excludes
+> `Endpoints`, `EndpointSlice` and the Kyverno report kinds. Patching it with only your own
+> entries silently deletes the shipped ones and *increases* watch load, which is the opposite of
+> the intent. Always read the current value, append, and write the whole string back:
+>
+> ```bash
+> kubectl get argocd <name> -n "$NS" -o jsonpath='{.spec.resourceExclusions}'
+> ```
+>
+> The same applies to `spec.resourceInclusions`.
+>
+> **Why not `spec.extraConfig`?** It is not that it fails — it is that it *wins*. Per the
+> CRD: *"ExtraConfig can be used to add fields to Argo CD configmap that are not supported
+> by Argo CD CRD. Note: ExtraConfig takes precedence over Argo CD CRD."* Put
+> `resource.exclusions` there and it silently overrides `spec.resourceExclusions`, so the
+> dedicated field appears to be ignored and you end up debugging the wrong layer. Use
+> `extraConfig` only for keys with no dedicated CR field.
 
 Extend this list for your own cluster's high-churn, non-GitOps-managed CRDs (admission/scan
 report objects from other controllers are the most common candidates) rather than leaving them
@@ -465,10 +502,27 @@ based on refresh load vs. sync load.
 controller→repo-server gRPC client timeout — it does not replace `ARGOCD_EXEC_TIMEOUT` (child
 process timeout) or `ARGOCD_REPO_SERVER_PARALLELISM_LIMIT` (concurrency cap).
 
-### `ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT` (default `20`)
+### `ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT` (upstream `20`, OpenShift GitOps `10`)
 
 **Fixes:** raising `operation.processors` without raising this just moves the bottleneck — extra
 operation processors wait on a `kubectl` process slot.
+
+> **The effective default on OpenShift GitOps is `10`, not the upstream `20`.** The operator
+> passes `--kubectl-parallelism-limit 10` on the application-controller. Verified on a live
+> cluster. Any "match or sit slightly below `operation.processors`" reasoning that starts from
+> 20 is starting from the wrong baseline and will under-provision by half. Read the real value
+> before recommending a change:
+>
+> ```bash
+> kubectl get sts -n "$NS" -o json | python3 -c "
+> import json,sys
+> for it in json.load(sys.stdin)['items']:
+>     for c in it['spec']['template']['spec']['containers']:
+>         a=c.get('command',[])+c.get('args',[])
+>         for i,x in enumerate(a):
+>             if 'parallelism' in x: print(it['metadata']['name'], x, a[i+1] if i+1<len(a) else '')
+> "
+> ```
 
 Max concurrent `kubectl` child processes the controller may spawn. Raise to match or sit slightly
 below `operation.processors` (e.g. `50`). Raise in steps and watch kube-apiserver request
@@ -495,8 +549,17 @@ default otherwise — raising it globally slows every multi-wave Application's t
 Application's own `/status` on every health change — 3.0 changed the default to store health
 externally instead. Setting this to `true` restores the pre-3.0 behavior of persisting health in
 the CR (useful if something reads health via `kubectl get applications.argoproj.io -o yaml`) at the cost of
-reintroducing that update load — leave it `false` unless you have a specific consumer depending
-on in-CR health.
+reintroducing that update load.
+
+> **On OpenShift GitOps this is `true`, not `false`.** Verified on a live cluster:
+> `argocd-cmd-params-cm` carries `controller.resource.health.persist: "true"` and the
+> application-controller runs with `--persist-resource-health`. So the advice inverts: you are
+> *already* paying the Application-CR update churn, and setting it to `false` is an available
+> reduction rather than a default to leave alone. Check before assuming:
+>
+> ```bash
+> kubectl get cm argocd-cmd-params-cm -n "$NS" -o jsonpath='{.data.controller\.resource\.health\.persist}'
+> ```
 
 ## Common mistakes (OpenShift GitOps Operator)
 

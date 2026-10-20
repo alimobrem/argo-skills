@@ -1,5 +1,20 @@
 # Setup Reference — Installing and Configuring Argo CD
 
+> **Namespace:** `$NS` below is the Argo CD instance's namespace. It is **`openshift-gitops`
+> on OpenShift GitOps**, `argocd` on a standalone install, and something else entirely for a
+> second instance. There is frequently more than one — resolve it once and reuse it:
+>
+> ```bash
+> kubectl get argocd -A    # operator-managed instances and their namespaces
+> NS=openshift-gitops      # set to the instance you are working on
+> ```
+>
+> The same applies to `namespace: argocd` inside the YAML below — it is a placeholder for
+> the Argo CD instance's namespace. An Application created in `argocd` on a cluster whose
+> instance lives in `openshift-gitops` is never picked up, with no error anywhere.
+> (`namespace:` on an Application's **destination** is a different field — that one is the
+> workload's namespace and is unrelated.)
+
 Step-by-step procedures for installing Argo CD. Each procedure follows the
 Generate-Preview-Confirm safety model.
 
@@ -31,7 +46,7 @@ helm install argocd argo/argo-cd \
   --wait --timeout 5m
 
 # 5. Verify
-kubectl get pods -n argocd -l app.kubernetes.io/part-of=argocd
+kubectl get pods -n "$NS" -l app.kubernetes.io/part-of=argocd
 ```
 
 **Key values for non-HA:**
@@ -115,10 +130,10 @@ helm upgrade argocd argo/argo-cd \
   --wait --timeout 5m
 
 # 3. Verify
-kubectl rollout status deployment/argocd-server -n argocd
-kubectl rollout status deployment/argocd-repo-server -n argocd
-kubectl rollout status statefulset/argocd-application-controller -n argocd 2>/dev/null || \
-  kubectl rollout status deployment/argocd-application-controller -n argocd
+kubectl rollout status deployment/argocd-server -n "$NS"
+kubectl rollout status deployment/argocd-repo-server -n "$NS"
+kubectl rollout status statefulset/argocd-application-controller -n "$NS" 2>/dev/null || \
+  kubectl rollout status deployment/argocd-application-controller -n "$NS"
 ```
 
 ---
@@ -476,7 +491,7 @@ kubectl apply --dry-run=server -f cluster-secret.yaml
 kubectl apply -f cluster-secret.yaml
 
 # Verify
-argocd cluster list 2>/dev/null || kubectl get secrets -n argocd -l argocd.argoproj.io/secret-type=cluster
+argocd cluster list 2>/dev/null || kubectl get secrets -n "$NS" -l argocd.argoproj.io/secret-type=cluster
 ```
 
 **Note:** Never commit cluster Secrets to Git in plain text. Use sealed-secrets,
@@ -554,5 +569,5 @@ kubectl apply --dry-run=server -f appproject.yaml
 kubectl apply -f appproject.yaml
 
 # Verify
-argocd proj get production 2>/dev/null || kubectl get appproject production -n argocd -o yaml
+argocd proj get production 2>/dev/null || kubectl get appproject production -n "$NS" -o yaml
 ```
