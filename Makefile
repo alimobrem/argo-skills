@@ -4,6 +4,7 @@ SCHEMAS_TMP := $(SCHEMAS_DIR).tmp
 DISCOVER_SCRIPT := skills/argo-repo-audit/scripts/discover.sh
 VALIDATE_SCRIPT := skills/argo-repo-audit/scripts/validate.sh
 TEST_DIR := tests/argo-repo-audit
+RESULTS_DIR ?= benchmarks/results
 
 ARGOCD_VERSION := v2.14.14
 ARGOCD_OPERATOR_VERSION := v0.18.0
@@ -11,7 +12,7 @@ ROLLOUTS_MANAGER_VERSION := v0.10.0
 IMAGE_UPDATER_VERSION := v1.3.1
 ROLLOUTS_VERSION := v1.8.2
 
-.PHONY: help download-schemas clean-schemas test-discover test-validate test-registration test-expectations eval eval-knowledge eval-repo-audit eval-cluster-debug eval-operations eval-performance-tuning eval-team-onboard
+.PHONY: help download-schemas clean-schemas test-discover test-validate test-registration test-expectations score score-json score-compare eval eval-knowledge eval-repo-audit eval-cluster-debug eval-operations eval-performance-tuning eval-team-onboard
 
 # Fetch a CRD schema from an arbitrary URL, selecting the STORAGE version rather than
 # versions[0] — the ArgoCD CR serves both v1alpha1 and v1beta1 and we want v1beta1.
@@ -70,6 +71,15 @@ test-discover: ## Run discovery script on test fixtures
 	$(DISCOVER_SCRIPT) -d $(TEST_DIR)/app-of-apps
 	$(DISCOVER_SCRIPT) -d $(TEST_DIR)/applicationset
 	$(DISCOVER_SCRIPT) -d $(TEST_DIR)/mixed-issues
+
+score: ## Aggregate eval results into a comparable scorecard (see scripts/score_evals.py)
+	@python3 -I scripts/score_evals.py $(RESULTS_DIR)
+
+score-json: ## Same, machine-readable
+	@python3 -I scripts/score_evals.py $(RESULTS_DIR) --json
+
+score-compare: ## Diff this run against a prior one: make score-compare PRIOR=path/
+	@python3 -I scripts/score_evals.py $(RESULTS_DIR) --compare $(PRIOR)
 
 test-expectations: ## Validate eval expectations' field paths against the Argo CRD schemas
 	@bash scripts/check-eval-expectations.sh
