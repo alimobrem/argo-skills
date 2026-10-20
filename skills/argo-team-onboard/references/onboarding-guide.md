@@ -17,7 +17,7 @@ templates for every resource, and a post-onboarding validation checklist.
 
 | Resource | Include When | Skip When |
 |----------|-------------|-----------|
-| Namespace | Team gets new namespaces not yet on cluster | Namespaces pre-provisioned by platform or another controller |
+| Namespace | **Always generate the manifest** when the team gets new namespaces — it carries the Pod Security Standards labels, which nothing else adds | Skip only when the namespace already exists AND you have confirmed it already has PSS labels and NetworkPolicies. An existing namespace is *not* evidence of either |
 | ResourceQuota | Platform enforces compute/object limits per team | Cluster uses LimitRange only, or no quota policy exists |
 | LimitRange | Platform requires default CPU/memory requests on all pods | Quota policy handles limits at the namespace level |
 | RoleBinding | Team needs `kubectl` access to their namespaces (not just Argo CD) | Team interacts only through Argo CD UI/CLI |
@@ -142,7 +142,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: "{{TEAM_NAME}}-{{APP_NAME}}-{{ENV}}"        # e.g. payments-api-prod
-  namespace: argocd
+  namespace: "{{ARGOCD_NAMESPACE}}"   # openshift-gitops on OpenShift; see the $NS note
   labels:
     team: "{{TEAM_NAME}}"
     env: "{{ENV}}"
@@ -198,7 +198,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: "{{TEAM_NAME}}-{{APP_NAME}}-{{ENV}}"
-  namespace: argocd
+  namespace: "{{ARGOCD_NAMESPACE}}"   # openshift-gitops on OpenShift; see the $NS note
   labels:
     team: "{{TEAM_NAME}}"
     env: "{{ENV}}"
@@ -269,7 +269,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: "{{TEAM_NAME}}-{{APP_NAME}}-{{ENV}}"
-  namespace: argocd
+  namespace: "{{ARGOCD_NAMESPACE}}"   # openshift-gitops on OpenShift; see the $NS note
   labels:
     team: "{{TEAM_NAME}}"
     env: "{{ENV}}"
@@ -316,7 +316,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: "{{TEAM_NAME}}-{{APP_NAME}}-{{ENV}}"
-  namespace: argocd
+  namespace: "{{ARGOCD_NAMESPACE}}"   # openshift-gitops on OpenShift; see the $NS note
   labels:
     team: "{{TEAM_NAME}}"
     env: "{{ENV}}"
@@ -364,7 +364,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: argocd-rbac-cm
-  namespace: argocd
+  namespace: "{{ARGOCD_NAMESPACE}}"   # openshift-gitops on OpenShift; see the $NS note
 data:
   # Global RBAC policy (supplements project-level roles)
   policy.csv: |
@@ -580,7 +580,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: argocd-notifications-cm
-  namespace: argocd
+  namespace: "{{ARGOCD_NAMESPACE}}"   # openshift-gitops on OpenShift; see the $NS note
 data:
   # Define trigger
   trigger.on-sync-failed: |

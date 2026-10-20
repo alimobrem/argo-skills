@@ -370,7 +370,15 @@ covers *what* to generate and the decisions behind it; the guide has the YAML.
 |---|----------|-------------------------------------------|
 | 1 | AppProject — the security boundary, the most important resource | *AppProject Template* |
 | 2 | Application — one per environment, matching the team's source type | *Application Templates* (Kustomize / Helm / Multi-Source Helm / Directory) |
-| 3 | RBAC — `argocd-rbac-cm` entry binding the team's SSO group to the project role | *RBAC Template* |
+| 3 | RBAC — **pick one**, do not generate both | *RBAC Template* |
+
+**The two RBAC placements are alternatives, not a pair.** AppProject `spec.roles[]` with
+`groups:` scopes permissions to that project and travels with it — prefer it. A
+`argocd-rbac-cm` entry is for centrally managed, cross-project policy. Generating both
+produces duplicate policy lines for the same group, which is confusing to audit and easy
+to half-revoke later. `onboarding-guide.md`'s AppProject template already contains the
+project-scoped form; only add the ConfigMap patch if the user's estate manages RBAC
+centrally.
 | 4 | Namespace with Pod Security Standards + monitoring labels | *Namespace* |
 | 5 | Default NetworkPolicies — deny-all egress plus explicit allows | *Default NetworkPolicies* |
 
@@ -439,7 +447,10 @@ This is where onboarding actually happens. Do not skip it, and do not substitute
    commit to the tracked branch.
 3. **Commit** with a message naming the tenant and what was granted, e.g.
    `onboard: add tenant checkout (dev/staging/prod, scoped to checkout-svc.git)`.
-4. **Push**, and open a PR if that is their flow.
+4. **Push — ask again before you do.** "Commit this?" authorizes a commit, not a push to
+   a shared remote. Confirm separately: **"Push to `<remote>/<branch>`? (yes/no)"**. A
+   commit is local and trivially undone; a push to a branch an ApplicationSet watches can
+   start reconciling immediately. Open a PR if that is their flow.
 5. **Report** `[COMMITTED] <timestamp> <path> -- <action>` plus the commit SHA or PR URL.
 6. **State the handoff explicitly:** the tenant exists once Argo CD syncs the change, not
    at commit time. Give them the command to watch it:
