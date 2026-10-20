@@ -411,7 +411,55 @@ syncPolicy:
 
 ## Notifications Setup
 
-### ConfigMap + Secret
+### Pick the right path first: operator-managed vs standalone
+
+**On OpenShift GitOps, do NOT hand-write `argocd-notifications-cm`.** That ConfigMap is
+operator-managed; your edits apply cleanly and are then reconciled away, which presents
+as notifications that worked in testing and silently stopped. Use the CRDs:
+
+```yaml
+# 1. turn the controller on
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: openshift-gitops
+  namespace: openshift-gitops
+spec:
+  notifications:
+    enabled: true          # required field
+---
+# 2. supply config via the CR, not the ConfigMap
+apiVersion: argoproj.io/v1alpha1
+kind: NotificationsConfiguration
+metadata:
+  name: default-notifications-configuration
+  namespace: openshift-gitops
+spec:
+  services:
+    service.slack: |
+      token: $slack-token
+  templates:
+    template.app-sync-failed: |
+      message: "{{.app.metadata.name}} sync failed: {{.app.status.operationState.message}}"
+  triggers:
+    trigger.on-sync-failed: |
+      - when: app.status.operationState.phase in ['Error', 'Failed']
+        send: [app-sync-failed]
+```
+
+Every field is `map[string]string`, including `subscriptions`. The Secret
+(`argocd-notifications-secret`) is still yours to create — the CR holds no credentials.
+Full field reference and gotchas: `argo-knowledge/references/openshift-gitops-operator.md`.
+
+Decide before generating anything:
+
+```bash
+kubectl get argocd -A --no-headers 2>/dev/null | head   # non-empty => operator-managed
+```
+
+The ConfigMap form below applies to **standalone / Helm-installed Argo CD only**.
+
+### ConfigMap + Secret (standalone Argo CD only)
 
 ```yaml
 apiVersion: v1

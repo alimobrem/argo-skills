@@ -4,6 +4,44 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — reference content for the five operator-owned CRDs
+
+`skills/argo-knowledge/references/openshift-gitops-operator.md` documents the CRDs with
+no upstream Argo CD equivalent, which previously had zero or passing-mention coverage.
+Every field was read from the installed CRD schemas, and **every manifest in the file was
+validated with `oc apply --dry-run=server` against a live cluster** — 7 of 7 schema-valid.
+
+| CRD | What it covers |
+|-----|----------------|
+| `RolloutManager` (`argoproj.io/v1alpha1`) | How Rollouts is deployed on OpenShift GitOps; `namespaceScoped`, `ha`, `nodePlacement`, `plugins`; editing the Deployment directly gets reverted |
+| `NotificationsConfiguration` (`argoproj.io/v1alpha1`) | The operator-native path; all five fields are `map[string]string` (including `subscriptions`, which is easily mistaken for a list) |
+| `NamespaceManagement` (`argoproj.io/v1beta1`) | The two-sided handshake with `ArgoCD.spec.namespaceManagement` — one side alone is inert and raises no event |
+| `ImageUpdater` (`argocd-image-updater.argoproj.io/v1alpha1`) | The separate API group; `applicationRefs[]`, `manifestTargets.helm` vs `.kustomize`, `writeBackConfig` |
+| `GitopsService` (`pipelines.openshift.io/v1alpha1`) | Why edits to the default instance's ArgoCD CR revert — confirmed `blockOwnerDeletion` ownerReference on the live cluster |
+
+Closes with a "which CR owns which setting" table for the recurring question: *why will
+this setting not stay changed?*
+
+### Fixed — operations documented a notifications path the operator overwrites
+
+`argo-operations/references/deployment.md` only described a hand-written
+`argocd-notifications-cm`, which on OpenShift GitOps is reconciled away — notifications
+work in testing and then silently stop. Flagged by the operations eval run. The section
+now leads with the operator-native `ArgoCD.spec.notifications.enabled` +
+`NotificationsConfiguration` path, gives a one-line check for which install type you are
+on, and scopes the ConfigMap form to standalone Argo CD.
+
+### Added — evals and schemas for the new surface
+
+- Five `argo-knowledge` evals covering each CRD, written around the real failure modes
+  (vanishing ConfigMap edits, one-sided NamespaceManagement, reverting CR patches,
+  Helm/Kustomize `manifestTargets` mismatch). 8 → 13 evals; 76 → 81 total.
+- Four more CRD schemas so `check-eval-expectations` validates the new content:
+  `NotificationsConfiguration`, `NamespaceManagement` (argocd-operator),
+  `RolloutManager` (argo-rollouts-manager), `ImageUpdater` (argocd-image-updater).
+  8 → 12 schemas, and the validator is clean.
+
+
 ### Changed — scope narrowed to Red Hat OpenShift GitOps (BREAKING)
 
 These skills target **OpenShift GitOps**, the productized Argo CD distribution, not the
