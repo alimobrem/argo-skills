@@ -152,6 +152,69 @@
         "proposedCommitStatuses includes security-scan at the strategy level",
         "ArgoCDCommitStatus resource (note capitalisation) with the required promotionStrategyRef and applicationSelector \u2014 NOT gitRepositoryRef, which is not a field on this kind"
       ]
+    },
+    {
+      "id": 9,
+      "name": "Notifications on OpenShift GitOps",
+      "prompt": "Set up Slack notifications for sync failures on our OpenShift GitOps instance in the openshift-gitops namespace. We tried editing argocd-notifications-cm and the changes keep disappearing after a few minutes.",
+      "expectations": [
+        "Identifies the root cause: argocd-notifications-cm is operator-managed on OpenShift GitOps and edits are reconciled away",
+        "Sets ArgoCD.spec.notifications.enabled: true to deploy the notifications controller",
+        "Uses a NotificationsConfiguration CR (argoproj.io/v1alpha1) instead of editing the ConfigMap",
+        "Puts services/templates/triggers as map[string]string keys (service.slack, template.<name>, trigger.<name>), matching the ConfigMap key names",
+        "States that the Secret argocd-notifications-secret still has to be created separately \u2014 the CR holds no credentials",
+        "Does NOT present hand-editing argocd-notifications-cm as the solution"
+      ]
+    },
+    {
+      "id": 10,
+      "name": "Deploy Argo Rollouts on OpenShift GitOps",
+      "prompt": "How do I get Argo Rollouts running on our OpenShift GitOps cluster? We want it watching every namespace, with the controller pinned to infra nodes.",
+      "expectations": [
+        "Uses a RolloutManager CR (argoproj.io/v1alpha1) rather than installing argo-rollouts manifests directly",
+        "Sets namespaceScoped: false for cluster-wide watching",
+        "Uses spec.nodePlacement.nodeSelector (and tolerations) for infra node placement",
+        "Notes that editing the argo-rollouts Deployment directly is reverted by the operator",
+        "Does not invent fields \u2014 spec keys come from the RolloutManager schema (e.g. ha, controllerResources, env, plugins, version)"
+      ]
+    },
+    {
+      "id": 11,
+      "name": "Attach a tenant namespace to a central Argo CD",
+      "prompt": "Our payments-dev namespace should be managed by the openshift-gitops Argo CD instance, but Applications we create there are being ignored. We already created a NamespaceManagement resource. What's wrong?",
+      "expectations": [
+        "Explains that NamespaceManagement is a two-sided handshake \u2014 the tenant CR alone does nothing",
+        "Tenant side: NamespaceManagement (argoproj.io/v1beta1) in the tenant namespace with required spec.managedBy set to the Argo CD instance's namespace",
+        "Argo CD side: ArgoCD.spec.namespaceManagement entry with both name and allowManagedBy: true",
+        "Notes the failure is silent \u2014 no event or condition is raised when only one side is configured",
+        "Recommends against hand-editing --application-namespaces, which the operator resets"
+      ]
+    },
+    {
+      "id": 12,
+      "name": "Why do ArgoCD CR edits revert on the default instance",
+      "prompt": "Every time I patch the openshift-gitops ArgoCD CR to add infra node tolerations, the change reverts within a minute. Other ArgoCD instances on the cluster keep my edits fine.",
+      "expectations": [
+        "Identifies GitopsService (pipelines.openshift.io/v1alpha1, cluster-scoped, normally named 'cluster') as the owner of the default openshift-gitops instance",
+        "Explains the ownerReference with blockOwnerDeletion on the default ArgoCD CR",
+        "Directs node placement/tolerations/imagePullPolicy for default workloads to GitopsService (runOnInfra, nodeSelector, tolerations) rather than the ArgoCD CR",
+        "Notes that a separately created ArgoCD CR in another namespace is freely editable \u2014 which is why the other instances behave differently",
+        "Suggests checking ownerReferences to confirm, e.g. kubectl get argocd openshift-gitops -n openshift-gitops -o jsonpath='{.metadata.ownerReferences}'"
+      ]
+    },
+    {
+      "id": 13,
+      "name": "Image Updater via the operator CRD",
+      "prompt": "Configure automated semver image updates for all Applications matching payments-* on OpenShift GitOps. The apps are Helm-based and we want the change written back to Git on the main branch.",
+      "expectations": [
+        "Uses the ImageUpdater CRD with apiVersion argocd-image-updater.argocd-image-updater.argoproj.io or notes the SEPARATE API group argocd-image-updater.argoproj.io/v1alpha1 \u2014 not argoproj.io",
+        "spec.applicationRefs is present (required) with namePattern: payments-*",
+        "images[] entries use alias and imageName",
+        "Uses manifestTargets.helm (name/tag) for a Helm source, not manifestTargets.kustomize",
+        "updateStrategy: semver set via commonUpdateSettings",
+        "writeBackConfig.method: git with gitConfig.branch: main",
+        "Warns that mismatching manifestTargets to the Application source type makes the updater silently write nothing"
+      ]
     }
   ]
 }

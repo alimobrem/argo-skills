@@ -7,6 +7,8 @@ TEST_DIR := tests/argo-repo-audit
 
 ARGOCD_VERSION := v2.14.14
 ARGOCD_OPERATOR_VERSION := v0.18.0
+ROLLOUTS_MANAGER_VERSION := v0.10.0
+IMAGE_UPDATER_VERSION := v1.3.1
 ROLLOUTS_VERSION := v1.8.2
 
 .PHONY: help download-schemas clean-schemas test-discover test-validate test-registration test-expectations eval eval-knowledge eval-repo-audit eval-cluster-debug eval-operations eval-performance-tuning eval-team-onboard
@@ -48,6 +50,11 @@ download-schemas: ## Download Argo CRD schemas for kubeconform validation
 	$(call fetch_schema,argo-cd,$(ARGOCD_VERSION),applicationset-crd.yaml,applicationset-argoproj-v1alpha1)
 	@echo "Downloading ArgoCD CR schema (argocd-operator $(ARGOCD_OPERATOR_VERSION))..."
 	$(call fetch_schema_url,https://raw.githubusercontent.com/argoproj-labs/argocd-operator/$(ARGOCD_OPERATOR_VERSION)/config/crd/bases/argoproj.io_argocds.yaml,argocd-argoproj-v1beta1)
+	@echo "Downloading OpenShift GitOps operator CRDs..."
+	$(call fetch_schema_url,https://raw.githubusercontent.com/argoproj-labs/argocd-operator/$(ARGOCD_OPERATOR_VERSION)/config/crd/bases/argoproj.io_notificationsconfigurations.yaml,notificationsconfiguration-argoproj-v1alpha1)
+	$(call fetch_schema_url,https://raw.githubusercontent.com/argoproj-labs/argocd-operator/$(ARGOCD_OPERATOR_VERSION)/config/crd/bases/argoproj.io_namespacemanagements.yaml,namespacemanagement-argoproj-v1beta1)
+	$(call fetch_schema_url,https://raw.githubusercontent.com/argoproj-labs/argo-rollouts-manager/$(ROLLOUTS_MANAGER_VERSION)/config/crd/bases/argoproj.io_rolloutmanagers.yaml,rolloutmanager-argoproj-v1alpha1)
+	$(call fetch_schema_url,https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/$(IMAGE_UPDATER_VERSION)/config/crd/bases/argocd-image-updater.argoproj.io_imageupdaters.yaml,imageupdater-argocd-image-updater-v1alpha1)
 	@echo "Downloading Argo Rollouts CRDs ($(ROLLOUTS_VERSION))..."
 	$(call fetch_schema,argo-rollouts,$(ROLLOUTS_VERSION),rollout-crd.yaml,rollout-argoproj-v1alpha1)
 	$(call fetch_schema,argo-rollouts,$(ROLLOUTS_VERSION),analysis-template-crd.yaml,analysistemplate-argoproj-v1alpha1)
