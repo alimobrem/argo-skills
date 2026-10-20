@@ -31,6 +31,16 @@ for skill in $SKILLS; do
   grep -qe "^ *- skill: $skill\$"      .github/workflows/evals.yml     || note ".github/workflows/evals.yml matrix entry"
 done
 
+# The README badge and the Benchmarks notice cite an eval count. The banner drifted two
+# skills behind before anyone noticed; don't let the same happen to a number.
+EVAL_TOTAL=$(python3 -c "
+import json,glob
+print(sum(len(json.load(open(f))['evals']) for f in glob.glob('skills/*/evals/evals.json')))")
+if ! grep -q "evals-${EVAL_TOTAL}-" README.md; then
+  printf '  \033[0;31mSTALE\033[0m    README eval badge does not match the actual total (%s)\n' "$EVAL_TOTAL"
+  FAIL=1
+fi
+
 echo
 if [ "$FAIL" -ne 0 ]; then
   echo "Skill registration check FAILED — see MISSING lines above."
