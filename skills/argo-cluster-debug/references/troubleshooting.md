@@ -1,5 +1,18 @@
 # Argo Cluster Debug — Troubleshooting Reference
 
+> **Component selectors:** `$CR` is the ArgoCD instance's name — `openshift-gitops`,
+> `team-b`, etc. Operator-managed workloads are labelled `<cr-name>-<component>`, so a
+> hardcoded `app.kubernetes.io/name=argocd-server` matches **nothing** and the component
+> reads as absent. Resolve it alongside `$NS`:
+>
+> ```bash
+> CR=$(kubectl get argocd -n "$NS" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+> CR=${CR:-argocd}   # falls back to the Helm/standalone naming
+> ```
+>
+> On a Helm or plain-manifest install the components really are `argocd-*`, so the
+> fallback makes the same commands work on both.
+
 > **Namespace:** `$NS` below is the Argo CD instance's namespace. It is **`openshift-gitops`
 > on OpenShift GitOps**, `argocd` on a standalone install, and something else entirely for a
 > second instance. There is frequently more than one — resolve it once and reuse it:
@@ -38,7 +51,7 @@ Symptom-to-cause mappings organized by Argo component. Read this in full before 
 kubectl get applications.argoproj.io <name> -n "$NS" -o jsonpath='{.status.conditions[*].message}'
 
 # Check repo-server logs for manifest generation errors
-kubectl logs -n "$NS" -l app.kubernetes.io/name=argocd-repo-server --tail=200 | grep -i error
+kubectl logs -n "$NS" -l app.kubernetes.io/name=$CR-repo-server --tail=200 | grep -i error
 
 # For Helm: try rendering locally
 helm template <chart-path> -f <values-file>
@@ -65,7 +78,12 @@ kubectl get applications.argoproj.io <name> -n "$NS" -o jsonpath='{.status.opera
 kubectl get appproject <project-name> -n "$NS" -o yaml
 
 # Verify the controller can create the resource
-kubectl auth can-i create <resource> --as=system:serviceaccount:argocd:argocd-application-controller -n <target-namespace>
+# The controller SA is <cr-name>-argocd-application-controller in the INSTANCE namespace.
+# Getting this wrong is worse than useless: auth can-i answers "no" for a service account
+# that does not exist, which reads as "RBAC is broken" when nothing is broken.
+# Verified: the wrong SA returns "no", the real one returns "yes" on the same cluster.
+kubectl auth can-i create <resource> \
+  --as=system:serviceaccount:"$NS":"$CR"-argocd-application-controller -n <target-namespace>
 ```
 
 ### OutOfSync but auto-sync not triggering
@@ -91,7 +109,7 @@ kubectl get applications.argoproj.io <name> -n "$NS" -o jsonpath='{.status.opera
 kubectl get appproject <project> -n "$NS" -o jsonpath='{.spec.syncWindows}'
 
 # Check application-controller logs for sync decisions
-kubectl logs -n "$NS" -l app.kubernetes.io/name=argocd-application-controller --tail=200 | grep <app-name>
+kubectl logs -n "$NS" -l app.kubernetes.io/name=$CR-application-controller --tail=200 | grep <app-name>
 ```
 
 ### Sync stuck in Progressing
@@ -130,16 +148,16 @@ kubectl get events -n <namespace> --field-selector reason=FailedCreate
 **Debug:**
 ```bash
 # Check repo-server health
-kubectl get pods -n "$NS" -l app.kubernetes.io/name=argocd-repo-server
+kubectl get pods -n "$NS" -l app.kubernetes.io/name=$CR-repo-server
 
 # Check repo-server resource usage
-kubectl top pods -n "$NS" -l app.kubernetes.io/name=argocd-repo-server
+kubectl top pods -n "$NS" -l app.kubernetes.io/name=$CR-repo-server
 
 # Check repo connectivity (repo-server no longer ships git binary since v2.5+)
 # Option 1: Use argocd CLI if available
 argocd repo list
 # Option 2: Check repo-server logs for fetch errors
-kubectl logs -n "$NS" -l app.kubernetes.io/name=argocd-repo-server --tail=200 | grep -i -E 'repo|fetch|clone|error'
+kubectl logs -n "$NS" -l app.kubernetes.io/name=$CR-repo-server --tail=200 | grep -i -E 'repo|fetch|clone|error'
 
 # Check timeout config
 kubectl get configmap argocd-cm -n "$NS" -o jsonpath='{.data.reposerver\.timeout\.seconds}'
@@ -252,7 +270,10 @@ kubectl get <kind> <name> -n <namespace>
 kubectl get crd <crd-name>
 
 # Check RBAC
-kubectl auth can-i get <resource> --as=system:serviceaccount:argocd:argocd-application-controller -n <namespace>
+kubectl auth can-i get <resource> \
+  --as=system:serviceaccount:"$NS":"$CR"-argocd-application-controller -n <namespace>
+# (a nonexistent SA answers "no" — confirm the SA exists before believing a denial:
+#  kubectl get sa -n "$NS" | grep application-controller)
 ```
 
 ### Unknown
@@ -303,7 +324,7 @@ for k,v in data.items():
 **Debug:**
 ```bash
 # Check applicationset-controller logs
-kubectl logs -n "$NS" -l app.kubernetes.io/name=argocd-applicationset-controller --tail=200
+kubectl logs -n "$NS" -l app.kubernetes.io/name=$CR-applicationset-controller --tail=200
 
 # Check ApplicationSet status
 kubectl get applicationset <name> -n "$NS" -o jsonpath='{.status}' | python3 -m json.tool
@@ -493,15 +514,15 @@ Quick reference for the most-used debug commands across all Argo components.
 | `kubectl get applications.argoproj.io -n "$NS" -o custom-columns='NAME:.metadata.name,SYNC:.status.sync.status,HEALTH:.status.health.status'` | Application status summary |
 | `kubectl get applicationsets -n "$NS"` | List all ApplicationSets |
 | `kubectl get appprojects -n "$NS"` | List all AppProjects |
-| `kubectl logs -n "$NS" -l app.kubernetes.io/name=argocd-application-controller --tail=100` | Controller logs |
-| `kubectl logs -n "$NS" -l app.kubernetes.io/name=argocd-repo-server --tail=100` | Repo server logs |
-| `kubectl logs -n "$NS" -l app.kubernetes.io/name=argocd-server --tail=100` | API server logs |
+| `kubectl logs -n "$NS" -l app.kubernetes.io/name=$CR-application-controller --tail=100` | Controller logs |
+| `kubectl logs -n "$NS" -l app.kubernetes.io/name=$CR-repo-server --tail=100` | Repo server logs |
+| `kubectl logs -n "$NS" -l app.kubernetes.io/name=$CR-server --tail=100` | API server logs |
 | `kubectl get configmap argocd-cm -n "$NS" -o yaml` | Server configuration |
 | `kubectl get secrets -n "$NS" -l argocd.argoproj.io/secret-type=repository` | Configured repositories |
 | `kubectl get secrets -n "$NS" -l argocd.argoproj.io/secret-type=cluster` | Configured clusters |
 | `argocd app list` | List apps (CLI) |
 | `argocd app get <name>` | App detail (CLI) |
-| `argocd app diff <name>` | Show diff (CLI) |
+| `argocd app diff <name>` | Show diff (CLI). **Often unusable on OpenShift GitOps**: in `--core` mode it looks for `app.kubernetes.io/name=argocd-redis`, which the operator names `<cr-name>-redis`; `--redis-name "$CR"-redis` gets one step further and then fails `NOAUTH Authentication required`. It also exits 0 despite printing `FATAL`, so check output not exit code. Fall back to `kubectl get application <name> -o jsonpath='{.status.resources}'` |
 | `argocd app history <name>` | Sync history (CLI) |
 
 ### Argo Rollouts
@@ -516,7 +537,7 @@ Quick reference for the most-used debug commands across all Argo components.
 | `kubectl argo rollouts status <name> -n <ns>` | Rollout status (plugin CLI) |
 | `kubectl argo rollouts list rollouts -n <ns>` | List rollouts (plugin CLI) |
 | `kubectl get replicaset -n <ns> -l app=<label> -o wide` | ReplicaSets for a Rollout |
-| `kubectl logs -n argo-rollouts -l app.kubernetes.io/name=argo-rollouts` | Rollouts controller logs |
+| `kubectl logs -n "$NS" -l app.kubernetes.io/name=argo-rollouts` | Rollouts controller logs. **On OpenShift GitOps the controller runs in the Argo CD instance namespace, not `argo-rollouts`** — it is reconciled from a `RolloutManager` CR. Find it with `kubectl get deploy -A \| grep argo-rollouts` |
 
 
 

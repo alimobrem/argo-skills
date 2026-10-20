@@ -1,5 +1,18 @@
 # Day-2 Operations Reference — Upgrades, Scaling, Backup, and Maintenance
 
+> **Component selectors:** `$CR` is the ArgoCD instance's name — `openshift-gitops`,
+> `team-b`, etc. Operator-managed workloads are labelled `<cr-name>-<component>`, so a
+> hardcoded `app.kubernetes.io/name=argocd-server` matches **nothing** and the component
+> reads as absent. Resolve it alongside `$NS`:
+>
+> ```bash
+> CR=$(kubectl get argocd -n "$NS" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+> CR=${CR:-argocd}   # falls back to the Helm/standalone naming
+> ```
+>
+> On a Helm or plain-manifest install the components really are `argocd-*`, so the
+> fallback makes the same commands work on both.
+
 > **Namespace:** `$NS` below is the Argo CD instance's namespace. It is **`openshift-gitops`
 > on OpenShift GitOps**, `argocd` on a standalone install, and something else entirely for a
 > second instance. There is frequently more than one — resolve it once and reuse it:
@@ -296,8 +309,8 @@ Sharding is automatic when `ARGOCD_CONTROLLER_REPLICAS` matches the replica coun
 
 ```bash
 # Verify sharding
-kubectl get pods -n "$NS" -l app.kubernetes.io/name=argocd-application-controller
-for pod in $(kubectl get pods -n "$NS" -l app.kubernetes.io/name=argocd-application-controller -o name); do
+kubectl get pods -n "$NS" -l app.kubernetes.io/name=$CR-application-controller
+for pod in $(kubectl get pods -n "$NS" -l app.kubernetes.io/name=$CR-application-controller -o name); do
   echo "=== $pod ==="
   kubectl logs $pod -n "$NS" --tail=5 | grep "shard"
 done
@@ -582,7 +595,7 @@ kubectl patch argocd openshift-gitops -n openshift-gitops --type merge -p '{"spe
 kubectl apply -n "$NS" -f https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/stable/manifests/install.yaml
 
 # Verify
-kubectl get pods -n "$NS" -l app.kubernetes.io/name=argocd-image-updater
+kubectl get pods -n "$NS" -l app.kubernetes.io/name=$CR-image-updater
 ```
 
 ### Enable Applications in Any Namespace
