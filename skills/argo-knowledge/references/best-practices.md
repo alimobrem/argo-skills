@@ -230,7 +230,9 @@ spec:
 
 ### Checklist
 
-- [ ] Install Argo Rollouts controller
+- [ ] Deploy the Rollouts controller via a **`RolloutManager` CR** — on OpenShift GitOps
+      you do NOT install argo-rollouts yourself; the operator reconciles it. Installing it
+      by hand fights the operator. See `references/openshift-gitops-operator.md`.
 - [ ] Create canary and stable Services
 - [ ] Replace `Deployment` with `Rollout` (same pod template)
 - [ ] Start with simple weight-based steps, no analysis

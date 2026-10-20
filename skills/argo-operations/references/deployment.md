@@ -185,7 +185,7 @@ cat > application.yaml << 'EOF'
 EOF
 
 # 2. Server-side dry-run (validates against API server)
-kubectl apply --dry-run=server -f application.yaml
+kubectl apply --dry-run=server --validate=strict -f application.yaml
 
 # 3. If CRD not installed, fall back to client-side
 kubectl apply --dry-run=client -f application.yaml

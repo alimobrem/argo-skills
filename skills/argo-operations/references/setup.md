@@ -158,7 +158,7 @@ spec:
 
 ```bash
 # Preview
-kubectl apply --dry-run=server -f subscription.yaml
+kubectl apply --dry-run=server --validate=strict -f subscription.yaml
 
 # Apply (after user confirms)
 kubectl apply -f subscription.yaml
@@ -238,7 +238,7 @@ spec:
 
 ```bash
 # Preview
-kubectl diff -f argocd-cr.yaml 2>/dev/null || kubectl apply --dry-run=server -f argocd-cr.yaml
+kubectl diff -f argocd-cr.yaml 2>/dev/null || kubectl apply --dry-run=server --validate=strict -f argocd-cr.yaml
 
 # Apply (after user confirms)
 kubectl apply -f argocd-cr.yaml
@@ -485,7 +485,7 @@ stringData:
 
 ```bash
 # Preview
-kubectl apply --dry-run=server -f cluster-secret.yaml
+kubectl apply --dry-run=server --validate=strict -f cluster-secret.yaml
 
 # Apply (after user confirms)
 kubectl apply -f cluster-secret.yaml
@@ -563,7 +563,7 @@ spec:
 
 ```bash
 # Preview
-kubectl apply --dry-run=server -f appproject.yaml
+kubectl apply --dry-run=server --validate=strict -f appproject.yaml
 
 # Apply (after user confirms)
 kubectl apply -f appproject.yaml

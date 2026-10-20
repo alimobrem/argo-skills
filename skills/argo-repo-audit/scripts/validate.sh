@@ -330,6 +330,14 @@ pass_kustomize_builds() {
     echo ""
     return 0
   fi
+  # Pass 3 builds with kustomize and then schema-checks with kubeconform. Without
+  # kubeconform the build still succeeds, so an unqualified "OK" would overstate what
+  # was actually verified — say build-only instead.
+  local BUILD_ONLY=0
+  if [[ $HAVE_KUBECONFORM -eq 0 ]]; then
+    BUILD_ONLY=1
+    echo "  NOTE: kubeconform missing — overlays will be BUILT but not schema-validated"
+  fi
 
   local schema_args=("-skip=Secret" "-strict" "-ignore-missing-schemas" "-schema-location" "default" "-verbose")
   if [[ -d "$ASSETS_SCHEMAS_DIR" ]] && ls "$ASSETS_SCHEMAS_DIR"/*.json >/dev/null 2>&1; then

@@ -274,10 +274,9 @@ When auditing Argo CD repos targeting OpenShift:
 - [ ] **ArgoCD CRD used** — check for `apiVersion: argoproj.io/v1beta1 kind: ArgoCD` (operator-managed)
 - [ ] **Route configured** — ArgoCD CR has `spec.server.route.enabled: true`
 - [ ] **TLS termination** — Route uses `reencrypt` or `edge`, not `passthrough` without good reason
-- [ ] **OAuth enabled** — `spec.dex.openShiftOAuth: true` for SSO
+- [ ] **OAuth enabled** — `spec.sso.provider: dex` + `spec.sso.dex.openShiftOAuth: true`. Top-level `spec.dex` is unsupported since operator v0.8.0 and silently does nothing.
 - [ ] **Resource exclusions** — Tekton, compliance, OLM resources excluded to reduce noise
 - [ ] **No DeploymentConfig with Rollouts** — flag DeploymentConfig in repos using Argo Rollouts
-- [ ] **SCC bindings for Workflow ServiceAccounts** — verify pods won't fail due to SCC restrictions
 - [ ] **Managed-by labels** — target namespaces labeled for the correct ArgoCD instance
 - [ ] **No conflicting management** — no namespace managed by multiple ArgoCD instances
 - [ ] **RBAC maps OpenShift groups** — ArgoCD RBAC `policy` references actual OpenShift groups

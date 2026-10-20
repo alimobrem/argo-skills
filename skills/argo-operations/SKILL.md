@@ -41,7 +41,7 @@ Show what the operation would change on the cluster before applying:
 
 | Operation | Preview Command |
 |-----------|----------------|
-| Create resource | `kubectl apply --dry-run=server -f <file> -o yaml` — **prefer server** |
+| Create resource | `kubectl apply --dry-run=server --validate=strict -f <file> -o yaml` — **prefer server** |
 | Update resource | `kubectl diff -f <file>` or `oc diff -f <file>` |
 | Sync Application | `argocd app diff <name>` |
 | Helm install/upgrade | `helm template` or `helm upgrade --dry-run` |
@@ -59,11 +59,11 @@ just echoes your input back. Measured against a real cluster:
 ```
 manifest with a nonexistent field AND a wrong-typed value
   kubectl apply --dry-run=client   -> ACCEPTED   (no validation at all)
-  kubectl apply --dry-run=server   -> REJECTED   (schema validated)
+  kubectl apply --dry-run=server --validate=strict   -> REJECTED   (schema validated)
 ```
 
 So:
-- **Creating?** Use `--dry-run=server`. Fall back to client only if the API rejects a
+- **Creating?** Use `--dry-run=server --validate=strict`. Fall back to client only if the API rejects a
   server dry-run outright (CRD absent), and say plainly that nothing was validated.
 - **Updating?** Use `kubectl diff`. A client dry-run is not a preview of an update under
   any circumstances; presenting one as the Preview step gives the user false assurance
@@ -234,7 +234,7 @@ Load `references/deployment.md` for detailed procedures.
    | Plain directory | Path to YAML files, no Helm/Kustomize |
    | Multi-source | Multiple repos, values from separate repo |
 2. Generate the Application or ApplicationSet YAML.
-3. **Preview** — `kubectl apply --dry-run=server -f <file>` or `argocd app diff`.
+3. **Preview** — `kubectl apply --dry-run=server --validate=strict -f <file>` or `argocd app diff`.
 4. **Confirm** — wait for user approval.
 5. Apply and verify:
    ```bash

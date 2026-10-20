@@ -179,7 +179,7 @@ Every change that touches the live cluster follows the same 3-step protocol as
    **Common mistakes** list in `references/tuning-settings.md` before presenting the patch.
 2. **Preview**:
    ```bash
-   kubectl patch argocd <name> -n <ns> --type merge -p '<patch>' --dry-run=server -o yaml
+   kubectl patch argocd <name> -n <ns> --type merge -p '<patch>' --dry-run=server --validate=strict -o yaml
    # or, for standalone ConfigMap/env changes:
    kubectl diff -f <file>.yaml
    ```

@@ -59,6 +59,20 @@ With the inventory:
 
 3. **Note mixed tooling** — Terraform, Flux, or Helm-only charts co-existing with Argo resources.
 
+4. **Check for duplicate `metadata.name` within a kind+namespace.** Two files declaring
+   the same AppProject or Application is last-apply-wins: whichever syncs last silently
+   overwrites the other, and under either winner some Applications may be rejected by the
+   surviving project's `sourceRepos`/`destinations`. Schema validation cannot catch this —
+   each file is individually valid.
+
+   ```bash
+   grep -rh -A3 '^kind: \(Application\|AppProject\|ApplicationSet\)$' <repo-root> \
+     --include='*.yaml' --include='*.yml' \
+     | awk '/^kind:/{k=$2} /^  name:/{print k"/"$2}' | sort | uniq -d
+   ```
+
+   Any output is a **Critical** finding — report both file paths.
+
 ### Phase 2: Manifest Validation
 
 Run the validation script whenever **any** of `yq`, `kustomize`, or `kubeconform` is
@@ -190,7 +204,10 @@ Prioritized list:
 
 ## Argo CRD Reference
 
-All CRDs use `apiVersion: argoproj.io/v1alpha1`:
+Most CRDs use `apiVersion: argoproj.io/v1alpha1`. **The `ArgoCD` CR is
+`argoproj.io/v1beta1`** (v1alpha1 is deprecated for that kind), as are
+`NamespaceManagement` and the OpenShift GitOps operator CRDs — schemas for those ship in
+`assets/schemas/`. Check the kind before asserting a version:
 
 | Kind | Project | Description |
 |------|---------|-------------|

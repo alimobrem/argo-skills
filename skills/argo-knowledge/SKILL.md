@@ -9,7 +9,7 @@ description: >
   delivery strategies, or designing GitOps repository patterns. Argo Workflows and Argo
   Events are out of scope. Also use when the user asks about Argo best practices,
   common mistakes, or needs to choose between Argo approaches (e.g., app-of-apps vs
-  ApplicationSet, canary vs blue-green, steps vs DAG workflows).
+  ApplicationSet, canary vs blue-green, directory vs branch-per-environment).
 license: MIT
 ---
 
@@ -163,7 +163,7 @@ Use **Rollout** when:
 - **SCM provider** — One Application per repo in a GitHub org or GitLab group. Best for: auto-onboarding repos.
 ## Canonical YAML Patterns
 
-Ten validated starting points live in `references/patterns.md`. **Load that file when the
+Nine validated starting points live in `references/patterns.md`. **Load that file when the
 user needs a manifest** — do not reproduce these from memory.
 
 | # | Pattern | Use when |
@@ -212,7 +212,7 @@ user needs a manifest** — do not reproduce these from memory.
 
 | Topic | Reference File | When to Load |
 |-------|---------------|-------------|
-| 10 canonical YAML patterns (Application, ApplicationSet, Rollout, Workflow, Events, notifications, image updater) | `references/patterns.md` | **Any request to generate or review a manifest** |
+| 9 canonical YAML patterns (Application, multi-source, ApplicationSet, Rollout, notifications, image updater) | `references/patterns.md` | **Any request to generate or review a manifest** |
 | Application spec, **multi-source (`sources[]` + `$values`)**, sync policies, sync waves, health checks, ignore differences, multi-cluster | `references/applications.md` | Questions about Application configuration, multi-source, sync behavior, health, or multi-cluster |
 | ApplicationSet generators, templates, progressive syncs, `preserveResourcesOnDeletion`, `ignoreApplicationDifferences` | `references/applicationsets.md` | Questions about ApplicationSet generators, templating, progressive rollout, or suppressing drift on generated Applications |
 | AppProject RBAC, source/destination restrictions, sync windows | `references/app-projects.md` | Questions about RBAC, project policies, sync windows |
