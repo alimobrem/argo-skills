@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 452" fill="none">
+  <defs>
+    <linearGradient id="tbg5" x1="0" y1="0" x2="0" y2="452">
+      <stop offset="0%" stop-color="#1a1b26"/>
+      <stop offset="100%" stop-color="#16161e"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Window -->
+  <rect width="820" height="452" rx="10" fill="url(#tbg5)"/>
+  <!-- Title bar -->
+  <rect width="820" height="36" rx="10" fill="#24283b"/>
+  <rect y="26" width="820" height="10" fill="#24283b"/>
+  <circle cx="20" cy="18" r="6" fill="#f7768e"/>
+  <circle cx="40" cy="18" r="6" fill="#e0af68"/>
+  <circle cx="60" cy="18" r="6" fill="#9ece6a"/>
+  <text x="410" y="22" font-family="'SF Mono', 'Fira Code', monospace" font-size="12" fill="#565f89" text-anchor="middle">argo-performance-tuning — repo-server OOMKilled at scale</text>
+
+  <!-- Content -->
+  <g transform="translate(24, 52)" font-family="'SF Mono', 'Fira Code', Consolas, monospace" font-size="12.5">
+
+    <!-- Phase 1: Assess -->
+    <rect x="0" y="0" width="64" height="18" rx="4" fill="#7aa2f7" opacity="0.2"/>
+    <text x="8" y="13" fill="#7aa2f7" font-size="10" font-weight="700">ASSESS</text>
+    <text x="74" y="13" fill="#565f89">Scale signals and install type</text>
+
+    <text y="36" fill="#565f89">$</text>
+    <text x="16" y="36" fill="#c0caf5">oc get argocd -A</text>
+    <text y="54" fill="#9ece6a">openshift-gitops   openshift-gitops   (operator-managed, v1beta1)</text>
+
+    <text y="76" fill="#565f89">Applications</text><text x="150" y="76" fill="#c0caf5">512</text>
+    <text x="210" y="76" fill="#565f89">Clusters</text><text x="300" y="76" fill="#c0caf5">1</text>
+    <text x="350" y="76" fill="#565f89">repo-server replicas</text><text x="530" y="76" fill="#c0caf5">1</text>
+
+    <text y="98" fill="#565f89">repo-server restarts</text>
+    <text x="180" y="98" fill="#f7768e">14</text>
+    <text x="205" y="98" fill="#565f89">last=</text>
+    <text x="245" y="98" fill="#f7768e" font-weight="700">OOMKilled</text>
+
+    <!-- Phase 2: Diagnose -->
+    <rect x="0" y="120" width="76" height="18" rx="4" fill="#bb9af7" opacity="0.2"/>
+    <text x="8" y="133" fill="#bb9af7" font-size="10" font-weight="700">DIAGNOSE</text>
+    <text x="86" y="133" fill="#565f89">Symptom → bottleneck → setting</text>
+
+    <text y="156" fill="#565f89">symptom</text>
+    <text x="90" y="156" fill="#c0caf5">OOMKilled during mass sync on a 512-app monorepo</text>
+    <text y="174" fill="#565f89">cause</text>
+    <text x="90" y="174" fill="#c0caf5">unbounded concurrent manifest generation</text>
+    <text y="192" fill="#565f89">not</text>
+    <text x="90" y="192" fill="#565f89">a memory-limit problem — raising limits masks it</text>
+
+    <!-- Phase 3: Tune -->
+    <rect x="0" y="214" width="56" height="18" rx="4" fill="#e0af68" opacity="0.2"/>
+    <text x="8" y="227" fill="#e0af68" font-size="10" font-weight="700">TUNE</text>
+    <text x="66" y="227" fill="#565f89">Generate → Preview → Confirm</text>
+
+    <rect x="0" y="240" width="772" height="80" rx="6" fill="#1f2335" stroke="#2a2e42"/>
+    <text x="12" y="258" fill="#7dcfff">spec:</text>
+    <text x="28" y="274" fill="#7dcfff">repo:</text>
+    <text x="44" y="290" fill="#7dcfff">env:</text>
+    <text x="56" y="306" fill="#9ece6a">- name: ARGOCD_REPO_SERVER_PARALLELISM_LIMIT</text>
+    <text x="420" y="306" fill="#565f89">value: "20"</text>
+    <text x="540" y="274" fill="#565f89" font-size="11">← ArgoCD CR, not a ConfigMap</text>
+
+    <text y="340" fill="#565f89">$</text>
+    <text x="16" y="340" fill="#c0caf5">oc patch argocd openshift-gitops -n openshift-gitops --dry-run=server</text>
+
+    <!-- Confirmation gate -->
+    <rect x="0" y="352" width="772" height="30" rx="6" fill="#e0af68" opacity="0.12" stroke="#e0af68" stroke-opacity="0.4"/>
+    <text x="12" y="371" fill="#e0af68" font-weight="700">?</text>
+    <text x="30" y="371" fill="#c0caf5">Apply this? (yes/no)</text>
+    <text x="200" y="371" fill="#565f89">— waits for explicit approval before any write</text>
+  </g>
+</svg>

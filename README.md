@@ -5,9 +5,11 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
   <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome"></a>
-  <img src="https://img.shields.io/badge/Argo%20CD-v2.14+-EF7B4D.svg" alt="Argo CD">
-  <img src="https://img.shields.io/badge/Rollouts-v1.8+-EF7B4D.svg" alt="Argo Rollouts">
   <img src="https://img.shields.io/badge/OpenShift%20GitOps-1.19+-EE0000.svg" alt="OpenShift GitOps">
+  <img src="https://img.shields.io/badge/Argo%20CD-v2.14+%20%7C%20v3.x-EF7B4D.svg" alt="Argo CD">
+  <img src="https://img.shields.io/badge/Rollouts-v1.8+-EF7B4D.svg" alt="Argo Rollouts">
+  <img src="https://img.shields.io/badge/skills-6-8A63D2.svg" alt="6 skills">
+  <img src="https://img.shields.io/badge/evals-86-3FB950.svg" alt="86 evals">
 </p>
 
 <p align="center">
@@ -141,7 +143,11 @@ You don't need to invoke skills manually — just describe what you need.
 
 ### Knowledge — Ask Questions & Generate YAML
 
-Use when you need to understand Argo concepts or generate manifests.
+<p align="center">
+  <img src="assets/screenshots/knowledge-preview.svg" alt="Knowledge Preview" width="820"/>
+</p>
+
+Use when you need to understand OpenShift GitOps concepts or generate manifests.
 
 ```text
 # Generate manifests
@@ -176,6 +182,7 @@ Generate an ArgoCD CR for the OpenShift GitOps operator with OAuth and Routes.
 | argocd-agent hub-and-spoke architecture | `agent-mode.md` |
 | Multi-tenancy, apps-in-any-namespace, Autopilot | `multi-tenancy.md` |
 | OpenShift GitOps Operator, ArgoCD CRD, Routes, SCCs, OAuth | `openshift.md` |
+| **Operator-only CRDs** — RolloutManager, NotificationsConfiguration, NamespaceManagement, ImageUpdater, GitopsService | `openshift-gitops-operator.md` |
 | GitOps Promoter, PromotionStrategy, branch-per-env promotion, commit status gating | `gitops-promoter.md` |
 
 </details>
@@ -285,7 +292,11 @@ Destructive operations (delete, prune, rollback) require typing the resource nam
 
 ### Performance Tuning — Diagnose & Fix Slowness at Scale
 
-Use when Argo CD/OpenShift GitOps is slow, resource-hungry, or struggling at scale.
+<p align="center">
+  <img src="assets/screenshots/performance-preview.svg" alt="Performance Tuning Preview" width="820"/>
+</p>
+
+Use when OpenShift GitOps is slow, resource-hungry, or struggling at scale.
 
 ```text
 # Repo-server under pressure
@@ -405,6 +416,32 @@ Production should require manual approval.
 
 Evals test **outcomes** (issues found, report quality), not process (which tools were used).
 Tested on real repos and a live OpenShift cluster.
+
+> ### ⚠️ These scores are a historical record, not a current measurement
+>
+> The numbers below were produced against earlier eval sets. Since then the suites have
+> changed materially, so **they are not reproducible from the current `evals.json` files
+> and should not be read as the present state**:
+>
+> | Skill | Scored against | Now | What changed |
+> |---|---|---|---|
+> | `argo-knowledge` | 8 evals | **16** | +5 operator CRDs, +3 best-practices / repo-patterns / secrets |
+> | `argo-cluster-debug` | 13 | **9** | −4 Workflows/Events evals removed as out of scope |
+> | `argo-repo-audit` | 13 | **12** | −1 WorkflowTemplate eval removed |
+> | `argo-operations` | 13 | **13** | unchanged in count |
+> | `argo-performance-tuning` | 14 | **21** | +7 from the earlier web-research pass |
+> | `argo-team-onboard` | 13 | **15** | +2 for the values-based model and security baseline |
+>
+> Separately — and more importantly — **three expectations were found grading *for* output
+> the API server rejects or silently prunes** (`preserveResourcesOnDeletion` at spec level,
+> `oci://` in `repoURL`, `ArgoCDCommitStatus.gitRepositoryRef`), plus two asserting
+> removed fields (`spec.dex`, CronWorkflow `spec.schedule`). Those are fixed, and
+> `make test-expectations` now validates every asserted field path against the CRD schemas
+> in CI — but it does mean the affected prompts were previously scored against the wrong
+> answer.
+>
+> **Re-running the suites is the top outstanding task.** Four of six skills need a live
+> cluster, so `make eval-*` locally is the path; CI can only run the two that don't.
 
 <table>
 <thead>
@@ -552,16 +589,33 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 # Install prerequisites (macOS)
 brew bundle
 
-# Download Argo CRD schemas for validation
+# Download Argo CRD schemas for validation (12 schemas, every in-scope kind)
 make download-schemas
 
-# Run tests
-make test-discover
-make test-validate
+# Checks — all of these also run in CI
+make test-discover        # discovery script against the test fixtures
+make test-validate        # YAML syntax, schema validation, kustomize builds
+make test-registration    # every skill registered in manifests, agent, banner, README, CI
+make test-expectations    # eval expectations' field paths resolve against the CRD schemas
 
-# Run evals
-make eval
+# Evals
+make eval                 # all six skills
+make eval-knowledge              # no cluster needed
+make eval-repo-audit             # no cluster needed
+make eval-cluster-debug          # needs a live cluster
+make eval-operations             # needs a live cluster
+make eval-performance-tuning     # needs a live cluster
+make eval-team-onboard           # needs a live cluster
 ```
+
+Two guards worth knowing about, because they catch the mistakes that actually happened here:
+
+- **`make test-registration`** — a new skill cannot be added without being wired into the
+  marketplace manifest, agent definition, Makefile eval targets, banner, README and eval
+  workflow. The banner silently lagged two skills behind before this existed.
+- **`make test-expectations`** — resolves every `spec.*` path asserted in an eval against
+  the committed CRD schemas. Three expectations were found grading *for* manifests the API
+  server rejects or prunes; this stops that recurring.
 
 See [AGENTS.md](AGENTS.md) for the repo layout, skill conventions, and eval runner instructions.
 
