@@ -44,8 +44,6 @@ Generate a multi-source Application combining a Helm chart from OCI with
 Set up Slack notifications for sync failures with Block Kit formatting
   and GitHub commit status via GitHub App.
 
-# Events
-Create an EventSource + Sensor that triggers a Workflow on GitHub push to main.
 
 # OpenShift
 Generate an ArgoCD CR for the OpenShift GitOps operator with OAuth, Routes,

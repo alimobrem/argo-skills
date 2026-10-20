@@ -1,13 +1,15 @@
 ---
 name: argo-operations
 description: >
-  Set up, deploy, promote, and manage Argo ecosystem resources on live Kubernetes
-  and OpenShift clusters. Covers Argo CD installation (Helm, operator, Autopilot),
+  Set up, deploy, promote, and manage Red Hat OpenShift GitOps resources on live
+  OpenShift and Kubernetes clusters. Covers Argo CD installation (OpenShift GitOps
+  operator, Helm, Autopilot),
   Application and ApplicationSet lifecycle, Rollout promotion and rollback, and
   day-2 operations (upgrades, API migration, scaling replica counts). Every write operation uses
   dry-run first and requires explicit user confirmation before applying. Use when
   users want to install Argo CD, create or sync Applications, promote Rollouts,
-  or perform operational changes on their Argo setup.
+  or perform operational changes on their OpenShift GitOps setup. Argo Workflows and
+  Argo Events are out of scope.
 license: MIT
 compatibility: Requires oc or kubectl; optionally argocd, argo, kubectl-argo-rollouts, helm
 ---

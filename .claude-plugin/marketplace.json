@@ -5,13 +5,13 @@
     "url": "https://github.com/alimobrem/argo-skills"
   },
   "metadata": {
-    "description": "AI skills for GitOps engineering with the Argo ecosystem and Kubernetes",
+    "description": "AI skills for Red Hat OpenShift GitOps \u2014 Argo CD and Argo Rollouts on OpenShift",
     "version": "0.0.1"
   },
   "plugins": [
     {
       "name": "argo-skills",
-      "description": "Collection of skills for Argo CD, Rollouts, Workflows, and Events — knowledge, manifest generation, repository auditing, cluster debugging, operations, and performance tuning",
+      "description": "Skills for Red Hat OpenShift GitOps (Argo CD + Argo Rollouts) \u2014 knowledge and manifest generation, repository auditing, live cluster debugging, operations, performance tuning, and GitOps-first team onboarding",
       "source": "./",
       "strict": false,
       "skills": [

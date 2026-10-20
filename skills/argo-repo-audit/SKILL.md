@@ -87,12 +87,10 @@ from `assets/schemas/`), and Kustomize overlay builds.
 - **Secrets are not inspected here.** The script runs kubeconform with `-skip=Secret`, so
   a validate-only run can never surface a plain-text Secret. Those are Phase 4 findings.
   Never let a clean Pass 2 imply the repo is free of hardcoded credentials.
-- **Only Argo CD and Rollouts schemas ship** in `assets/schemas/` (Application,
-  AppProject, ApplicationSet, Rollout, AnalysisTemplate, AnalysisRun, Experiment).
-  Workflows and Events kinds (Workflow, WorkflowTemplate, CronWorkflow, EventSource,
-  EventBus, Sensor) have no local schema and are passed over via
-  `-ignore-missing-schemas`. A Workflow-heavy repo gets little schema coverage even with
-  every tool installed — say so instead of reporting it as validated.
+- **Schemas ship for every in-scope kind** — Application, AppProject, ApplicationSet,
+  ArgoCD, Rollout, AnalysisTemplate, AnalysisRun, Experiment. Argo Workflows and Argo
+  Events kinds are out of scope for OpenShift GitOps; if a repo contains them, note that
+  they were not validated rather than silently passing over them.
 
 **If none of the three tools are available** (exit code `2`), skip this phase and note it:
 "Schema validation skipped — install yq, kustomize, kubeconform for deeper validation."
@@ -204,10 +202,3 @@ All CRDs use `apiVersion: argoproj.io/v1alpha1`:
 | ClusterAnalysisTemplate | Argo Rollouts | Cluster-scoped AnalysisTemplate |
 | AnalysisRun | Argo Rollouts | Instance of an analysis execution |
 | Experiment | Argo Rollouts | Temporary ReplicaSet for A/B testing |
-| Workflow | Argo Workflows | DAG/step-based job execution |
-| WorkflowTemplate | Argo Workflows | Reusable workflow definition |
-| ClusterWorkflowTemplate | Argo Workflows | Cluster-scoped WorkflowTemplate |
-| CronWorkflow | Argo Workflows | Scheduled workflow execution |
-| EventSource | Argo Events | Event ingestion (webhooks, SNS, SQS, etc.) |
-| EventBus | Argo Events | Event transport (NATS, Jetstream, Kafka) |
-| Sensor | Argo Events | Event-driven trigger execution |

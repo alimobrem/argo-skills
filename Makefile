@@ -8,8 +8,6 @@ TEST_DIR := tests/argo-repo-audit
 ARGOCD_VERSION := v2.14.14
 ARGOCD_OPERATOR_VERSION := v0.18.0
 ROLLOUTS_VERSION := v1.8.2
-WORKFLOWS_VERSION := v4.1.5
-EVENTS_VERSION := v1.9.11
 
 .PHONY: help download-schemas clean-schemas test-discover test-validate test-registration test-expectations eval eval-knowledge eval-repo-audit eval-cluster-debug eval-operations eval-performance-tuning eval-team-onboard
 
@@ -50,15 +48,6 @@ download-schemas: ## Download Argo CRD schemas for kubeconform validation
 	$(call fetch_schema,argo-cd,$(ARGOCD_VERSION),applicationset-crd.yaml,applicationset-argoproj-v1alpha1)
 	@echo "Downloading ArgoCD CR schema (argocd-operator $(ARGOCD_OPERATOR_VERSION))..."
 	$(call fetch_schema_url,https://raw.githubusercontent.com/argoproj-labs/argocd-operator/$(ARGOCD_OPERATOR_VERSION)/config/crd/bases/argoproj.io_argocds.yaml,argocd-argoproj-v1beta1)
-	@echo "Downloading Argo Workflows CRDs ($(WORKFLOWS_VERSION))..."
-	$(call fetch_schema_url,https://raw.githubusercontent.com/argoproj/argo-workflows/$(WORKFLOWS_VERSION)/manifests/base/crds/full/argoproj.io_workflows.yaml,workflow-argoproj-v1alpha1)
-	$(call fetch_schema_url,https://raw.githubusercontent.com/argoproj/argo-workflows/$(WORKFLOWS_VERSION)/manifests/base/crds/full/argoproj.io_cronworkflows.yaml,cronworkflow-argoproj-v1alpha1)
-	$(call fetch_schema_url,https://raw.githubusercontent.com/argoproj/argo-workflows/$(WORKFLOWS_VERSION)/manifests/base/crds/full/argoproj.io_workflowtemplates.yaml,workflowtemplate-argoproj-v1alpha1)
-	$(call fetch_schema_url,https://raw.githubusercontent.com/argoproj/argo-workflows/$(WORKFLOWS_VERSION)/manifests/base/crds/full/argoproj.io_clusterworkflowtemplates.yaml,clusterworkflowtemplate-argoproj-v1alpha1)
-	@echo "Downloading Argo Events CRDs ($(EVENTS_VERSION))..."
-	$(call fetch_schema_url,https://raw.githubusercontent.com/argoproj/argo-events/$(EVENTS_VERSION)/manifests/base/crds/argoproj.io_eventsources.yaml,eventsource-argoproj-v1alpha1)
-	$(call fetch_schema_url,https://raw.githubusercontent.com/argoproj/argo-events/$(EVENTS_VERSION)/manifests/base/crds/argoproj.io_sensors.yaml,sensor-argoproj-v1alpha1)
-	$(call fetch_schema_url,https://raw.githubusercontent.com/argoproj/argo-events/$(EVENTS_VERSION)/manifests/base/crds/argoproj.io_eventbus.yaml,eventbus-argoproj-v1alpha1)
 	@echo "Downloading Argo Rollouts CRDs ($(ROLLOUTS_VERSION))..."
 	$(call fetch_schema,argo-rollouts,$(ROLLOUTS_VERSION),rollout-crd.yaml,rollout-argoproj-v1alpha1)
 	$(call fetch_schema,argo-rollouts,$(ROLLOUTS_VERSION),analysis-template-crd.yaml,analysistemplate-argoproj-v1alpha1)

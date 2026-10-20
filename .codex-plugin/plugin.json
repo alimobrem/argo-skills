@@ -3,7 +3,7 @@
     "name": "The Argo Skills authors",
     "url": "https://github.com/alimobrem/argo-skills"
   },
-  "description": "Skills to transform AI Agents into Argo GitOps Engineers",
+  "description": "Skills to turn AI agents into Red Hat OpenShift GitOps engineers",
   "homepage": "https://github.com/alimobrem/argo-skills",
   "interface": {
     "capabilities": [
@@ -11,10 +11,10 @@
       "Write"
     ],
     "category": "Developer Tools",
-    "displayName": "Argo GitOps Skills",
-    "longDescription": "Collection of reusable AI skills for the Argo ecosystem — Argo CD, Rollouts, Workflows, and Events. Covers knowledge and manifest generation, repository auditing, live cluster debugging, operations (install, deploy, promote, maintain), performance and scale tuning, and team onboarding.",
-    "shortDescription": "Skills to transform AI Agents into Argo GitOps Engineers",
-    "websiteURL": "https://argoproj.github.io/"
+    "displayName": "OpenShift GitOps Skills",
+    "longDescription": "Skills for Red Hat OpenShift GitOps \u2014 the productized Argo CD distribution. Covers Argo CD and Argo Rollouts as shipped by the OpenShift GitOps operator: knowledge and manifest generation, repository auditing, live cluster debugging, operations (install, deploy, promote, maintain), performance and scale tuning, and GitOps-first team onboarding. Argo Workflows and Argo Events are out of scope \u2014 they are separate upstream projects not shipped by the operator.",
+    "shortDescription": "Skills to turn AI agents into Red Hat OpenShift GitOps engineers",
+    "websiteURL": "https://docs.redhat.com/en/documentation/red_hat_openshift_gitops"
   },
   "license": "MIT",
   "name": "argo-skills",

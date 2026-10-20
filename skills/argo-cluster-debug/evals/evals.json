@@ -48,34 +48,6 @@
     },
     {
       "id": 4,
-      "name": "Workflow build-pipeline failing",
-      "prompt": "My Argo Workflow build-pipeline in the argo namespace keeps failing at the docker-build step. Debug it.",
-      "expectations": [
-        "Retrieves the Workflow and identifies its phase as Failed",
-        "Identifies the failed node (docker-build) from status.nodes",
-        "Gets logs for the failed pod",
-        "Checks for common failure patterns (OOMKilled, ImagePullBackOff, permission denied)",
-        "Checks resource limits on the docker-build template",
-        "Checks ServiceAccount permissions",
-        "Produces a report with root cause and recommendations"
-      ]
-    },
-    {
-      "id": 5,
-      "name": "EventSource not receiving events",
-      "prompt": "The EventSource github-webhook in the events namespace isn't receiving events. Debug it.",
-      "expectations": [
-        "Retrieves the EventSource and checks its status conditions",
-        "Verifies the EventBus exists and its pods are running",
-        "Checks EventSource pod status and logs",
-        "Checks if the webhook Service/Ingress/Route is configured",
-        "Checks associated Sensor status",
-        "Analyzes connectivity (webhook reachable, firewall, DNS)",
-        "Produces a report with root cause and recommendations"
-      ]
-    },
-    {
-      "id": 6,
       "name": "ApplicationSet not generating expected Applications",
       "prompt": "My ApplicationSet team-apps in the argocd namespace uses a git directory generator but isn't creating any Application resources for the new service directories I added. Debug it.",
       "expectations": [
@@ -88,7 +60,7 @@
       ]
     },
     {
-      "id": 7,
+      "id": 5,
       "name": "ApplicationSet RollingSync stuck on production step",
       "prompt": "Our ApplicationSet uses a RollingSync strategy across staging and production. Staging has been updated but production apps haven't started syncing. Why?",
       "expectations": [
@@ -101,7 +73,7 @@
       ]
     },
     {
-      "id": 8,
+      "id": 6,
       "name": "Blue-green rollout stuck at preview, never promotes",
       "prompt": "The blue-green rollout for checkout-api in namespace prod has been sitting at the preview stage for an hour and autoPromotionEnabled is false. The team expected it to analyze automatically. Debug it.",
       "expectations": [
@@ -114,33 +86,7 @@
       ]
     },
     {
-      "id": 9,
-      "name": "Sensor not triggering despite EventSource receiving events",
-      "prompt": "The EventSource is receiving GitHub webhook events fine (I can see them in the logs), but the Sensor never fires its Workflow trigger. Debug it.",
-      "expectations": [
-        "Confirms the EventSource is healthy and receiving events, distinguishing this from an EventSource-side problem",
-        "Retrieves the Sensor and checks its status conditions (Deployed, DependenciesProvided, SensorReady, TriggersProvided)",
-        "Inspects the Sensor's dependencies and verifies eventSourceName/eventName match the EventSource's event keys",
-        "Checks filters.data/filters.context for conditions that may be excluding the incoming events",
-        "Checks Sensor pod logs for event receipt and trigger evaluation",
-        "Produces a report with root cause and recommendations"
-      ]
-    },
-    {
-      "id": 10,
-      "name": "CronWorkflow not firing on schedule",
-      "prompt": "Our CronWorkflow nightly-report hasn't run in 3 days even though the schedule says it should run daily. Debug it.",
-      "expectations": [
-        "Retrieves the CronWorkflow and checks status.lastScheduledTime and status.active",
-        "Checks spec.schedules (a LIST, v3.6+ \u2014 the singular spec.schedule was removed) and spec.timezone for correctness",
-        "Checks spec.concurrencyPolicy and whether a previous run is still marked active, blocking new runs",
-        "Checks spec.startingDeadlineSeconds for missed-schedule handling",
-        "Checks the workflow-controller logs for cron scheduling errors",
-        "Produces a report with root cause and recommendations"
-      ]
-    },
-    {
-      "id": 11,
+      "id": 7,
       "name": "Ambiguous debug request with multiple Argo CD instances",
       "prompt": "Something's wrong with Argo CD on this cluster but I don't know which instance \u2014 we have more than one. Check what's going on.",
       "expectations": [
@@ -152,7 +98,7 @@
       ]
     },
     {
-      "id": 12,
+      "id": 8,
       "name": "Suspended Application reported as broken",
       "prompt": "My Application billing-service in namespace finance shows as Suspended and the team thinks it's broken. Debug it.",
       "expectations": [
@@ -164,7 +110,7 @@
       ]
     },
     {
-      "id": 13,
+      "id": 9,
       "name": "Multi-source Application with one failing source",
       "prompt": "My Application platform-ui uses multiple sources \u2014 a Helm chart and a separate values repo. It's OutOfSync and I don't know which source is the problem.",
       "expectations": [

@@ -3,7 +3,8 @@
 
 # Canonical YAML Patterns
 
-Eleven validated starting points covering the four Argo projects. Every manifest uses
+Nine validated starting points covering Argo CD and Argo Rollouts as shipped by
+OpenShift GitOps. Every manifest uses
 `apiVersion: argoproj.io/v1alpha1` and real field names from the Argo CRD schemas.
 
 | # | Pattern | Project |
@@ -14,11 +15,9 @@ Eleven validated starting points covering the four Argo projects. Every manifest
 | 4 | ApplicationSet with cluster generator + matrix | Argo CD |
 | 5 | Rollout with canary strategy + AnalysisTemplate | Rollouts |
 | 6 | Rollout with blue-green strategy | Rollouts |
-| 7 | Workflow DAG pattern | Workflows |
-| 8 | EventSource + Sensor triggering a Workflow | Events |
-| 9 | Notifications config (`argocd-notifications-cm`) | Argo CD |
-| 10 | Image updater annotations | Argo CD |
-| 11 | Multi-source Application (chart + external values) | Argo CD |
+| 7 | Notifications config (`argocd-notifications-cm`) | Argo CD |
+| 8 | Image updater annotations | Argo CD |
+| 9 | Multi-source Application (chart + external values) | Argo CD |
 
 ## Pattern 1: Application with Helm Source
 
@@ -340,209 +339,7 @@ spec:
             value: my-app
 ```
 
-## Pattern 7: Workflow DAG Pattern
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Workflow
-metadata:
-  generateName: ci-pipeline-
-  namespace: argo
-spec:
-  entrypoint: ci-pipeline
-  serviceAccountName: argo-workflow
-  arguments:
-    parameters:
-      - name: repo-url
-        value: https://github.com/org/my-app.git
-      - name: revision
-        value: main
-      - name: image
-        value: registry.example.com/my-app
-  templates:
-    - name: ci-pipeline
-      dag:
-        tasks:
-          - name: checkout
-            template: git-clone
-            arguments:
-              parameters:
-                - name: repo-url
-                  value: '{{workflow.parameters.repo-url}}'
-                - name: revision
-                  value: '{{workflow.parameters.revision}}'
-          - name: unit-test
-            template: run-tests
-            dependencies:
-              - checkout
-          - name: lint
-            template: run-lint
-            dependencies:
-              - checkout
-          - name: build-image
-            template: build-push
-            dependencies:
-              - unit-test
-              - lint
-            arguments:
-              parameters:
-                - name: image
-                  value: '{{workflow.parameters.image}}'
-    - name: git-clone
-      inputs:
-        parameters:
-          - name: repo-url
-          - name: revision
-      container:
-        image: alpine/git:latest
-        command: [sh, -c]
-        args:
-          - git clone --branch {{inputs.parameters.revision}} {{inputs.parameters.repo-url}} /work
-        volumeMounts:
-          - name: work
-            mountPath: /work
-    - name: run-tests
-      container:
-        image: golang:1.22
-        command: [sh, -c]
-        args:
-          - cd /work && go test ./...
-        volumeMounts:
-          - name: work
-            mountPath: /work
-    - name: run-lint
-      container:
-        image: golangci/golangci-lint:latest
-        command: [sh, -c]
-        args:
-          - cd /work && golangci-lint run
-        volumeMounts:
-          - name: work
-            mountPath: /work
-    - name: build-push
-      inputs:
-        parameters:
-          - name: image
-      container:
-        image: gcr.io/kaniko-project/executor:latest
-        args:
-          - --context=/work
-          - --destination={{inputs.parameters.image}}:{{workflow.uid}}
-        volumeMounts:
-          - name: work
-            mountPath: /work
-  volumeClaimTemplates:
-    - metadata:
-        name: work
-      spec:
-        accessModes: [ReadWriteOnce]
-        resources:
-          requests:
-            storage: 1Gi
-```
-
-## Pattern 8: EventSource + Sensor Triggering a Workflow
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: EventSource
-metadata:
-  name: github-webhook
-  namespace: argo-events
-spec:
-  service:
-    ports:
-      - port: 12000
-        targetPort: 12000
-  github:
-    push-events:
-      repositories:
-        - owner: my-org
-          names:
-            - my-app
-      webhook:
-        endpoint: /push
-        port: "12000"
-        method: POST
-      events:
-        - push
-      apiToken:
-        name: github-token
-        key: token
-      webhookSecret:
-        name: github-token
-        key: webhook-secret
-      contentType: json
-      active: true
----
-apiVersion: argoproj.io/v1alpha1
-kind: EventBus
-metadata:
-  name: default
-  namespace: argo-events
-spec:
-  jetstream:
-    version: latest
-    replicas: 3
-    persistence:
-      storageClassName: standard
-      accessMode: ReadWriteOnce
-      volumeSize: 20Gi
----
-apiVersion: argoproj.io/v1alpha1
-kind: Sensor
-metadata:
-  name: github-sensor
-  namespace: argo-events
-spec:
-  dependencies:
-    - name: github-push
-      eventSourceName: github-webhook
-      eventName: push-events
-      filters:
-        data:
-          - path: body.ref
-            type: string
-            value:
-              - refs/heads/main
-  triggers:
-    - template:
-        name: trigger-ci
-        argoWorkflow:
-          operation: submit
-          source:
-            resource:
-              apiVersion: argoproj.io/v1alpha1
-              kind: Workflow
-              metadata:
-                generateName: ci-triggered-
-                namespace: argo
-              spec:
-                entrypoint: build
-                arguments:
-                  parameters:
-                    - name: repo-url
-                    - name: revision
-                templates:
-                  - name: build
-                    container:
-                      image: golang:1.22
-                      command: [sh, -c]
-                      args:
-                        - |
-                          echo "Building {{workflow.parameters.repo-url}} at {{workflow.parameters.revision}}"
-          parameters:
-            - src:
-                dependencyName: github-push
-                dataKey: body.repository.clone_url
-              dest: spec.arguments.parameters.0.value
-            - src:
-                dependencyName: github-push
-                dataKey: body.after
-              dest: spec.arguments.parameters.1.value
-```
-
-## Pattern 9: Notifications Config (argocd-notifications-cm)
+## Pattern 7: Notifications Config (argocd-notifications-cm)
 
 ```yaml
 apiVersion: v1
@@ -626,7 +423,7 @@ metadata:
     notifications.argoproj.io/subscribe.on-sync-succeeded.slack: deployments
 ```
 
-## Pattern 10: Image Updater Annotations
+## Pattern 8: Image Updater Annotations
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -673,7 +470,7 @@ The `helm.image-name`/`helm.image-tag` annotations are silently ignored on a Kus
 source, and `write-back-target: kustomization` is ignored on a Helm source — mixing them
 produces an updater that appears configured but never writes anything back.
 
-## Pattern 11: Multi-Source Application (Helm chart + external values)
+## Pattern 9: Multi-Source Application (Helm chart + external values)
 
 GA since v2.6. Use `spec.sources[]` (plural) — **not** `spec.source` — when a chart lives
 in one repo and its values live in another. This is the canonical shape for "chart from a
