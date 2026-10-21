@@ -309,6 +309,37 @@ Use when: user reports ApplicationSet not generating Applications, generating wr
    ```
    Check `rollingSync.steps`, `maxUpdate` values, and whether unhealthy apps are blocking progression.
 
+   **First, check that progressive syncs are switched on at all — on OpenShift GitOps
+   they are not by default.** `RollingSync` is a no-op unless the applicationset
+   controller runs with `--enable-progressive-syncs`. Without it the strategy block is
+   accepted, stored, and **completely ignored**: every Application syncs AllAtOnce while
+   the ApplicationSet still shows `ResourcesUpToDate=True` and reports no error anywhere.
+
+   ```bash
+   # The flag (operator installs do NOT set it by default). Note the label is NOT
+   # prefixed with the CR name, and `range` is used so an empty result prints nothing
+   # instead of crashing with "array index out of bounds" the way .items[0] does.
+   $KCTL get deploy -n "$NS" -l app.kubernetes.io/name=argocd-applicationset-controller \
+     -o jsonpath='{range .items[*]}{.metadata.name}{": "}{.spec.template.spec.containers[0].command}{"\n"}{end}'
+
+   # The tell: RollingSync populates .status.applicationStatus. An empty value or `[]`
+   # alongside a declared rollingSync strategy means the strategy is not running.
+   $KCTL get applicationset <name> -n "$NS" -o jsonpath='{.status.applicationStatus}{"\n"}'
+   ```
+
+   Verified on OpenShift GitOps 1.21.3: an ApplicationSet declaring two `rollingSync`
+   steps had an empty `.status.applicationStatus`, and both generated Applications
+   reached `Synced` at the **same revision** — the production app was never gated behind
+   a staging app that never became Healthy.
+
+   To enable it, set `spec.applicationSet.extraCommandArgs: ["--enable-progressive-syncs"]`
+   on the **`ArgoCD` CR**, not on the Deployment — the operator reverts direct Deployment
+   edits. Expect the controller to restart.
+
+   Only once the flag is on do the usual causes apply: a step whose `matchExpressions`
+   match no Application (that step completes vacuously), `maxUpdate` saturated by apps
+   that never converge, or an earlier step whose apps never reach Healthy.
+
 ---
 
 ## Workflow 4: Rollout Debugging
