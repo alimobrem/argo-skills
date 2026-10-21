@@ -177,9 +177,8 @@ metadata:
 type: Opaque
 stringData:
   githubAppPrivateKey: |
-    -----BEGIN RSA PRIVATE KEY-----
-    <your-private-key>
-    -----END RSA PRIVATE KEY-----
+    <paste the GitHub App's PEM private key here, including its
+     BEGIN/END lines, indented to this level>
 ---
 apiVersion: promoter.argoproj.io/v1alpha1
 kind: ScmProvider

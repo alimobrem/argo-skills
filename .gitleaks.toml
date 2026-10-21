@@ -36,4 +36,11 @@
   # committed anywhere outside this corpus is still caught.
   paths = [
     '''^tests/argo-repo-audit/''',
+
+    # Machine-generated grader verdicts. These quote snippets of the skills' own
+    # documentation back as evidence, so a doc example containing a PEM header
+    # reappears here as a "finding". They are scan output, never a place a real
+    # credential would be authored. Regexes are a poor fit for private keys
+    # (gitleaks matches a portion of a multiline secret), so this is path-scoped.
+    '''^benchmarks/results''',
   ]
