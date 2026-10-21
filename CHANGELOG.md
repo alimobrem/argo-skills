@@ -4,6 +4,51 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — argo-operations: the verification gap the benchmark exposed
+
+`argo-operations` was the one skill that **lost** to its unaided baseline (90.1% vs
+93.8%). All four of its outright failures were the same category, and the stored
+per-expectation verdicts named it precisely:
+
+| Eval | Expectation that failed | Baseline |
+|------|------------------------|----------|
+| 4 — upgrade | "Includes post-upgrade verification steps" | PASS |
+| 7 — Helm install | "Verifies installation with `kubectl get pods` after apply" | PASS |
+| 10 — abort/retry | "Reports the rollout's resulting phase after each step" | PARTIAL |
+| 11 — credential rotation | "Includes a verification step after rotation" | PASS |
+
+The safety model was **Generate → Preview → Confirm** — three steps, ending at the gate.
+It never said "now check it worked". The baseline verified after acting, which is the
+whole of the difference.
+
+**Adds Step 4: Verify**, with a per-operation table (create/update, operator-managed
+change, install, upgrade, sync, rollout promote/abort/retry, credential rotation,
+delete) and four rules: report the output rather than claiming success, allow for
+reconciliation lag, state failures plainly without auto-remediating, and summarise
+read-only operations too. A fifth rule covers the case that actually caused three of the
+four misses — **if the operation could not be executed, still state the verification
+plan**. Dropping verification because nothing was applied is how this step disappears.
+
+Procedure-level fixes, each targeting a specific failed expectation:
+
+- **Abort/retry** now report the resulting phase with the expected end state named
+  (`Degraded` + `abort: true` for abort; `Progressing` → `Healthy` for retry), plus the
+  point the baseline made and the skill missed: **abort → retry is a loop, not a fix** —
+  retry re-runs the same spec, so read the AnalysisRun failure first.
+- **Upgrade** gains a four-part check, including that the CSV phase is authoritative and
+  the Subscription's `state` is not — it reports `AtLatestKnown` while the CSV behind it
+  is stuck, which is exactly what this cluster has been doing for 47 days.
+- **Credential rotation** gains a connectivity test and a hard refresh. A credential that
+  applies cleanly and cannot authenticate is the entire failure mode.
+- **OpenShift operator install verification was broken**: it used
+  `-l app.kubernetes.io/part-of=argocd`, which the operator does not set on pods —
+  measured 0 of 9 on this cluster. A healthy install reported as "nothing deployed".
+  Now enumerates pods and checks the ArgoCD CR phase.
+
+Re-running the suite is the test of whether this closes the gap; it has not been re-run
+yet, so the published −3.6 stands until it is.
+
+
 ### Added — real benchmark numbers, measured both ways
 
 Ran all six suites twice against a live OpenShift cluster: once with the skills, once

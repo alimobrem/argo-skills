@@ -24,7 +24,12 @@ audit repos, and diagnose problems without changes. This skill **acts**.
 
 ## Safety Model
 
-**Every write operation follows a 3-step protocol: Generate, Preview, Confirm.**
+**Every write operation follows a 4-step protocol: Generate, Preview, Confirm, Verify.**
+
+The fourth step is not optional. A benchmark run found this skill losing to an unaided
+baseline on exactly one thing: it stopped at the confirmation gate and never checked that
+the change worked. Applying without verifying is how a "successful" upgrade is discovered
+to be broken hours later.
 
 **Read-only operations** (backup/export, status checks, version queries) do NOT require
 confirmation — just execute them and report results. The safety model applies only to
@@ -76,6 +81,40 @@ Ask the user explicitly: **"Apply this? (yes/no)"**
 Do not proceed without an affirmative response. Acceptable confirmations: "yes", "y",
 "apply", "do it", "go ahead", "ship it". Anything else is a no.
 
+### Step 4: Verify
+
+**After every applied change, check that it actually took effect, and show the user the
+output.** An apply that returns `configured` means the API accepted your object — not
+that the operator reconciled it, the pods rolled, or the thing you wanted is true.
+
+| Operation | Verify with |
+|-----------|-------------|
+| Create/update a resource | `$KCTL get <kind> <name> -n "$NS" -o yaml` — confirm the field you set is actually present (the operator may reconcile it away) |
+| Operator-managed change (ArgoCD CR) | `$KCTL get argocd <name> -n "$NS" -o jsonpath='{.status}'` then confirm the affected pods restarted: `$KCTL get pods -n "$NS"` |
+| Install | `$KCTL get pods -n "$NS"` — every component `Running` and `READY`; then `$KCTL get argocd -A` |
+| Upgrade | `$KCTL get csv -n <operator-ns>` is `Succeeded` (**not** Subscription `state`, which reports `AtLatestKnown` while the CSV is stuck), plus component versions and pod health |
+| Sync an Application | `argocd app get <name> --refresh` or `$KCTL get applications.argoproj.io <name> -n "$NS" -o jsonpath='sync={.status.sync.status} health={.status.health.status}'` |
+| Promote/abort/retry a Rollout | `kubectl argo rollouts get rollout <name> -n <ns>` — report the **resulting phase**, not just that the command returned |
+| Credential rotation | `argocd repo get <url>` or a connectivity test — a credential that applies cleanly and cannot authenticate is the whole failure mode |
+| Delete | confirm it is gone *and* that nothing you did not intend went with it (check for cascading finalizer deletions) |
+
+Rules for this step:
+
+1. **Report the verification output**, do not just claim success. "Applied and verified"
+   with no command output is not a verification.
+2. **Allow for reconciliation lag.** Operator-managed and Argo-managed changes are not
+   instant. If the first check does not show the expected state, say so and re-check
+   rather than declaring success or failure immediately.
+3. **If verification fails, say so plainly** and do not auto-remediate. Report what you
+   observed versus what you expected and let the user decide.
+4. **Read-only operations still get a result summary** — a backup reports what it wrote
+   and, critically, what it did *not* capture.
+5. **If the operation could not be executed, still state the verification plan.** Missing
+   tool, absent resource, unreachable cluster, or stopping at the confirmation gate — name
+   the checks you *would* run and what each should show. Dropping verification because
+   nothing was applied is the most common way this step gets skipped, and it leaves the
+   user with no way to tell afterwards whether it worked.
+
 ### Safety Rules
 
 These are hard constraints. Violating any of them is a blocker.
@@ -88,8 +127,10 @@ These are hard constraints. Violating any of them is a blocker.
 4. **For destructive operations (delete, prune, rollback), require the user to type
    the resource name.** Do not accept "yes" alone for destructive ops. Ask:
    "Type the resource name `<name>` to confirm deletion."
-5. **Log every applied change.** After each successful apply, report:
+5. **Log every applied change, then verify it.** After each successful apply, report:
    `[APPLIED] <timestamp> <kind>/<namespace>/<name> — <action>`
+   followed by the Step 4 verification output. An `[APPLIED]` line on its own is a claim,
+   not evidence.
 6. **If a command fails, show the error and suggest recovery.** Do not retry
    automatically. Let the user decide.
 7. **NEVER run `kubectl delete --all` or `kubectl delete ns` without explicit

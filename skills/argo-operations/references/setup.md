@@ -243,8 +243,12 @@ kubectl diff -f argocd-cr.yaml 2>/dev/null || kubectl apply --dry-run=server --v
 # Apply (after user confirms)
 kubectl apply -f argocd-cr.yaml
 
-# Verify
-kubectl get pods -n openshift-gitops -l app.kubernetes.io/part-of=argocd
+# Verify — do NOT use -l app.kubernetes.io/part-of=argocd here. The operator does not
+# set that label on pods, so the selector returns nothing on a perfectly healthy install
+# and reads as "nothing got deployed". Enumerate instead.
+kubectl get pods -n openshift-gitops -o custom-columns=NAME:.metadata.name,READY:.status.containerStatuses[0].ready,STATUS:.status.phase
+kubectl get argocd -n openshift-gitops -o jsonpath='phase={.items[0].status.phase}{"\n"}'
+# Every component should be Running/true and the ArgoCD CR phase should be Available.
 kubectl get route -n openshift-gitops
 ```
 

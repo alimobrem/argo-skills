@@ -218,9 +218,28 @@ kubectl argo rollouts get rollout <name> -n <namespace> | head -20
 # 2. Promote (after user confirms)
 kubectl argo rollouts promote <name> -n <namespace>
 
-# 3. Monitor
-kubectl argo rollouts get rollout <name> -n <namespace> --watch
+# 3. VERIFY — report the resulting phase
+kubectl argo rollouts get rollout <name> -n <namespace> --watch   # Ctrl-C once it settles
+kubectl get rollout <name> -n <namespace> \
+  -o jsonpath='phase={.status.phase} step={.status.currentStepIndex}{"\n"}'
 ```
+
+**Expected end state:** `phase=Progressing` as it re-enters the canary steps, then
+`Healthy`. If it returns straight to `Degraded`, the retry re-ran the same spec against
+the same failing condition.
+
+> **Abort → retry is a loop, not a fix.** `retry` re-runs the *same* spec. If the rollout
+> failed because its analysis genuinely failed — a real regression, a misconfigured
+> metric query, an unreachable Prometheus — retrying reproduces the failure. Before
+> retrying, read why it aborted:
+>
+> ```bash
+> kubectl get analysisrun -n <namespace> \
+>   -l rollouts-pod-template-hash=<hash> -o yaml | grep -A5 'message\|phase'
+> ```
+>
+> Fix the cause, or change the spec, then let the new revision roll. Retry is for
+> transient failures only.
 
 ### Full Promote (Skip All Remaining Steps)
 
@@ -303,9 +322,15 @@ kubectl argo rollouts get rollout <name> -n <namespace>
 # 2. Abort (after user confirms — destructive, requires resource name confirmation)
 kubectl argo rollouts abort <name> -n <namespace>
 
-# 3. Verify stable is serving
+# 3. VERIFY — and report the resulting phase, not just that the command returned
 kubectl argo rollouts get rollout <name> -n <namespace>
+kubectl get rollout <name> -n <namespace> \
+  -o jsonpath='phase={.status.phase} stable={.status.stableRS} current={.status.currentPodHash}{"\n"}'
 ```
+
+**Expected end state:** `phase=Degraded` with `status.abort: true`, canary ReplicaSet
+scaled to 0, and `stableRS` serving all traffic. State that explicitly in the report —
+"aborted successfully" without the phase is a claim, not a verification.
 
 **After abort:** The Rollout enters `Aborted` phase. To re-deploy, update the Rollout
 spec (e.g., image tag) and it will start a new rollout. Or use `retry`:
@@ -327,9 +352,28 @@ kubectl argo rollouts get rollout <name> -n <namespace>
 # 2. Retry (after user confirms)
 kubectl argo rollouts retry rollout <name> -n <namespace>
 
-# 3. Monitor
-kubectl argo rollouts get rollout <name> -n <namespace> --watch
+# 3. VERIFY — report the resulting phase
+kubectl argo rollouts get rollout <name> -n <namespace> --watch   # Ctrl-C once it settles
+kubectl get rollout <name> -n <namespace> \
+  -o jsonpath='phase={.status.phase} step={.status.currentStepIndex}{"\n"}'
 ```
+
+**Expected end state:** `phase=Progressing` as it re-enters the canary steps, then
+`Healthy`. If it returns straight to `Degraded`, the retry re-ran the same spec against
+the same failing condition.
+
+> **Abort → retry is a loop, not a fix.** `retry` re-runs the *same* spec. If the rollout
+> failed because its analysis genuinely failed — a real regression, a misconfigured
+> metric query, an unreachable Prometheus — retrying reproduces the failure. Before
+> retrying, read why it aborted:
+>
+> ```bash
+> kubectl get analysisrun -n <namespace> \
+>   -l rollouts-pod-template-hash=<hash> -o yaml | grep -A5 'message\|phase'
+> ```
+>
+> Fix the cause, or change the spec, then let the new revision roll. Retry is for
+> transient failures only.
 
 ---
 
