@@ -45,7 +45,9 @@ helm install argocd argo/argo-cd \
   -f values.yaml \
   --wait --timeout 5m
 
-# 5. Verify
+# 5. Verify — this selector is correct for a HELM install (Helm sets the label).
+#    Do NOT copy it to an operator-managed install: the operator does not set
+#    part-of on pods, so it returns nothing on a healthy cluster.
 kubectl get pods -n "$NS" -l app.kubernetes.io/part-of=argocd
 ```
 
@@ -147,7 +149,10 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
   name: openshift-gitops-operator
-  namespace: openshift-operators
+  # The OpenShift GitOps operator installs into its OWN namespace, not the shared
+  # openshift-operators. day2-operations.md assumes openshift-gitops-operator; an
+  # install here and an upgrade there would look in different places.
+  namespace: openshift-gitops-operator
 spec:
   channel: latest
   installPlanApproval: Automatic    # Or Manual for controlled upgrades
