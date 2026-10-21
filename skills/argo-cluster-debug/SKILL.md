@@ -93,7 +93,7 @@ of the investigation, not just finding the first error.
 
 ## Debugging Workflows
 
-Five self-contained workflows live in `references/debug-workflows.md`. Match the reported
+Workflows 1–5 live in `references/debug-workflows.md`; Workflow 6 is inline below. Match the reported
 symptom to a workflow below, **load that file, and work its steps in order** — each step
 builds context for the next. The value is in completing the investigation, not in stopping
 at the first error.
@@ -105,6 +105,38 @@ at the first error.
 | 3 | ApplicationSet Debugging | ApplicationSet not generating Applications, generating the wrong ones, or reporting errors |
 | 4 | Rollout Debugging | Canary or blue-green Rollout stuck, aborted, or degraded |
 | 5 | Log Analysis | Cross-component log correlation when the failing component is not yet known |
+| 6 | Operator / OLM triage | Argo CD itself is misbehaving and the instance looks healthy — upgrade wedged, operator pod crash-looping, CRD conversion webhook failing. See below; this is often upstream of everything else |
+
+### Workflow 6: Operator / OLM triage (OpenShift GitOps)
+
+Not an Argo CD problem but an *operator* problem, and it masquerades as one. Symptoms:
+CR edits revert, a new setting never takes effect, components run an old version, or
+everything is "Available" while nothing you change sticks.
+
+```bash
+# 1. Is the operator itself healthy? Restart count is the tell.
+oc get pods -n openshift-gitops-operator
+
+# 2. CSV phase is authoritative. The Subscription's `state` is NOT — it reports
+#    AtLatestKnown while the CSV behind it is stuck Pending or Replacing.
+oc get csv -n openshift-gitops-operator -o custom-columns=NAME:.metadata.name,PHASE:.status.phase
+oc get subscriptions.operators.coreos.com -n openshift-gitops-operator \
+  -o jsonpath='installedCSV={.items[0].status.installedCSV} state={.items[0].status.state}{"\n"}'
+
+# 3. A failed InstallPlan is the usual blocker
+oc get installplan -n openshift-gitops-operator \
+  -o custom-columns=NAME:.metadata.name,PHASE:.status.phase
+oc describe installplan -n openshift-gitops-operator | grep -A5 -i 'message\|condition'
+
+# 4. Conversion webhook — an empty caBundle or a crash-looping operator pod makes every
+#    ArgoCD CR write fail admission, which looks like "my edits revert"
+oc get crd argocds.argoproj.io \
+  -o jsonpath='{.spec.conversion.webhook.clientConfig.caBundle}{"\n"}' | wc -c
+```
+
+**A zero-length `caBundle`, or an operator pod with hundreds of restarts, means the
+operator cannot reconcile anything.** Fix that before investigating any Argo CD symptom
+downstream of it — otherwise you are debugging the shadow.
 
 Run **Workflow 1 first** whenever Argo CD's own health is unverified — a broken controller
 or repo-server explains most Application-level symptoms, and skipping it leads to
@@ -163,7 +195,7 @@ Handle these scenarios explicitly:
 | Scenario | Behavior |
 |----------|----------|
 | Argo CD not installed (no argocd namespace or CRDs) | Report "Argo CD is not installed on this cluster" and stop Application/AppSet workflows |
-| argocd CLI not logged in | Detect `FATAL: Argo CD server address unspecified` and suggest `argocd login <server>` |
+| argocd CLI not logged in | Detect `{"level":"fatal","msg":"Argo CD server address unspecified",...}` (JSON, not a literal `FATAL:` prefix — grep for `\"level\":\"fatal\"` or just `fatal`) and suggest `argocd login <server>` |
 | Multiple Argo CD instances | If multiple namespaces found, list them and ask user to specify |
 | Application in Progressing state | Note that the resource is actively reconciling — wait 60s and re-check before diagnosing |
 | Suspended Application or Rollout | Report as intentional suspension, do not treat as error unless user says otherwise |

@@ -119,11 +119,24 @@ Use when: user asks if Argo CD is installed, reports general Argo CD failures, o
    argocd version
    ```
    **In `--core` mode this is vacuous** — the CLI *is* the server, so client and server
-   always match. `.status.version` is also empty on the ArgoCD CR, so on an
-   operator-managed instance read the actual version off the image:
+   always match. Three fallbacks, in order, because the obvious ones fail on OpenShift:
+
    ```bash
-   kubectl get deploy -n "$NS" "$CR"-server -o jsonpath='{.spec.template.spec.containers[0].image}'
+   # 1. The CR's status — usually EMPTY on operator-managed instances. Try it, don't rely on it.
+   kubectl get argocd -n "$NS" -o jsonpath='{.items[0].status.version}{"\n"}'
+
+   # 2. The image — on OpenShift this is DIGEST-PINNED, so it gives you a sha256 and no
+   #    version. Useful for pinning down an exact build, useless for "what version is this".
+   kubectl get deploy -n "$NS" "$CR"-server -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
+
+   # 3. The operator CSV — the ONLY reliable source of a human-readable version on an
+   #    operator-managed cluster. Use the CSV's phase too: it is authoritative where the
+   #    Subscription's `state` is not.
+   oc get csv -n openshift-gitops-operator -o custom-columns=NAME:.metadata.name,PHASE:.status.phase
    ```
+
+   Report which source you used. "Version unknown" is a legitimate answer on a
+   digest-pinned install and is better than quoting a sha256 as if it were a version.
    Compare client and server versions. Mismatches beyond minor version can cause issues.
 
 6. Check the argocd-cm ConfigMap for server configuration:
@@ -290,7 +303,9 @@ Use when: user reports ApplicationSet not generating Applications, generating wr
 
 7. For progressive sync issues, check `spec.strategy`:
    ```bash
-   kubectl get applicationset <name> -n "$NS" -o jsonpath='{.spec.strategy}' | python3 -m json.tool
+   kubectl get applicationset <name> -n "$NS" -o jsonpath='{.spec.strategy}' | { read -r s || true; [ -n "$s" ] \
+     && printf '%s' "$s" | python3 -m json.tool \
+     || echo 'no spec.strategy set — this ApplicationSet syncs AllAtOnce'; }
    ```
    Check `rollingSync.steps`, `maxUpdate` values, and whether unhealthy apps are blocking progression.
 
