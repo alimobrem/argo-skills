@@ -130,7 +130,7 @@
       "name": "detect-hardcoded-helm-password",
       "prompt": "Audit the Argo CD GitOps repository at tests/argo-repo-audit/targeted-bugs/hardcoded-helm-password/ using the argo-repo-audit skill. This repo has one Application that deploys a Redis Helm chart with inline values.",
       "expectations": [
-        "Detects the hardcoded password in helm.values (auth.password: EXAMPLE-NotARealSecret#2026) as Critical security issue",
+        "Detects the hardcoded password in helm.values (auth.password: EXAMPLE-password#1) as Critical security issue",
         "Explains the risk: password is visible in Git history and in the Application resource on the cluster",
         "Recommends using a valuesFrom Secret reference, Argo CD Vault Plugin, or ExternalSecret instead",
         "Reports overall status as FAIL due to Critical security finding"

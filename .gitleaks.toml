@@ -1,0 +1,39 @@
+# Gitleaks allowlist for Red Hat PwnedAlert / rh-pre-commit / rh-gitleaks.
+#
+# Only the top-level [allowlist] table is consumed by PwnedAlert; [[rules]] and
+# [rules.allowlist] are ignored. Targets gitleaks v7.6.1. "paths" is used rather
+# than "files" because "files" is removed in later releases.
+#
+# Why this file exists: this repository ships an Argo CD *security auditing* skill,
+# so it necessarily contains a corpus of deliberately-insecure manifests — planted
+# plaintext credentials, wildcard RBAC, insecure TLS — that the audit skill is
+# tested against. Those fixtures are synthetic by construction. Without them the
+# scanner under test has nothing to find.
+
+[allowlist]
+  description = "Synthetic credentials in the argo-repo-audit test corpus"
+
+  # Prefer matching the false-positive VALUE over the path where possible.
+  regexes = [
+    # Current placeholders. Convention: every synthetic credential in this repo
+    # carries an EXAMPLE- prefix, per Red Hat InfoSec guidance on example tokens.
+    '''EXAMPLE-[A-Za-z0-9_.\-#]*''',
+
+    # Retired placeholder, kept so the long-running deep scan stops re-reporting
+    # the two historical commits that contain it. It was never a real credential:
+    # it was the planted value in the hardcoded-helm-password fixture, chosen to
+    # contain a '#' so it would exercise a bug in the audit skill's own comment
+    # filter. Replaced in HEAD by the EXAMPLE- form above.
+    '''Redis!Pr0d#2026''',
+  ]
+
+  # Path-scoped fallback for fixtures whose whole point is to look insecure and
+  # which cannot all be rewritten to an EXAMPLE- form without destroying what they
+  # test (base64 Secret bodies, SSH-key-shaped blobs, basic-auth URLs).
+  #
+  # Scoped deliberately to the audit fixture corpus only — NOT to tests/ as a
+  # whole, and never to skills/, docs/ or benchmarks/, so a real credential
+  # committed anywhere outside this corpus is still caught.
+  paths = [
+    '''^tests/argo-repo-audit/''',
+  ]

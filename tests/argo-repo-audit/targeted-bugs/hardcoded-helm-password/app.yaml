@@ -13,7 +13,7 @@ spec:
       values: |
         auth:
           enabled: true
-          password: "EXAMPLE-NotARealSecret#2026"
+          password: "EXAMPLE-password#1"  # notsecret
         master:
           persistence:
             size: 10Gi
