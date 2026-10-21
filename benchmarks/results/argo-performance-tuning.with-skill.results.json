@@ -2,6 +2,7 @@
  "skill": "argo-performance-tuning",
  "model": "claude-opus-5",
  "condition": "with-skill",
+ "run": 2,
  "evals": [
   {
    "id": 1,
@@ -10,37 +11,37 @@
     {
      "text": "Identifies unbounded concurrent manifest generation as the root cause",
      "verdict": "pass",
-     "evidence": "Maps symptom to 'unbounded concurrent manifest generation'; 500 apps fan out to 500 simultaneous helm template/kustomize build child processes."
+     "evidence": "'unbounded concurrent manifest generation' named as root cause of the OOM"
     },
     {
      "text": "Recommends ARGOCD_REPO_SERVER_PARALLELISM_LIMIT with a starting value (e.g. 20)",
      "verdict": "pass",
-     "evidence": "'Primary setting: ARGOCD_REPO_SERVER_PARALLELISM_LIMIT (default 0 = unlimited -> 20, then tune)'."
+     "evidence": "'ARGOCD_REPO_SERVER_PARALLELISM_LIMIT (default 0 = unlimited -> start at 20)'"
     },
     {
      "text": "States the correct location for OpenShift GitOps (spec.repo.env on the ArgoCD CR)",
      "verdict": "pass",
-     "evidence": "Explicit heading 'Generate (OpenShift GitOps Operator \u2014 spec.repo.env, not argocd-cmd-params-cm)' with full CR YAML."
+     "evidence": "Operator patch uses spec.repo.env with the env var on the ArgoCD CR"
     },
     {
      "text": "States the correct location for standalone Argo CD (env on argocd-repo-server / reposerver.parallelism.limit)",
      "verdict": "fail",
-     "evidence": "No standalone/upstream install path is given in this answer; only the Operator CR form is shown. reposerver.parallelism.limit is never mentioned."
+     "evidence": "No standalone Argo CD placement given anywhere in this eval; only the Operator CR path"
     },
     {
      "text": "Follows Generate -> Preview -> Confirm before suggesting the change be applied",
      "verdict": "pass",
-     "evidence": "Generates YAML, shows 'oc patch ... --dry-run=server -o yaml' preview, then 'I am not applying this. Apply this? (yes/no) \u2014 stopping at the gate.'"
+     "evidence": "Generates YAML, shows an oc patch --dry-run=server preview command, then 'Generate -> Preview -> Confirm: ... I stop at the gate'"
     },
     {
      "text": "Notes the trade-off that large bursts will take longer to sync",
      "verdict": "pass",
-     "evidence": "'The semaphore makes the rest queue instead of running concurrently; bursts take slightly longer, the repo-server stays up.'"
+     "evidence": "'Trade-off: big bursts take slightly longer, but the pod stays up.'"
     },
     {
      "text": "Recommends monitoring repo-server memory after the change",
      "verdict": "pass",
-     "evidence": "'Monitor after: repo-server memory high-water mark and restart count, manifest generation duration, sync queue depth.'"
+     "evidence": "'you would watch repo-server memory and restart count, manifest-generation duration, and sync queue depth'"
     }
    ]
   },
@@ -51,32 +52,32 @@
     {
      "text": "Identifies controller.status.processors as the primary lever",
      "verdict": "pass",
-     "evidence": "'Primary setting: controller.status.processors' named first and tied directly to slow drift detection."
+     "evidence": "'Primary fix - controller.status.processors' for the sluggish UI / slow drift detection"
     },
     {
      "text": "States the default (20) and a recommended range (50-100) for this scale",
      "verdict": "pass",
-     "evidence": "'default 20 -> 50\u2013100 at 2,000 apps'."
+     "evidence": "'default 20, raise to 50-100 above ~1,000 Applications'"
     },
     {
      "text": "For the OpenShift GitOps Operator, places the setting under spec.controller.processors.status, not spec.extraConfig",
      "verdict": "pass",
-     "evidence": "YAML under spec.controller.processors.status: 100, headed 'Generate \u2014 spec.controller.processors, NOT spec.extraConfig'."
+     "evidence": "Patch places status/operation under spec.controller.processors and says 'not spec.extraConfig'"
     },
     {
      "text": "Explains this differs from the ConfigMap/extraConfig mechanism used for other settings",
-     "verdict": "partial",
-     "evidence": "Flags 'NOT spec.extraConfig' but gives no explanation of the command-line-flag vs ConfigMap mechanism in this answer (that explanation appears only in EVAL 7)."
+     "verdict": "pass",
+     "evidence": "'the operator renders these as container command-line flags, so extraConfig silently does nothing'"
     },
     {
      "text": "Mentions the trade-off of higher controller CPU/memory usage",
      "verdict": "pass",
-     "evidence": "'Monitor controller CPU/memory (it will rise \u2014 that is the trade)'."
+     "evidence": "'Monitor after: controller CPU/memory (more processors cost both)'"
     },
     {
      "text": "Does not recommend sharding unless multiple clusters are confirmed",
      "verdict": "pass",
-     "evidence": "Sharding is not raised at all in this answer; only processors, operation processors and kubectl parallelism."
+     "evidence": "No sharding recommended; cluster count is not assumed"
     }
    ]
   },
@@ -87,32 +88,32 @@
     {
      "text": "Recommends enabling application controller sharding",
      "verdict": "pass",
-     "evidence": "Recommends Application Controller sharding with spec.controller.sharding.enabled: true, replicas: 4."
+     "evidence": "'Primary fix - enable sharding. 20 registered clusters on one controller replica is the textbook case.'"
     },
     {
      "text": "Asks about or accounts for whether this is standalone Argo CD or the OpenShift GitOps Operator",
-     "verdict": "fail",
-     "evidence": "Assumes the Operator CR throughout; never asks about or mentions a standalone install for this scenario."
+     "verdict": "partial",
+     "evidence": "Install type was established as Operator-managed in the assess phase, but this eval neither asks nor contrasts standalone vs Operator"
     },
     {
      "text": "Provides the ArgoCD CR spec.controller.sharding (enabled, replicas, minShards, maxShards) for the Operator case",
      "verdict": "partial",
-     "evidence": "Gives enabled and replicas on the CR, but minShards/maxShards are not included here (only referenced later in EVAL 18)."
+     "evidence": "Gives spec.controller.sharding with enabled/replicas/algorithm; minShards and maxShards are not included"
     },
     {
-     "text": "Recommends a sharding algorithm (round-robin as a reasonable default) and explains the legacy/round-robin/consistent-hashing trade-offs",
-     "verdict": "partial",
-     "evidence": "Suggests legacy or round-robin 'with eyes open about its experimental status', but defers the three-way trade-off comparison to EVAL 21 rather than explaining it here."
+     "text": "Recommends a sharding algorithm and explains the legacy/round-robin/consistent-hashing trade-offs. Round-robin is a reasonable choice for balance, but must be presented as still experimental rather than a safe default \u2014 consistent with evals 11 and 21",
+     "verdict": "pass",
+     "evidence": "Lists legacy/round-robin/consistent-hashing trade-offs; round-robin flagged 'still experimental', consistent-hashing caveat framed as support posture - matches evals 11 and 21"
     },
     {
      "text": "Notes sharding distributes whole clusters, not individual applications, across replicas",
      "verdict": "pass",
-     "evidence": "'sharding distributes clusters, not individual Applications. Each replica reconciles only the Applications whose destination cluster maps to its shard.'"
+     "evidence": "'Sharding distributes clusters (not individual Applications) across controller replicas'"
     },
     {
      "text": "Notes that repo-server and argocd-server scale independently of controller sharding",
      "verdict": "fail",
-     "evidence": "Not stated in this answer; the independent scaling of repo-server appears only in EVAL 8."
+     "evidence": "No mention in this eval that repo-server or argocd-server scale independently of controller sharding"
     }
    ]
   },
@@ -123,27 +124,27 @@
     {
      "text": "Identifies ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS as too low relative to actual render time",
      "verdict": "pass",
-     "evidence": "'the API server's client-side gRPC timeout gives up first' \u2014 default 60 raised to 180 while repo-server still renders successfully."
+     "evidence": "'API server timeout shorter than actual render time' -> ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS default 60 -> 180"
     },
     {
      "text": "Recommends aligning it with ARGOCD_EXEC_TIMEOUT on the repo-server",
      "verdict": "pass",
-     "evidence": "'Align, don't bump one in isolation ... ARGOCD_EXEC_TIMEOUT (default 90s, on spec.repo.env) must be >= that too.'"
+     "evidence": "'ARGOCD_EXEC_TIMEOUT (repo-server child process, default 90s) -> 180s' alongside the server timeout"
     },
     {
      "text": "Also checks/recommends ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS for the controller-side timeout",
      "verdict": "pass",
-     "evidence": "Includes it at 180 on spec.controller.env, warning the controller would otherwise cancel the same RPC."
+     "evidence": "'ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS (default 60) -> 180, under spec.controller.env'"
     },
     {
      "text": "Distinguishes the three related timeouts (repo-server exec timeout, controller->repo-server timeout, server->repo-server timeout) and explains they must be consistent",
      "verdict": "pass",
-     "evidence": "All three named with defaults and distinct roles, plus the explicit consistency requirement and a caution against setting them excessively high."
+     "evidence": "'Align the related timeouts' - all three named with their roles and one coherent 180s value"
     },
     {
      "text": "States the correct Operator CR locations (spec.server.env, spec.repo.env, spec.controller.env \u2014 not spec.extraConfig)",
      "verdict": "pass",
-     "evidence": "Single CR patch places each var under spec.server.env / spec.repo.env / spec.controller.env, with 'not extraConfig' called out."
+     "evidence": "Patch uses spec.server.env, spec.repo.execTimeout and spec.controller.env, explicitly 'not spec.extraConfig'"
     }
    ]
   },
@@ -154,22 +155,22 @@
     {
      "text": "Identifies unbounded concurrent git ls-remote calls as the cause",
      "verdict": "pass",
-     "evidence": "'Each Application's reconciliation runs its own git ls-remote ... 500 apps on a 3m default interval is 500 concurrent calls into GitHub's rate limiter.'"
+     "evidence": "'Every Application runs its own git ls-remote on every reconciliation; 500 apps ... means 500 concurrent connections'"
     },
     {
      "text": "Recommends ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT with a starting value (e.g. 20)",
      "verdict": "pass",
-     "evidence": "'ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT (default 0 = unlimited -> 20), on spec.repo.env' with YAML."
+     "evidence": "'ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT (default 0 = unlimited -> 20)'"
     },
     {
      "text": "Warns against setting the value too low (e.g. 2), which can cause controller-side timeouts",
      "verdict": "pass",
-     "evidence": "'Do not set it very low (e.g. 2) \u2014 requests then queue long enough to cause controller-side timeouts, trading a Git 429 for a context deadline exceeded.'"
+     "evidence": "\"Don't set it too low (e.g. 2) - requests then queue long enough to cause controller-side timeouts\""
     },
     {
      "text": "Distinguishes this setting from ARGOCD_REPO_SERVER_PARALLELISM_LIMIT (manifest generation vs. Git provider connections)",
      "verdict": "fail",
-     "evidence": "ARGOCD_REPO_SERVER_PARALLELISM_LIMIT is not mentioned in this answer; no contrast between Git connection concurrency and manifest-generation concurrency is drawn."
+     "evidence": "ARGOCD_REPO_SERVER_PARALLELISM_LIMIT is never mentioned in this eval, so no distinction is drawn"
     }
    ]
   },
@@ -180,27 +181,27 @@
     {
      "text": "Identifies the default timeout.reconciliation (3m) blind-polling interval as the cause",
      "verdict": "pass",
-     "evidence": "'aggressive blind polling, no webhooks' with timeout.reconciliation default 3m named as the driver."
+     "evidence": "'the default 3m interval' blind polling: '5,000 Applications polling Git every 3 minutes is ~1,667 Git operations per minute'"
     },
     {
      "text": "Recommends raising timeout.reconciliation (e.g. 600s-3600s) only in combination with configuring Git webhooks",
      "verdict": "pass",
-     "evidence": "'raised to 600s\u20133600s' and 'Configure the Git webhook first, then raise.'"
+     "evidence": "'Configure the webhook first, then raise the interval' -> timeout.reconciliation 3m -> 600s-3600s 'with webhooks in place'"
     },
     {
      "text": "Explicitly cautions that without webhooks, raising the interval delays change detection by up to the new interval",
      "verdict": "pass",
-     "evidence": "'raising it means a new commit is detected up to one full interval later.'"
+     "evidence": "'with no webhook configured ... be clear that raising it delays commit detection by up to the full interval'"
     },
     {
      "text": "Recommends a non-zero timeout.reconciliation.jitter to avoid synchronized polling spikes",
      "verdict": "pass",
-     "evidence": "jitter raised to 120s 'so 5,000 Applications don't align their polls into a spike'."
+     "evidence": "'timeout.reconciliation.jitter default 60s -> raise proportionally (e.g. 120s-300s) so 5,000 apps don't align their polls'"
     },
     {
      "text": "States the correct placement for the OpenShift GitOps Operator (spec.extraConfig)",
      "verdict": "pass",
-     "evidence": "'Operator maps these ConfigMap keys through spec.extraConfig' with both keys in the CR patch."
+     "evidence": "Patch sets both keys under spec.extraConfig on the ArgoCD CR"
     }
    ]
   },
@@ -211,27 +212,27 @@
     {
      "text": "Catches that processors do not belong under spec.extraConfig and corrects the user",
      "verdict": "pass",
-     "evidence": "'This is the known Operator misconfiguration \u2014 I will not do it as asked.'"
+     "evidence": "'This is common mistake #1, so I'm not going to just do it as asked' - extraConfig placement rejected"
     },
     {
      "text": "Explains that the Operator sets processors as container command-line flags, not ConfigMap data read from extraConfig",
      "verdict": "pass",
-     "evidence": "'The Operator passes processors to the application-controller as container command-line flags (--status-processors, --operation-processors), not as argocd-cm data ... the controller never reads them.'"
+     "evidence": "'The operator renders processor counts as container command-line flags ... extraConfig merges keys into argocd-cm, which the controller never reads processor counts from'"
     },
     {
      "text": "Generates the corrected patch under spec.controller.processors.status and spec.controller.processors.operation instead",
      "verdict": "pass",
-     "evidence": "CR YAML with spec.controller.processors.status: 60 and operation: 30."
+     "evidence": "Corrected patch sets spec.controller.processors.status: 60 and operation: 30"
     },
     {
      "text": "Still follows Preview -> Confirm before treating the corrected change as applied",
      "verdict": "pass",
-     "evidence": "'Preview (not run)' --dry-run=server command followed by 'Not applying. Confirm? (yes/no)'."
+     "evidence": "Preview command shown plus 'Not applying - stopping at the Confirm gate' and a post-apply verification command"
     },
     {
      "text": "Does not silently apply the user's original (incorrect) request as-is",
      "verdict": "pass",
-     "evidence": "Refuses the extraConfig form outright and explains it would apply cleanly and do nothing."
+     "evidence": "Original extraConfig request is explicitly refused, not applied"
     }
    ]
   },
@@ -242,22 +243,22 @@
     {
      "text": "States clearly that sharding will not help with only one registered cluster",
      "verdict": "pass",
-     "evidence": "'No \u2014 sharding will not help, and I should say so explicitly'."
+     "evidence": "'Short answer: no - sharding will not help you, and I'll say so plainly.'"
     },
     {
      "text": "Explains sharding distributes clusters across controller replicas, not individual applications",
      "verdict": "pass",
-     "evidence": "'With one cluster, every Application maps to the same shard; adding replicas gives you idle pods.'"
+     "evidence": "'Sharding distributes clusters across application-controller replicas, not Applications ... every Application lands on the same shard'"
     },
     {
      "text": "Redirects to the relevant single-cluster levers instead: controller.status.processors, controller.operation.processors, ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT",
      "verdict": "pass",
-     "evidence": "Step 4 names all three, with status.processors 20->50-100 as the direct fix and the OpenShift kubectl baseline of 10."
+     "evidence": "Redirects to controller.status.processors (50-100), controller.operation.processors, and spec.controller.parallelismLimit (kubectl parallelism limit)"
     },
     {
      "text": "Does not generate a spec.controller.sharding patch as the primary recommendation",
      "verdict": "pass",
-     "evidence": "No sharding patch produced; an ordered list of single-cluster levers is given instead."
+     "evidence": "No spec.controller.sharding patch is produced at all"
     }
    ]
   },
@@ -268,22 +269,22 @@
     {
      "text": "Advises against lowering ARGOCD_REPO_CACHE_EXPIRATION that aggressively",
      "verdict": "pass",
-     "evidence": "'No \u2014 don't lower ARGOCD_REPO_CACHE_EXPIRATION' and 'Keep the TTL at 24h.'"
+     "evidence": "'No - do not lower ARGOCD_REPO_CACHE_EXPIRATION to 5 minutes.'"
     },
     {
      "text": "Explains that a short TTL forces constant re-cloning and re-rendering, hurting overall performance",
      "verdict": "pass",
-     "evidence": "'Lowering it to 5m forces constant re-clone and re-render of unchanged commits across every Application \u2014 a global performance tax.'"
+     "evidence": "'Dropping it to 5m forces every Application to re-clone and re-render every five minutes ... a permanent, cluster-wide re-render tax'"
     },
     {
      "text": "Recommends Git webhooks and/or pinning to immutable tags/digests instead of chasing freshness via cache TTL",
      "verdict": "pass",
-     "evidence": "Recommends pinning image versions to immutable tags/digests, Git webhooks, and an image updater that writes concrete tags back to Git."
+     "evidence": "'Pin image versions (immutable tags, or a digest)' plus 'Configure a Git webhook'"
     },
     {
      "text": "Does not simply generate the user's originally requested 5m value without pushback",
      "verdict": "pass",
-     "evidence": "No 5m patch is produced; the request is refused with the reasoning that the cache was never the blocker."
+     "evidence": "Keeps the value at 24h and refuses the 5m request"
     }
    ]
   },
@@ -294,22 +295,22 @@
     {
      "text": "Recognizes that a repository Secret does not exist yet for this public repo and must be created first",
      "verdict": "pass",
-     "evidence": "'there is nothing to patch because no Secret exists for this repo yet. Public repos don't get one automatically.'"
+     "evidence": "'For a public repo you have never configured in Argo CD, no repository Secret exists ... You must create the Secret first.'"
     },
     {
      "text": "Generates a complete repository Secret manifest with the argocd.argoproj.io/secret-type: repository label, url, type: git, and depth: \"1\"",
      "verdict": "pass",
-     "evidence": "Full Secret manifest with the repository label and stringData type: git, url, depth: \"1\"."
+     "evidence": "Secret manifest has label argocd.argoproj.io/secret-type: repository, url, type: git and depth: \"1\""
     },
     {
      "text": "States this must be configured per-repository, there is no global/CR-level depth setting",
      "verdict": "pass",
-     "evidence": "'Shallow-clone depth is always a repository Secret field, never an ArgoCD CR field.'"
+     "evidence": "'depth is always a field on a repository Secret - never a field on the ArgoCD CR'"
     },
     {
      "text": "Follows Preview -> Confirm before treating the Secret as applied",
      "verdict": "pass",
-     "evidence": "'Preview (not run)' with oc apply --dry-run=server / oc diff, then 'Not applying. Confirm? (yes/no)'."
+     "evidence": "Shows oc apply --dry-run=server / oc diff preview then 'Not applying - stopping at the Confirm gate'"
     }
    ]
   },
@@ -318,24 +319,24 @@
    "name": "Unsupported sharding algorithm requested on OpenShift GitOps",
    "expectations": [
     {
-     "text": "Notes that consistent-hashing is not documented/officially supported on OpenShift GitOps",
+     "text": "Notes that consistent-hashing is not documented/officially supported on OpenShift GitOps \u2014 while being accurate that the API does accept it (spec.controller.sharding.algorithm is enum-validated to legacy|round-robin|consistent-hashing), so the caveat is about support posture, not availability",
      "verdict": "pass",
-     "evidence": "'still marked experimental upstream, and historically has not been documented as supported on OpenShift GitOps ... you are outside the supported surface.'"
+     "evidence": "'enum-validated to legacy | round-robin | consistent-hashing ... will not be rejected' but 'Red Hat's support posture - that is the actual caveat'"
     },
     {
      "text": "Recommends verifying against the installed operator version before relying on it in production",
      "verdict": "pass",
-     "evidence": "'Verify against your installed operator version before relying on it in production' plus a version-specific oc explain check for 1.19."
+     "evidence": "'You said 1.19, and I can only speak to 1.21.3 ... please confirm your actual operator version ... check with Red Hat support before depending on it in production'"
     },
     {
      "text": "Still generates the requested patch if the user confirms after the caveat, rather than refusing outright",
      "verdict": "pass",
-     "evidence": "Produces the full CR patch with algorithm: consistent-hashing after the caveat, gated on preview/confirm."
+     "evidence": "Generates the consistent-hashing patch and stops at the Confirm gate rather than refusing"
     },
     {
-     "text": "Offers round-robin as the better-supported alternative for improving balance",
-     "verdict": "fail",
-     "evidence": "Explicitly declines this framing \u2014 argues round-robin is 'also experimental' and 'not a reason to fall back to round-robin as if that were the safe option'; offers legacy as the rollback instead."
+     "text": "Offers round-robin as an alternative for improving balance while noting it is ALSO still experimental \u2014 not as a safe/production-hardened default (must stay consistent with eval 21)",
+     "verdict": "partial",
+     "evidence": "Round-robin appears only in the reassignment benchmark comparison; it is not offered as an alternative here, though the experimental framing elsewhere is consistent"
     }
    ]
   },
@@ -346,27 +347,27 @@
     {
      "text": "Does not just list all settings in isolation \u2014 sequences recommendations",
      "verdict": "pass",
-     "evidence": "Numbered Step 0 through Step 5 plus an explicit sequencing paragraph."
+     "evidence": "Numbered Step 0-5 sequence rather than a flat list of settings"
     },
     {
      "text": "Follows the order of leverage: reduce unnecessary Git/render work first, then align timeouts, then bound concurrency, then scale out with sharding",
      "verdict": "pass",
-     "evidence": "Step 1 stop unnecessary reconciliation, Step 2 Git rate-limiting/webhooks, Step 3 align timeouts, Step 4 concurrency, Step 5 sharding \u2014 exactly this order."
+     "evidence": "Step 1 reduce unnecessary reconciliation, Step 2 reduce Git work, Step 3 align timeouts, Step 4 bound concurrency, Step 5 scale out"
     },
     {
      "text": "Explicitly connects the Git rate-limiting to ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT before addressing sharding",
      "verdict": "pass",
-     "evidence": "Step 2 sets ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT: \"20\" with webhooks, three steps ahead of sharding."
+     "evidence": "Step 2 adds ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT: \"20\" for the rate-limiting, well before Step 5 sharding"
     },
     {
      "text": "Recommends sharding/replica scaling as preparation for the additional 10 clusters, not as the first fix for current sluggishness",
      "verdict": "pass",
-     "evidence": "'Step 5 \u2014 only then, sharding. At 15 clusters it will genuinely help ... but if you shard first you just distribute an inefficient workload.'"
+     "evidence": "'Step 5 - Scale out. Now enable sharding. At 15 clusters it is genuinely warranted - but if you do it first you simply distribute the un-reduced work'"
     },
     {
      "text": "Recommends changing one major setting at a time and monitoring between changes",
      "verdict": "pass",
-     "evidence": "'One major change at a time; watch controller/repo-server CPU+memory, reconcile duration ... between each.'"
+     "evidence": "'change one major setting at a time, measuring ... between each'"
     }
    ]
   },
@@ -377,22 +378,22 @@
     {
      "text": "Generates the exact YAML patch before applying anything",
      "verdict": "pass",
-     "evidence": "Full ArgoCD CR YAML with sharding enabled/replicas/algorithm under a 'Generate' heading."
+     "evidence": "Full ArgoCD CR sharding patch is generated as Step 1"
     },
     {
      "text": "Shows a preview (kubectl patch --dry-run=server or kubectl diff) of what will change",
      "verdict": "pass",
-     "evidence": "'Preview:' block with oc patch ... --dry-run=server -o yaml."
+     "evidence": "Step 2 shows the oc patch --dry-run=server --validate=strict preview command"
     },
     {
      "text": "Explicitly asks for confirmation (e.g. 'Apply this? (yes/no)') despite the user's 'apply it now' phrasing",
      "verdict": "pass",
-     "evidence": "'Confirm: Apply this? (yes/no) \u2014 waiting for explicit approval' and 'apply it now does not skip the gate'."
+     "evidence": "'Step 3 - Confirm: Apply this? (yes/no) - I'll wait for your explicit approval.'"
     },
     {
      "text": "Does not apply the change without an explicit affirmative response in the conversation",
      "verdict": "pass",
-     "evidence": "Nothing applied; follow-up monitoring framed as 'After applying (if approved)'."
+     "evidence": "'I am not applying anything in this session.'"
     }
    ]
   },
@@ -403,27 +404,27 @@
     {
      "text": "Does not default to ArgoCD CR / spec.extraConfig syntax for a Helm-based standalone install",
      "verdict": "pass",
-     "evidence": "'the Operator/CR guidance does not apply here. Settings go in ConfigMaps and Deployment env vars.'"
+     "evidence": "'On standalone Argo CD there is no ArgoCD CR; these are plain ConfigMap keys and ... env vars'"
     },
     {
      "text": "Recommends setting timeout.reconciliation directly in the argocd-cm ConfigMap (or Helm values equivalent)",
      "verdict": "pass",
-     "evidence": "argocd-cm ConfigMap manifest with timeout.reconciliation: 600s, plus the configs.cm Helm values note."
+     "evidence": "argocd-cm ConfigMap manifest with timeout.reconciliation: 600s, plus a note to set it through Helm configs values"
     },
     {
      "text": "Recommends setting timeout.reconciliation.jitter alongside it",
      "verdict": "pass",
-     "evidence": "timeout.reconciliation.jitter: 120s in the same ConfigMap and 'Keep jitter non-zero and proportional'."
+     "evidence": "timeout.reconciliation.jitter: 120s set alongside, 'Keep it non-zero'"
     },
     {
      "text": "Covers webhook setup at a high level (Git provider webhook pointed at the Argo CD API server/ingress)",
      "verdict": "pass",
-     "evidence": "Expose argocd-server via Ingress/Service, register https://<host>/api/webhook in GitHub/GitLab, set the shared secret in argocd-secret, verify delivery."
+     "evidence": "'Expose argocd-server and point your Git provider's webhook at https://<argocd-server>/api/webhook' with shared secret in argocd-secret"
     },
     {
      "text": "Recommends a value only safe because webhooks are being configured, not a large jump without them",
      "verdict": "pass",
-     "evidence": "'Do the webhook first, then raise the interval ... Without a webhook, 600s means a commit can go unnoticed for ten minutes' with verification before raising."
+     "evidence": "'Order matters: configure the webhook first, then raise the interval'"
     }
    ]
   },
@@ -434,27 +435,27 @@
     {
      "text": "Identifies resource.ignoreResourceUpdatesEnabled and the default .status ignore rule as the relevant mechanism",
      "verdict": "pass",
-     "evidence": "Names resource.ignoreResourceUpdatesEnabled / resource.customizations.ignoreResourceUpdates and 'The shipped default rule ignores /status for all resources'."
+     "evidence": "'resource.ignoreResourceUpdatesEnabled ... ships a rule ignoring /status on all resources'"
     },
     {
      "text": "States the default is already true and recommends checking controller logs for high-churn fields not yet covered, rather than assuming it is disabled",
      "verdict": "pass",
-     "evidence": "'it is the default since ~2.8' plus 'Find the offender in the controller log: the line \"Ignoring change of object because none of the watched resource fields have changed\" ... the absence of that line for a churny kind tells you what is still slipping through.'"
+     "evidence": "'defaults to true (since ~Argo CD 2.8)'; Step 1 greps controller logs for the 'Ignoring change of object' line to find what is slipping through"
     },
     {
      "text": "Explains ignoreResourceUpdates only applies to tracked resources by default, and that untracked child resources (ReplicaSets, Pods) need the argocd.argoproj.io/ignore-resource-updates annotation added directly on them",
      "verdict": "pass",
-     "evidence": "'it applies only to tracked resources ... Child resources (Pods, ReplicaSets created by a Deployment) are not covered by default' and the fix is the argocd.argoproj.io/ignore-resource-updates annotation on the child resource."
+     "evidence": "'it applies only to tracked resources ... ReplicaSets and Pods created by your Deployments are not covered by default' -> annotate with argocd.argoproj.io/ignore-resource-updates"
     },
     {
      "text": "Does not recommend disabling resource.ignoreResourceUpdatesEnabled as a fix",
      "verdict": "pass",
-     "evidence": "'Do not disable it; narrow the rule instead' and 'keep/extend, never disable'."
+     "evidence": "'Do NOT disable resource.ignoreResourceUpdatesEnabled.'"
     },
     {
      "text": "Distinguishes this from timeout.reconciliation (polling cadence) as a different root cause for high baseline CPU",
      "verdict": "pass",
-     "evidence": "'Diagnosis before change (Edge Case: check this before reaching for timeout.reconciliation).'"
+     "evidence": "'Raising the poll interval wouldn't help, because the trigger isn't the poll' - check ignoreResourceUpdates before timeout.reconciliation"
     }
    ]
   },
@@ -465,27 +466,27 @@
     {
      "text": "Recommends resource.exclusions as the fix, not resource.customizations.ignoreResourceUpdates",
      "verdict": "pass",
-     "evidence": "'This is the right lever rather than ignoreResourceUpdates' with an exclusions patch for the Kyverno/report kinds."
+     "evidence": "'Symptom ... -> resource.exclusions'; exclusion presented as the fix"
     },
     {
      "text": "Explains the distinction: exclusions stop the controller from watching the kind at all, while ignoreResourceUpdates still watches but skips reconciling on specific field changes",
      "verdict": "pass",
-     "evidence": "'an excluded kind is never watched at all, whereas an ignored one is watched and then filtered. Excluding is strictly cheaper.'"
+     "evidence": "'an excluded kind is never watched at all ... ignoreResourceUpdates still watches and then discards'"
     },
     {
      "text": "Notes that recent Argo CD versions (3.0+) ship default exclusions for exactly these kinds (Endpoints, EndpointSlice, Kyverno report kinds) and recommends checking whether they're already present before adding duplicates",
-     "verdict": "partial",
-     "evidence": "Notes shipped defaults including Endpoints/EndpointSlice and insists on reading the current value first, but does not note that Kyverno report kinds are among the shipped defaults \u2014 it presents them purely as user additions."
+     "verdict": "pass",
+     "evidence": "'Since Argo CD v3.0 / recent OpenShift GitOps, resource.exclusions ships populated by default and very likely already covers Endpoints, EndpointSlice, and the Kyverno report kinds ... Before you add anything, read what is already there.'"
     },
     {
      "text": "States the correct placement for standalone (argocd-cm) and Operator (spec.extraConfig)",
      "verdict": "partial",
-     "evidence": "Operator placement given as the dedicated spec.resourceExclusions field (an equivalent, arguably more correct CR path) and argocd-cm is flagged as a second place to read, but no standalone-install placement guidance is given."
+     "evidence": "Points at the argocd-cm resource.exclusions key and uses spec.resourceExclusions on the CR, but argues against spec.extraConfig rather than stating it as the Operator placement, and gives no standalone-specific section"
     },
     {
      "text": "Follows Generate -> Preview -> Confirm before suggesting the change be applied",
      "verdict": "pass",
-     "evidence": "Generates the merged exclusions YAML, then 'Not applying. Preview with --dry-run=server -o yaml and diff the resulting string ... then confirm.'"
+     "evidence": "Patch shape generated, oc patch --dry-run=server preview shown, 'Not applying - stopping at the Confirm gate'"
     }
    ]
   },
@@ -496,32 +497,32 @@
     {
      "text": "Identifies that the manifest cache is keyed on commit SHA, so any commit invalidates the cache for every Application in the repo regardless of which paths changed",
      "verdict": "pass",
-     "evidence": "'the cache key is the commit SHA, so a new commit invalidates all 50 entries no matter how long the TTL is.'"
+     "evidence": "'The cache key derives from the commit SHA. A new commit produces a new SHA, so every Application on that repo misses cache regardless of TTL.'"
     },
     {
      "text": "Recommends the argocd.argoproj.io/manifest-generate-paths annotation, scoped to each Application's own subdirectory, as the actual fix",
      "verdict": "pass",
-     "evidence": "Application YAML with the annotation set to '.' meaning the app's own spec.source.path, plus the ';'-separated form for shared deps."
+     "evidence": "'argocd.argoproj.io/manifest-generate-paths: \".;charts/shared\"'; '\".\" resolves relative to spec.source.path ... this app's own directory'"
     },
     {
      "text": "Explains this works without configuring Git webhooks (available since Argo CD v2.11)",
      "verdict": "pass",
-     "evidence": "'Webhooks are not a precondition \u2014 this has worked without them since v2.11.'"
+     "evidence": "'Webhooks are not required. It has worked without them since Argo CD v2.11.'"
     },
     {
      "text": "Explicitly validates that lowering ARGOCD_REPO_CACHE_EXPIRATION was the wrong lever and explains why it made things worse",
      "verdict": "pass",
-     "evidence": "'You already found the dead end ... The cache TTL was never the problem ... A shorter TTL just adds re-rendering on top.' Also tells the user to restore 24h."
+     "evidence": "'why lowering ARGOCD_REPO_CACHE_EXPIRATION made it worse ... forces re-renders for apps that would otherwise have served a valid cache. Put it back to 24h.'"
     },
     {
      "text": "Notes the annotation requires a full-history clone (no shallow clone depth set) to compare revisions",
      "verdict": "pass",
-     "evidence": "'Requires full-history clone. Do not set shallow-clone depth on this repository \u2014 the path diff needs history.'"
+     "evidence": "'Requires a full-history clone. Do not set shallow-clone depth on this repository'"
     },
     {
      "text": "Mentions pairing it with resource.ignoreResourceUpdatesEnabled as defense in depth given known cache-coherency bugs in this feature",
      "verdict": "pass",
-     "evidence": "'Cache-coherency bugs are real' (with issue numbers) and 'Pair with resource.ignoreResourceUpdatesEnabled as defense in depth'."
+     "evidence": "'It has had real cache-coherency bugs ... Pair it with resource.ignoreResourceUpdatesEnabled ... as defense in depth'"
     }
    ]
   },
@@ -532,27 +533,27 @@
     {
      "text": "Describes Dynamic Cluster Distribution accurately: requires running the controller as a Deployment (not StatefulSet), ARGOCD_ENABLE_DYNAMIC_CLUSTER_DISTRIBUTION=true, and coordination via the argocd-app-controller-shard-cm ConfigMap",
      "verdict": "pass",
-     "evidence": "All three named: ARGOCD_ENABLE_DYNAMIC_CLUSTER_DISTRIBUTION, 'Deployment, not a StatefulSet', and coordination through argocd-app-controller-shard-cm (plus the heartbeat setting)."
+     "evidence": "'requires running the controller as a Deployment, not a StatefulSet, plus ARGOCD_ENABLE_DYNAMIC_CLUSTER_DISTRIBUTION: \"true\" ... coordinates shard assignment through the argocd-app-controller-shard-cm ConfigMap'"
     },
     {
      "text": "States clearly that this feature is alpha",
      "verdict": "pass",
-     "evidence": "'But it is alpha, and the open 2025 bugs hit precisely your use case'."
+     "evidence": "'it is alpha'"
     },
     {
      "text": "Cites the known 2025 production risk: scaling down can leave clusters/apps unassigned to any shard, scaling up can double-assign a cluster to two shards",
      "verdict": "pass",
-     "evidence": "Both cited with upstream issue links (#24147 unassigned on scale-down, #24520 double-assignment on scale-up)."
+     "evidence": "'Scaling replicas down can leave clusters/apps assigned to no shard at all (#24147)' and 'Scaling up can double-assign a cluster to two shards (#24520)', open as of 2025"
     },
     {
      "text": "Recommends against relying on it for production scale-down events given these open issues, and suggests the static sharding model with a planned restart instead",
      "verdict": "pass",
-     "evidence": "'Recommendation: use static sharding with a planned restart (spec.controller.sharding.enabled/replicas) until those issues are resolved.'"
+     "evidence": "'Recommendation: static sharding with a planned restart until those are resolved' with the static patch"
     },
     {
      "text": "Does not generate an apply-ready patch enabling it for production without first surfacing the caveat and getting explicit confirmation that the user still wants it",
      "verdict": "pass",
-     "evidence": "No enabling patch is produced at all; only the caveats and the static-sharding alternative, with non-production evaluation offered."
+     "evidence": "No enabling patch is produced; the dynamic-distribution requirements are described only after the caveats and framed as non-production"
     }
    ]
   },
@@ -563,27 +564,27 @@
     {
      "text": "Identifies ARGOCD_K8S_CLIENT_QPS / ARGOCD_K8S_CLIENT_BURST (default 50/100) as a likely bottleneck distinct from repo-server timeouts",
      "verdict": "pass",
-     "evidence": "'Setting: ARGOCD_K8S_CLIENT_QPS / ARGOCD_K8S_CLIENT_BURST \u2014 defaults 50 / 100' framed explicitly as a different bottleneck now that repo-server is eliminated."
+     "evidence": "'K8s client QPS/burst too conservative -> ARGOCD_K8S_CLIENT_QPS / ARGOCD_K8S_CLIENT_BURST ... defaults of 50 QPS / 100 burst are very conservative', explicitly a third distinct bottleneck"
     },
     {
      "text": "Explains this controls how fast the controller is allowed to call each managed cluster's own API server, not the repo-server RPC",
      "verdict": "pass",
-     "evidence": "'how fast the controller is allowed to call each managed cluster's own API server ... throttling itself client-side'."
+     "evidence": "'how fast the controller is allowed to call each of your 80 managed clusters' own API servers ... separate from the repo-server RPC path'"
     },
     {
      "text": "Recommends raising in steps (e.g. 100/200, then 150/300) while monitoring each managed cluster's own API server request rate/latency",
      "verdict": "pass",
-     "evidence": "'step to 100/200 first', benchmark table through 150/300, 'Raise in steps and watch each managed cluster's own kube-apiserver request rate and latency'."
+     "evidence": "'Raise in the benchmark's steps - 100/200, then 150/300 - and watch each managed cluster's own kube-apiserver request rate and latency between steps'"
     },
     {
      "text": "Does not recommend repo-server or controller->repo-server settings as the fix, since those are already ruled out",
      "verdict": "pass",
-     "evidence": "Explicitly accepts the repo-server path is eliminated and recommends only client QPS/burst, sharding, connection and processor settings."
+     "evidence": "No repo-server or controller->repo-server setting is offered as the fix"
     },
     {
      "text": "Distinguishes this from ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT (concurrent kubectl child processes) which governs a different part of the sync path",
-     "verdict": "fail",
-     "evidence": "The kubectl parallelism limit is not mentioned in this answer; the adjacent knobs listed are idle connections, TCP timeouts and processors."
+     "verdict": "partial",
+     "evidence": "Kubectl parallelism limit is listed separately (tied to operation processors queueing) but is never explicitly contrasted with QPS/burst as a different part of the sync path"
     }
    ]
   },
@@ -594,27 +595,27 @@
     {
      "text": "Identifies ARGOCD_APPLICATION_TREE_SHARD_SIZE as the relevant setting, not cluster sharding",
      "verdict": "pass",
-     "evidence": "Names ARGOCD_APPLICATION_TREE_SHARD_SIZE as the setting and supplies the spec.controller.env patch."
+     "evidence": "'ARGOCD_APPLICATION_TREE_SHARD_SIZE' named as the setting for this symptom"
     },
     {
      "text": "Explicitly distinguishes resource-tree sharding (splitting one Application's cached resource tree across Redis keys) from application-controller cluster sharding (distributing clusters across controller replicas) \u2014 does not conflate the two",
      "verdict": "pass",
-     "evidence": "'This is not cluster sharding. It shards one Application's own cached data across Redis keys ... Don't conflate them.'"
+     "evidence": "'This is a completely different thing from cluster sharding ... This shards one Application's own cached data across Redis keys; that shards clusters across controller replicas.'"
     },
     {
      "text": "States the default is 0 (entire tree in one Redis key) and recommends a value like 100",
      "verdict": "pass",
-     "evidence": "'At the default 0, an Application's entire resource tree is one Redis key' and 'Setting it to 100 splits the tree into shards of 100 resources'."
+     "evidence": "'at its default 0, an Application's entire resource tree is stored in a single Redis key ... Setting it to 100'"
     },
     {
      "text": "Explains that only the changed shard is rewritten instead of the whole tree, explaining the observed correlation with this specific large Application",
      "verdict": "pass",
-     "evidence": "'only the shard containing the changed resource is rewritten ... which is why one app can outweigh 800 normal ones.'"
+     "evidence": "'only the shard containing the changed resource is rewritten', explaining why traffic correlates with this one Application"
     },
     {
      "text": "Notes this setting will not help the other ~800 apps with normal-sized resource trees and shouldn't be tuned on their account",
      "verdict": "pass",
-     "evidence": "'effectively no-ops for apps with small trees, so your other ~800 apps are unaffected. Only tune it when a specific app's resource count is in the hundreds+.'"
+     "evidence": "'effectively a no-op for apps with small trees ... your other ~800 apps are unaffected. Only tune it when a specific Application's resource count is in the hundreds'"
     }
    ]
   },
@@ -625,27 +626,27 @@
     {
      "text": "Corrects the premise: round-robin is still an experimental sharding algorithm, not a fully production-hardened default",
      "verdict": "pass",
-     "evidence": "'No \u2014 round-robin is not the safe, production-ready algorithm ... it is itself still experimental.'"
+     "evidence": "'round-robin is still experimental' and the closing table says none of the three is 'the safe, production-ready one'"
     },
     {
      "text": "Specifically warns that removing the cluster at shard rank-0 triggers reshuffling of every cluster across every shard, with a temporary performance impact",
      "verdict": "pass",
-     "evidence": "'removing the rank-0 cluster reshuffles every cluster across every shard, with a temporary performance hit while all four replicas re-acquire and re-sync.'"
+     "evidence": "'removing the rank-0 cluster reshuffles every cluster across every shard ... a temporary but real performance hit'"
     },
     {
      "text": "Recommends checking which rank the cluster being removed currently holds before proceeding, or planning for a brief rebalancing window regardless",
      "verdict": "pass",
-     "evidence": "'Find out whether the cluster you are removing is rank-0' plus 'Do it in a maintenance window.'"
+     "evidence": "'Before you remove it, determine whether the cluster being removed is rank-0' plus 'Do it in a maintenance window'"
     },
     {
      "text": "Does not simply confirm the user's assumption that round-robin removal is risk-free",
      "verdict": "pass",
-     "evidence": "Opens by rejecting the premise and lists four pre-conditions and transient effects."
+     "evidence": "Opens with 'No - I'd push back before you proceed'"
     },
     {
      "text": "Does not recommend switching sharding algorithms mid-conversation as a non-sequitur \u2014 stays focused on the removal operation being asked about",
-     "verdict": "pass",
-     "evidence": "Compares algorithms for context but concludes 'For this single removal, the lower-risk path is: proceed on round-robin, in a window, having checked rank-0 \u2014 not switch algorithms right before a topology change.'"
+     "verdict": "partial",
+     "evidence": "Stays on the removal for items 1-3, but item 4 does suggest considering consistent-hashing as an algorithm change"
     }
    ]
   }

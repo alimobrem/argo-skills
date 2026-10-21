@@ -2,6 +2,7 @@
  "skill": "argo-repo-audit",
  "model": "claude-opus-5",
  "condition": "with-skill",
+ "run": 2,
  "evals": [
   {
    "id": 1,
@@ -10,62 +11,62 @@
     {
      "text": "Identifies the app-of-apps pattern",
      "verdict": "pass",
-     "evidence": "Summary row 'Pattern | App of Apps (primary orchestration)' with evidence that apps/root-app.yaml sources path: apps holding further Application manifests."
+     "evidence": "Summary row 'Pattern | App of Apps (primary orchestration)' with evidence: root-app.yaml has spec.source.path: apps containing further Application manifests \u2014 'textbook App of Apps'."
     },
     {
      "text": "Detects two environments: staging and production",
      "verdict": "pass",
-     "evidence": "Clusters row names in-cluster/production and https://staging.example.com; directory tree and per-app findings distinguish clusters/staging vs clusters/production and staging/production twins."
+     "evidence": "'Clusters | https://kubernetes.default.svc (in-cluster / production), https://staging.example.com (staging)' plus clusters/production and clusters/staging in the tree."
     },
     {
      "text": "Counts Application resources (should find approximately 9)",
      "verdict": "pass",
-     "evidence": "'Argo Resources | Application 9' plus discover.sh byKind {\"Application\": 9}."
+     "evidence": "'Argo Resources | AppProject 2, Application 9'."
     },
     {
      "text": "Counts AppProject resources (should find 2)",
      "verdict": "pass",
-     "evidence": "'AppProject 2' in summary and discover.sh output."
+     "evidence": "'AppProject 2' \u2014 projects/platform.yaml and projects/team-platform.yaml."
     },
     {
      "text": "Identifies sync policy configuration per Application (which have automated sync, which don't)",
      "verdict": "pass",
-     "evidence": "Best Practices rows: all 9 Applications have syncPolicy.automated with selfHeal; prune:false named on podinfo-production; retry present/missing listed per file."
+     "evidence": "'All 9 Applications set automated with selfHeal: true'; prune fails only on podinfo-production; retry missing on the three nginx Applications; syncOptions differ between staging and production roots."
     },
     {
      "text": "Checks AppProject sourceRepos \u2014 identifies whether wildcards are used",
      "verdict": "pass",
-     "evidence": "Security row 'Wildcard sourceRepos | Pass | platform.yaml:8-10 lists two explicit repos; team-platform.yaml:8-9 lists one. No '*' (grep confirmed)'."
+     "evidence": "'Wildcard sourceRepos | Pass | No * in either project' with each project's repos enumerated."
     },
     {
      "text": "Checks AppProject destinations \u2014 identifies whether wildcards are used",
      "verdict": "pass",
-     "evidence": "Security row: both projects enumerate servers explicitly; namespace globs apps-*/platform-* judged scoped prefixes, not bare '*'."
+     "evidence": "'Wildcard destinations | Pass | Both enumerate servers; namespace globs are scoped (apps-*, platform-*), not *.'"
     },
     {
      "text": "Checks for ignoreDifferences configuration on Applications that need it",
      "verdict": "pass",
-     "evidence": "Flags apps/podinfo/application.yaml:30-34 ignoreDifferences on /spec/replicas without RespectIgnoreDifferences=true under selfHeal."
+     "evidence": "'apps/podinfo/application.yaml combines ignoreDifferences (/spec/replicas) with automated self-heal but does not set RespectIgnoreDifferences=true.'"
     },
     {
      "text": "Checks for retry configuration on sync policies",
      "verdict": "pass",
-     "evidence": "'Sync policy \u2014 retry | Partial' lists which Applications configure retry and the three nginx Applications that do not; recommendation 6 adds retry with backoff."
+     "evidence": "'Sync policy \u2014 retry | Fail | No retry block on nginx-ingress, nginx-staging, or nginx-production. The podinfo and root Applications all have retry with sane backoff.'"
     },
     {
      "text": "Identifies sync wave ordering via annotations",
      "verdict": "pass",
-     "evidence": "'Resource management \u2014 sync waves | Pass | Waves set on 6 Applications: podinfo children wave 1, nginx children wave 2, nginx-ingress wave 5, podinfo wave 10' and notes roots carry no wave."
+     "evidence": "'Resource mgmt \u2014 sync waves | Pass | Waves set coherently: podinfo-staging/production 1, nginx-staging/production 2, nginx-ingress 5, podinfo 10.'"
     },
     {
      "text": "Produces a structured report with Summary, Best Practices, Security, and Recommendations",
      "verdict": "pass",
-     "evidence": "Numbered sections 1 Summary, 3 Validation, 4 Best Practices, 5 Security, 6 Recommendations."
+     "evidence": "Numbered sections: 1. Summary, 2. Directory Structure, 3. Validation Results, 4. Best Practices, 5. Security, 6. Recommendations (tiered Critical/Warning/Info)."
     },
     {
      "text": "Assigns an overall status (PASS, WARN, or FAIL) based on findings",
      "verdict": "pass",
-     "evidence": "Summary row 'Overall Status | FAIL' tied to the duplicate AppProject / scoping findings."
+     "evidence": "'Overall Status | FAIL (1 Critical)'."
     }
    ]
   },
@@ -76,57 +77,57 @@
     {
      "text": "Identifies the ApplicationSet pattern",
      "verdict": "pass",
-     "evidence": "'Pattern | ApplicationSet (primary orchestration)'; notes no static Application resources exist, consistent with the ApplicationSet heuristic."
+     "evidence": "'Pattern | ApplicationSet (primary orchestration) + Monorepo source pattern' with evidence of three ApplicationSets and zero static Applications."
     },
     {
      "text": "Identifies generator types used (git directory, cluster, matrix)",
      "verdict": "pass",
-     "evidence": "Names git + list sibling generators in platform-appset.yaml, git-directories in appset-git-dirs.yaml, and matrix (clusters x list) in appset-cluster.yaml."
+     "evidence": "Tree annotations: 'platform-appset.yaml (git + list, NOT matrix)', 'appset-git-dirs.yaml (git dirs + RollingSync)', 'appset-cluster.yaml (matrix: clusters x list)'."
     },
     {
      "text": "Checks whether goTemplate is enabled vs fasttemplate",
      "verdict": "pass",
-     "evidence": "'ApplicationSet \u2014 goTemplate | Pass | All three set goTemplate: true.'"
+     "evidence": "'ApplicationSet \u2014 goTemplate | Partial | All three set goTemplate: true (good).'"
     },
     {
      "text": "Checks for progressive sync (rollingSync) configuration",
      "verdict": "pass",
-     "evidence": "Dedicated finding that RollingSync steps in appset-git-dirs.yaml:37-51 match labels the template never sets, plus maxUpdate missing on the staging step and no strategy on platform-appset."
+     "evidence": "'Only appset-git-dirs.yaml has strategy.type: RollingSync' plus a separate row showing its step selectors match zero Applications."
     },
     {
      "text": "Checks for preserveResourcesOnDeletion setting",
      "verdict": "pass",
-     "evidence": "'preserveResourcesOnDeletion | Fail | None of the three ApplicationSets sets spec.syncPolicy.preserveResourcesOnDeletion: true' with grep confirmation and recommendation 2."
+     "evidence": "'None of the three ApplicationSets sets spec.syncPolicy.preserveResourcesOnDeletion: true \u2014 verified: zero occurrences of the key anywhere in the repo.'"
     },
     {
      "text": "Evaluates template completeness (destination, source, syncPolicy)",
      "verdict": "pass",
-     "evidence": "Assesses template name/path/server placeholders, project, targetRevision, prune/retry/syncOptions, finalizers, labels and spec.info per ApplicationSet template."
+     "evidence": "Template parameters (.path.*, .cluster, .url), project, targetRevision, prune, finalizers, and notifications are each assessed per ApplicationSet template."
     },
     {
      "text": "Checks for goTemplateOptions (missingkey=error)",
      "verdict": "pass",
-     "evidence": "'goTemplateOptions | Partial | Only appset-git-dirs.yaml:8-9 sets missingkey=error' and recommendation 6."
+     "evidence": "'Only appset-git-dirs.yaml sets goTemplateOptions: [missingkey=error]'; Critical recommendation 2 adds it to the other two."
     },
     {
      "text": "Identifies that ApplicationSets deploy to the default project \u2014 flags if concerning",
      "verdict": "pass",
-     "evidence": "'App config \u2014 explicit project | Fail | platform-appset.yaml:23 and appset-git-dirs.yaml:23 use project: default'; security table rates the missing/unrestricted project High."
+     "evidence": "'platform-appset.yaml and appset-git-dirs.yaml templates both set project: default ... the generated fleet is entirely ungoverned' (High risk in the Security table)."
     },
     {
      "text": "Checks whether prune is enabled in generated Applications' sync policy",
      "verdict": "pass",
-     "evidence": "'Sync policy \u2014 prune | Fail | appset-cluster.yaml:39-40 sets automated.selfHeal: true with no prune. The other two set both.'"
+     "evidence": "'appset-cluster.yaml sets automated.selfHeal: true but omits prune ... The other two set both.'"
     },
     {
      "text": "Produces a structured report with ApplicationSet-specific findings",
      "verdict": "pass",
-     "evidence": "Full Summary / Directory / Validation / Best Practices / Security / Recommendations report whose findings are ApplicationSet-specific (generators, templates, strategy)."
+     "evidence": "Summary/structure/validation/best-practices/security/recommendations sections whose findings are ApplicationSet-specific (generator composition, RollingSync selectors, maxUpdate, generator inputs)."
     },
     {
      "text": "Includes ApplicationSet-specific recommendations",
      "verdict": "pass",
-     "evidence": "Recommendations 1-12: wrap generators in matrix, add preserveResourcesOnDeletion, fix RollingSync labels, add maxUpdate, goTemplateOptions, ignoreApplicationDifferences, requeueAfterSeconds."
+     "evidence": "Recommendations 1-6: wrap generators in matrix, add goTemplateOptions, add preserveResourcesOnDeletion, define AppProjects, fix RollingSync selectors/maxUpdate, add RollingSync to the other two."
     }
    ]
   },
@@ -137,57 +138,57 @@
     {
      "text": "Flags the AppProject with wildcard (*) in sourceRepos as Critical security issue",
      "verdict": "pass",
-     "evidence": "Security table: default-override.yaml:8-15 and team-insecure.yaml:8-15 sourceRepos: ['*'] both rated Critical."
+     "evidence": "Security table: 'Wildcard sourceRepos | Fail | default-override.yaml:8 and team-insecure.yaml:8 \u2014 both sourceRepos: [*] | Critical'."
     },
     {
      "text": "Flags the AppProject with wildcard (*) in destinations as Critical security issue",
      "verdict": "pass",
-     "evidence": "Same Critical rows cite destinations: [{server: '*', namespace: '*'}] on both projects."
+     "evidence": "'Wildcard destinations | Fail | server: *, namespace: * ... including kube-system and argocd itself | Critical'."
     },
     {
      "text": "Flags wildcard clusterResourceWhitelist ('*/*') as Critical",
      "verdict": "pass",
-     "evidence": "Row 'clusterResourceWhitelist \u2014 wildcard scan | Fail | Scan hits on both project files (group: '*', kind: '*') | Critical'."
+     "evidence": "'Wildcard clusterResourceWhitelist | Fail | group: *, kind: * ... including ClusterRoleBindings \u2014 a direct path to cluster-admin | Critical'."
     },
     {
      "text": "Detects plain-text Secret (cluster-secret.yaml or plain-secret.yaml) as Critical security issue",
      "verdict": "pass",
-     "evidence": "Critical rows for apps/cluster-secret.yaml (bearerToken cluster credential), apps/plain-secret.yaml (base64 api-key/webhook-secret) and the embedded backend-db-credentials Secret."
+     "evidence": "Critical rows for apps/plain-secret.yaml (base64 api-keys decoded) and apps/cluster-secret.yaml (bearerToken + insecure TLS), plus the stringData Secret in backend-app.yaml."
     },
     {
      "text": "Detects hardcoded password in redis Application helm values",
      "verdict": "pass",
-     "evidence": "'Hardcoded Helm password | Fail | apps/redis.yaml:13-15 helm.values contains auth.password: \"supersecretpassword123\"' rated Critical."
+     "evidence": "'Hardcoded password in Helm values | Fail | apps/redis.yaml:15 \u2014 spec.source.helm.values inline: auth.password: \"supersecretpassword123\" | Critical'."
     },
     {
      "text": "Flags Applications with no syncPolicy (api-server.yaml) as missing automated sync",
      "verdict": "pass",
-     "evidence": "'Sync policy \u2014 automated sync | Fail | apps/api-server.yaml and apps/frontend-app.yaml have no syncPolicy at all; apps/redis.yaml likewise. 3 of 5 are manual-sync only.'"
+     "evidence": "'Sync policy \u2014 present at all | Fail | apps/api-server.yaml and apps/frontend-app.yaml have no syncPolicy block. Manual sync only; no self-heal, no prune, no retry.'"
     },
     {
      "text": "Flags Application with prune: false (frontend.yaml) as incomplete sync config",
      "verdict": "pass",
-     "evidence": "'Sync policy \u2014 prune | Fail | prune: false on backend-app.yaml:18 and frontend.yaml:20'; selfHeal row notes frontend.yaml:19-20 automated with prune:false and no selfHeal."
+     "evidence": "'apps/frontend.yaml sets automated: {prune: false} with no selfHeal. Drift from manual cluster edits persists indefinitely.'"
     },
     {
      "text": "Flags Application using targetRevision: HEAD as risky for production",
      "verdict": "pass",
-     "evidence": "'targetRevision pinned | Fail | api-server.yaml:10 HEAD; frontend-app.yaml:10 HEAD ... Nothing in this repo is pinned'; recommendation 9 pins HEAD to tag/SHA."
+     "evidence": "'App config \u2014 pinned targetRevision | Fail (High) | api-server.yaml:10 targetRevision: HEAD; frontend-app.yaml:10 targetRevision: HEAD; redis.yaml:11 targetRevision: *'."
     },
     {
      "text": "Checks Rollout for AnalysisTemplate with both successCondition and failureCondition",
      "verdict": "pass",
-     "evidence": "Notes canary-rollout.yaml:33-50 defines frontend-analysis with sensible successCondition/failureCondition but no Rollout references it; recommends wiring it in."
+     "evidence": "'frontend-analysis sets interval: 30s, successCondition, and failureCondition but no count and no failureLimit.'"
     },
     {
      "text": "Reports overall status as FAIL due to Critical security issues",
      "verdict": "pass",
-     "evidence": "'Overall Status | FAIL' with five Critical credential/wildcard findings listed first in Recommendations."
+     "evidence": "'Overall Status | FAIL (7 Critical)'."
     },
     {
      "text": "Recommendations include at least 3 Critical-severity items",
      "verdict": "pass",
-     "evidence": "Critical block contains six items (cluster secret, backend secret, plain secret, redis password, default-override project, team-insecure project)."
+     "evidence": "Six numbered Critical recommendations (rotate credentials, replace Secrets, fix insecure TLS, remove wildcard projects, resolve duplicate Application, move off project: default)."
     }
    ]
   },
@@ -198,32 +199,32 @@
     {
      "text": "Performs YAML syntax validation",
      "verdict": "pass",
-     "evidence": "Pass 1 with yq: 'Checked 12 files, 0 errors'."
+     "evidence": "'Pass 1 \u2014 YAML Syntax | 12 files | 0 errors' via yq."
     },
     {
      "text": "Performs schema validation against Argo CRDs",
      "verdict": "pass",
-     "evidence": "Pass 2 kubeconform 'Using Argo CRD schemas from assets/schemas'; states every Application and AppProject validated against application-/appproject-argoproj-v1alpha1.json, 0 kinds skipped."
+     "evidence": "'Pass 2 \u2014 Kubernetes Schema | 12 files, using bundled Argo CRD schemas | 0 errors, 0 skips'; '9 Applications and 2 AppProjects on argoproj.io/v1alpha1' validated."
     },
     {
      "text": "Does NOT produce a full audit report with best practices and security",
      "verdict": "pass",
-     "evidence": "Explicitly states 'No best-practices or security audit performed, per the request \u2014 Phases 3 and 4 were deliberately skipped'; output is passes plus coverage limits only."
+     "evidence": "'No best-practices or security audit performed, per the request'; coverage-limits section explicitly states Phase 4 was not run."
     },
     {
      "text": "Reports validation pass/fail result",
      "verdict": "pass",
-     "evidence": "'Validation PASSED', exit code 0, and 'Verdict: the repository is syntactically valid and schema-valid'."
+     "evidence": "'Validation PASSED', 'Exit code 0 (pass)', 'Verdict for the requested scope ... PASS, 12/12 files clean.'"
     },
     {
      "text": "Handles Application and AppProject resources correctly",
      "verdict": "pass",
-     "evidence": "Counts 9 Applications and 2 AppProjects, validates each against bundled Argo schemas, and notes multi-document files were each fully validated."
+     "evidence": "'9 Applications and 2 AppProjects on argoproj.io/v1alpha1 (correct for both kinds; only the ArgoCD CR would need v1beta1)'."
     },
     {
      "text": "Reports summary of files checked",
      "verdict": "pass",
-     "evidence": "Per-pass table: 12 YAML files, 12 files / 16 documents schema-checked, 0 overlays."
+     "evidence": "Per-pass table of files/scope plus the reproduced '=== Summary === Errors: 0 Warnings: 0' block."
     }
    ]
   },
@@ -234,27 +235,27 @@
     {
      "text": "Flags sourceRepos: ['*'] as Critical security issue",
      "verdict": "pass",
-     "evidence": "'Wildcard sourceRepos | Fail | project.yaml:8-9 \u2014 sourceRepos: ['*'] ... | Critical'."
+     "evidence": "'Wildcard sourceRepos | Fail | project.yaml:8 \u2014 sourceRepos: [*] ... a supply-chain hole | Critical'."
     },
     {
      "text": "Flags destinations with server: '*' and namespace: '*' as Critical",
      "verdict": "pass",
-     "evidence": "Separate Critical rows for project.yaml:11 server: '*' and project.yaml:12 namespace: '*' (includes kube-system and argocd)."
+     "evidence": "Separate Critical rows for project.yaml:10 server: '*' (any registered cluster) and project.yaml:11 namespace: '*' (including kube-system and argocd)."
     },
     {
      "text": "Flags clusterResourceWhitelist with group: '*' kind: '*' as Critical",
      "verdict": "pass",
-     "evidence": "'Wildcard clusterResourceWhitelist | Fail | project.yaml:13-15 \u2014 group: '*', kind: '*' ... | Critical' with ClusterRoleBinding/webhook examples."
+     "evidence": "'project.yaml:13-14 \u2014 group: *, kind: * ... The team can commit a ClusterRoleBinding granting itself cluster-admin | Critical'."
     },
     {
      "text": "Reports overall status as FAIL due to Critical security findings",
      "verdict": "pass",
-     "evidence": "'Overall Status | FAIL' and 'AppProject team-frontend imposes no restriction of any kind'."
+     "evidence": "'Overall Status | FAIL (3 Critical, all in the AppProject)'."
     },
     {
      "text": "Does NOT flag the Application \u2014 it has proper syncPolicy, pinned targetRevision, and retry config",
      "verdict": "pass",
-     "evidence": "Marks automated/prune/selfHeal, retry limit 3 with backoff, pinned v2.1.0 and non-default project all Pass, and states 'The Application itself is genuinely well-formed'; only Info-level polish items raised."
+     "evidence": "Best-practices table marks automated/selfHeal/prune Pass, retry Pass, targetRevision v2.1.0 Pass; 'The Application is genuinely well-formed.'"
     }
    ]
   },
@@ -265,22 +266,22 @@
     {
      "text": "Detects kind: Secret (db-credentials.yaml) as Critical security issue \u2014 plain-text secret committed to Git",
      "verdict": "pass",
-     "evidence": "'Plain-text Secret committed to Git | Fail | db-credentials.yaml:1-9 ... base64 is encoding, not encryption' decoded to admin / p4ssw0rd!2026, rated Critical."
+     "evidence": "'Plain-text Secret committed to Git | Fail | db-credentials.yaml ... decoded, these are username: admin and password: p4ssw0rd!2026 | Critical'."
     },
     {
      "text": "Recommends using SealedSecret, ExternalSecret, SOPS, or Vault instead",
      "verdict": "pass",
-     "evidence": "Critical recommendation 2 enumerates SealedSecret, ExternalSecret, SOPS, and Argo CD Vault Plugin with usage notes."
+     "evidence": "Critical recommendation 3 lists SealedSecret (kubeseal), ExternalSecret, SOPS, and Vault Agent injector / Argo CD Vault Plugin."
     },
     {
      "text": "Reports overall status as FAIL due to Critical security finding",
      "verdict": "pass",
-     "evidence": "'Overall Status | FAIL' driven by the committed credential."
+     "evidence": "'Overall Status | FAIL (1 Critical)'."
     },
     {
      "text": "Does NOT flag the Application itself \u2014 it has proper syncPolicy",
      "verdict": "pass",
-     "evidence": "'Sync policy \u2014 automated/selfHeal/prune | Pass | app.yaml:15-18 automated with both prune: true and selfHeal: true'; remaining notes are Info-level or about project: default, not the sync policy."
+     "evidence": "'Sync policy \u2014 automated/selfHeal/prune | Pass | app.yaml sets automated: {prune: true, selfHeal: true}', targetRevision v1.5.0 Pass."
     }
    ]
   },
@@ -291,22 +292,22 @@
     {
      "text": "Flags the Application as missing syncPolicy (no automated sync, no prune, no selfHeal)",
      "verdict": "pass",
-     "evidence": "Three separate rows: no syncPolicy key whatsoever (manual sync only), no selfHeal so drift is never corrected, no prune so deleted resources persist."
+     "evidence": "'app.yaml has no spec.syncPolicy block whatsoever' with separate Fail rows for automated sync, selfHeal, and prune."
     },
     {
      "text": "Recommends adding syncPolicy with automated, prune, selfHeal, and retry",
      "verdict": "pass",
-     "evidence": "Recommendation 1 supplies a YAML block with automated{prune,selfHeal}, syncOptions CreateNamespace=true, and retry limit 3 with backoff."
+     "evidence": "Recommendation 1 gives the YAML: automated {prune: true, selfHeal: true}, syncOptions [CreateNamespace=true], retry {limit 3, backoff 5s/factor 2/3m}."
     },
     {
      "text": "Severity is Warning (not Critical \u2014 missing sync is operational risk, not security vulnerability)",
      "verdict": "pass",
-     "evidence": "Overall Status WARN; finding severity 'Warning'; explicitly 'this repo has no security findings ... The problem is entirely operational'."
+     "evidence": "'Overall Status | WARN (operational gaps only; no security findings)' and the fix is listed under Warning; Security section states 'No security findings.'"
     },
     {
      "text": "Does NOT produce false positives on other aspects of this Application",
      "verdict": "pass",
-     "evidence": "Confirms targetRevision v3.0.0 correctly pinned and destination correct; other notes (project: default, finalizer, spec.info) are accurate Info-level items, no invented defects."
+     "evidence": "targetRevision v3.0.0 and the in-cluster destination are marked Pass; remaining items (project: default, finalizer, labels) are accurate and tiered as Info."
     }
    ]
   },
@@ -317,22 +318,22 @@
     {
      "text": "Flags targetRevision: HEAD as risky for a production Application",
      "verdict": "pass",
-     "evidence": "'app.yaml:12 \u2014 targetRevision: HEAD on an Application named payments-prod ... Every one of the three independent signals says production.'"
+     "evidence": "'app.yaml:12 \u2014 targetRevision: HEAD on an Application whose path is overlays/production and whose destination is https://prod-cluster.internal:6443 ... Every item of context says production.'"
     },
     {
      "text": "Explains the risk: HEAD means any commit to the default branch is immediately synced to production without review",
      "verdict": "pass",
-     "evidence": "'a merge to the default branch of acme/payments is deployed to the production payments namespace with no human in the loop, no release artefact, and no approval step'."
+     "evidence": "'No promotion gate. Any commit merged to the default branch ... is deployed to the production payments cluster automatically, within the reconciliation interval.'"
     },
     {
      "text": "Recommends pinning to a specific tag, commit SHA, or release branch",
      "verdict": "pass",
-     "evidence": "Recommendation 1: replace with a signed release tag (v1.4.2), a commit SHA, or a dedicated release/production branch."
+     "evidence": "'replace targetRevision: HEAD with an immutable reference: a release tag (v4.2.1), a commit SHA, or at minimum a protected release branch (release/production).'"
     },
     {
      "text": "Severity is Warning (not Critical \u2014 it's a best practice violation, not a security vulnerability)",
      "verdict": "fail",
-     "evidence": "Rated above Warning: Overall Status FAIL, the fix is listed under 'Critical', and the security table rates the unpinned revision High as a supply-chain control failure."
+     "evidence": "Rated Critical throughout: 'Fail (Critical)' in best practices, 'Overall Status | FAIL (1 Critical)', and a Critical row in the Security table."
     }
    ]
   },
@@ -343,22 +344,22 @@
     {
      "text": "Identifies the AnalysisTemplate has successCondition but no failureCondition",
      "verdict": "pass",
-     "evidence": "'analysis.yaml:10 defines successCondition: result[0] >= 0.95 and no failureCondition. This is the central defect.'"
+     "evidence": "'analysis.yaml defines successCondition: result[0] >= 0.95 and no failureCondition' \u2014 flagged as the headline finding."
     },
     {
      "text": "Explains the risk: without failureCondition, the analysis may not fail fast enough on degraded metrics",
      "verdict": "pass",
-     "evidence": "Explains the result is recorded Inconclusive rather than Failed, so a canary at 50% traffic serving errors is not rolled back automatically \u2014 it sits paused until someone notices."
+     "evidence": "'a measurement that does not satisfy successCondition and has no failureCondition to match is recorded as Inconclusive, not Failed ... a canary serving 50% errors is not rolled back automatically.'"
     },
     {
      "text": "Recommends adding a failureCondition (e.g., result[0] < threshold) and failureLimit",
      "verdict": "pass",
-     "evidence": "Recommendations 1-2: add failureCondition: result[0] < 0.90 and failureLimit: 2 (plus count: 10)."
+     "evidence": "Recommendation 1 YAML: 'count: 10, successCondition: result[0] >= 0.99, failureCondition: result[0] < 0.95, failureLimit: 2'."
     },
     {
      "text": "Does NOT flag the Rollout's canary steps as problematic \u2014 the step configuration itself is valid",
      "verdict": "fail",
-     "evidence": "Flags the step configuration repeatedly: 'Rollout \u2014 analysis step is not a gate | Fail' and 'Rollout \u2014 no pause before full promotion | Fail', and recommendation 3 restructures the canary steps."
+     "evidence": "Flags them: 'Rollout \u2014 analysis placement | Fail' (first 20% step gated only by a wall-clock pause) and 'Rollout \u2014 promotion to 100% | Fail', plus maxSurge/maxUnavailable Fail."
     }
    ]
   },
@@ -369,22 +370,22 @@
     {
      "text": "Detects the hardcoded password in helm.values (auth.password: Redis!Pr0d#2026) as Critical security issue",
      "verdict": "pass",
-     "evidence": "'Hardcoded credential in Helm values | Fail | app.yaml:13-16 ... auth.password: \"Redis!Pr0d#2026\" ... | Critical'."
+     "evidence": "'Hardcoded credential in Helm values | Fail | app.yaml:16 \u2014 inside spec.source.helm.values: auth.password: \"Redis!Pr0d#2026\" | Critical'."
     },
     {
      "text": "Explains the risk: password is visible in Git history and in the Application resource on the cluster",
      "verdict": "pass",
-     "evidence": "States it is in every clone and commit of history, and a separate row 'Credential is exposed on the cluster too' \u2014 stored verbatim in the Application resource in argocd and rendered in the UI / argocd app get."
+     "evidence": "'Anyone with read access to this repository ... or Argo CD UI access to this Application's manifest view can read it \u2014 the UI renders spec.source.helm.values verbatim ... It is also in Git history permanently.'"
     },
     {
      "text": "Recommends using a valuesFrom Secret reference, Argo CD Vault Plugin, or ExternalSecret instead",
      "verdict": "pass",
-     "evidence": "Recommendation 2 gives auth.existingSecret wiring plus SealedSecret/ExternalSecret/SOPS/Vault, and mentions Argo CD Vault Plugin <path:...> placeholders."
+     "evidence": "'Switch to the chart's existing-secret pattern ... auth.existingSecret / auth.existingSecretPasswordKey ... provision redis-auth via SealedSecret, ExternalSecret, SOPS, or Vault ... AVP <path:secret/redis#password> placeholder'."
     },
     {
      "text": "Reports overall status as FAIL due to Critical security finding",
      "verdict": "pass",
-     "evidence": "'Overall Status | FAIL' with the hardcoded credential as the Critical driver."
+     "evidence": "'Overall Status | FAIL (1 Critical)'."
     }
    ]
   },
@@ -395,83 +396,83 @@
     {
      "text": "Reports zero Critical findings",
      "verdict": "pass",
-     "evidence": "'Critical: none.' and no Critical rows in the security table."
+     "evidence": "'Overall Status | PASS \u2014 zero Critical, zero High, zero Warning findings'; 'Critical \u2014 none.'"
     },
     {
      "text": "Reports zero Warning findings (or at most Info-level suggestions)",
      "verdict": "pass",
-     "evidence": "'Warning: none.' followed by 'Info (optional hardening only \u2014 not defects)' items."
+     "evidence": "'Warning \u2014 none. Info \u2014 optional refinements only. None is a defect.'"
     },
     {
      "text": "Recognizes the AppProject has properly restricted sourceRepos and destinations (no wildcards)",
      "verdict": "pass",
-     "evidence": "Two explicit sourceRepos and three enumerated single-cluster destinations, wildcard scans zero hits."
+     "evidence": "'enumerates exactly two' repos; 'Three fully enumerated namespaces \u2014 payments-dev, payments-staging, payments-prod. Not even a glob.'"
     },
     {
      "text": "Recognizes the Application has automated sync with prune, selfHeal, retry, and pinned targetRevision",
      "verdict": "pass",
-     "evidence": "Best Practices rows: automated prune+selfHeal, retry limit 5 with backoff, targetRevision v4.2.1 immutable tag, non-default project."
+     "evidence": "Pass rows for automated sync, selfHeal: true, prune: true, 'retry: {limit: 5, backoff: 5s/factor 2/3m}', and 'targetRevision: v4.2.1 \u2014 an immutable release tag'."
     },
     {
      "text": "Recognizes secrets are managed via SealedSecret (not plain-text)",
      "verdict": "pass",
-     "evidence": "'Secrets management | Pass | apps/sealed-secret.yaml \u2014 kind: SealedSecret with spec.encryptedData holding ciphertext, not base64 plaintext'."
+     "evidence": "'apps/sealed-secret.yaml is a bitnami.com/v1alpha1 SealedSecret with spec.encryptedData ... committed ciphertext only decryptable by the in-cluster controller's private key.'"
     },
     {
      "text": "Recognizes the AnalysisTemplate has both successCondition and failureCondition with failureLimit",
      "verdict": "pass",
-     "evidence": "'both successCondition: result[0] >= 0.99 and failureCondition: result[0] < 0.95' plus 'interval: 30s, count: 10, failureLimit: 2'."
+     "evidence": "'sets all four required fields: successCondition: result[0] >= 0.99, failureCondition: result[0] < 0.95, failureLimit: 2, and count: 10 with interval: 30s.'"
     },
     {
      "text": "Recognizes the Rollout has Istio traffic routing configured",
      "verdict": "pass",
-     "evidence": "'Rollout \u2014 traffic management | Pass | trafficRouting.istio with virtualServices: [payments-api-vs] and a destinationRule naming stableSubsetName/canarySubsetName'."
+     "evidence": "'trafficRouting.istio with virtualServices: [payments-api-vs] and a destinationRule declaring stableSubsetName: stable / canarySubsetName: canary.'"
     },
     {
      "text": "Reports overall status as PASS",
      "verdict": "pass",
-     "evidence": "'Overall Status | PASS' and 'This repository is clean.'"
+     "evidence": "'Overall Status | PASS'."
     },
     {
      "text": "Does NOT produce false positives \u2014 this repo is intentionally clean",
      "verdict": "pass",
-     "evidence": "Only four Info items, each explicitly framed as optional hardening that 'changes nothing about the PASS verdict'."
+     "evidence": "'Rather than manufacture findings ... the closing subsection lists a handful of genuinely optional Info-level observations that are not defects'; CreateNamespace=false is correctly read as a deliberate choice."
     }
    ]
   },
   {
    "id": 12,
-   "name": "Subtle RBAC: looks restricted but has privilege escalation",
+   "name": "subtle-rbac",
    "expectations": [
     {
      "text": "Flags clusterResourceWhitelist allowing ClusterRole and ClusterRoleBinding as a privilege escalation risk \u2014 the data team can create ClusterRoleBindings that grant themselves (or their apps) cluster-admin",
      "verdict": "pass",
-     "evidence": "Critical row on project.yaml:18-21 ClusterRole + ClusterRoleBinding; explains a manifest binding ClusterRole/cluster-admin to the team ServiceAccount is applied without objection."
+     "evidence": "Critical row for project.yaml:18-21 plus 'Finding 1 in detail' showing a committed ClusterRoleBinding to cluster-admin for the data-eng default ServiceAccount."
     },
     {
      "text": "Flags the exec permission in the project role (exec, create) as a security risk \u2014 allows terminal access into running pods, which can be used to access node-level resources, service account tokens, and secrets",
      "verdict": "pass",
-     "evidence": "Flags project.yaml:26 'exec, create' as High: interactive shell in any pod in scope, exposing mounted ServiceAccount tokens and bypassing audit attribution."
+     "evidence": "Critical row for project.yaml:26 and 'Finding 3 in detail': ServiceAccount token theft, audit attribution bypass, Secret exfiltration."
     },
     {
      "text": "Does NOT flag sourceRepos or destinations \u2014 those are properly restricted",
      "verdict": "pass",
-     "evidence": "Both marked Pass: single explicit repo, two explicit in-cluster namespaces, 'Genuinely restricted' / 'Genuinely scoped'; no finding raised against either."
+     "evidence": "'Wildcard sourceRepos | Pass | A single enumerated repo'; 'Wildcard destinations.namespace | Pass | Two fully enumerated namespaces \u2014 data-eng, data-staging. Not even a glob.'"
     },
     {
      "text": "Does NOT flag the Application \u2014 it has proper syncPolicy, pinned targetRevision, and retry",
      "verdict": "pass",
-     "evidence": "'The Application is genuinely well built \u2014 pinned production revision, complete retry backoff, both sync flags'; only Info-level polish items listed."
+     "evidence": "'The Application itself is well-built' \u2014 automated prune/selfHeal Pass, retry with backoff Pass, targetRevision v1.8.0 Pass, destination within project scope Pass."
     },
     {
      "text": "Explains why ClusterRole+ClusterRoleBinding in clusterResourceWhitelist is dangerous even when destinations are scoped \u2014 the created ClusterRoleBinding applies cluster-wide, not just to the allowed namespaces",
      "verdict": "pass",
-     "evidence": "'ClusterRoleBinding in the whitelist voids the destinations scoping entirely ... Namespace scoping is irrelevant the moment a team can create cluster RBAC.'"
+     "evidence": "'the careful namespace scoping above becomes decorative \u2014 destinations restricts where Argo CD may place resources, not what those resources may subsequently do.'"
     },
     {
      "text": "Reports overall status as FAIL or WARN due to the privilege escalation path",
      "verdict": "pass",
-     "evidence": "'Overall Status | FAIL' with the escalation path as the Critical driver."
+     "evidence": "'Overall Status | FAIL (3 Critical, chaining to full cluster compromise)'."
     }
    ]
   }

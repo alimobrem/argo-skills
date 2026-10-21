@@ -1,5 +1,43 @@
 # argo-operations
 
+## Run 2 — 2026-10-21, live cluster, blind A/B
+
+**93.8% with the skill vs 84.4% baseline (+9.4) over 96 expectations.**
+
+Measured against a live OpenShift cluster (OpenShift GitOps 1.21.3, Argo CD v3.4.5).
+Graders saw "Condition A"/"Condition B" without knowing which was which and could not
+read `skills/`. Partial credit; every verdict carries an evidence string. Raw verdicts:
+[`results/argo-operations.with-skill.results.json`](results/argo-operations.with-skill.results.json) and
+[`results/argo-operations.baseline.results.json`](results/argo-operations.baseline.results.json).
+
+| # | Eval | n | with-skill | baseline | delta |
+|---|------|--:|-----------:|---------:|------:|
+| 1 | Install or configure Argo CD on OpenShift | 10 | 100% | 95% | +5 |
+| 2 | Create Application for OCI Helm chart | 10 | 95% | 85% | +10 |
+| 3 | Promote or assess canary rollout | 8 | 100% | 94% | +6 |
+| 4 | Upgrade Argo CD | 9 | 89% | 83% | +6 |
+| 5 | Backup Argo CD resources | 8 | 100% | 94% | +6 |
+| 6 | Set up gitops-promoter for environment promotion | 10 | 80% | 70% | +10 |
+| 7 | Install Argo CD via Helm on vanilla Kubernetes | 6 | 92% | 67% | +25 |
+| 8 | Create ApplicationSet with git generator and progressive sync | 6 | 100% | 92% | +8 |
+| 9 | Set up Slack notifications for sync failures | 6 | 100% | 92% | +8 |
+| 10 | Abort and retry a stuck rollout | 6 | 83% | 83% | +0 |
+| 11 | Rotate Git repository credentials | 6 | 100% | 75% | +25 |
+| 12 | Migrate deprecated Kubernetes APIs | 6 | 83% | 83% | +0 |
+| 13 | Delete an Application — destructive operation safety | 5 | 100% | 80% | +20 |
+| | **total** | **96** | **93.8%** | **84.4%** | **+9.4** |
+
+**Largest gains:** #11 Rotate Git repository credentials (+25); #7 Install Argo CD via Helm on vanilla Kubernetes (+25); #13 Delete an Application — destructive operation safety (+20).
+
+> **Baseline re-run for run 2.** The run-1 baseline for this skill was contaminated
+> by the prompt author (told to stop before writing, which is part of what these evals
+> measure). This run states the write ban as an environment constraint only.
+
+---
+
+<details>
+<summary>Superseded: v0.2.0 (2026-10-14) — simulated outcomes, no live cluster</summary>
+
 ## v0.2.0 (2026-10-14) — Cross-model, with-skill vs. baseline
 
 **Methodology:** 13 evals (expanded from 6) × 2 models (Opus-tier, Sonnet-tier) × with-skill/baseline,
@@ -69,3 +107,6 @@ Model: `claude-opus-4-6`
 - Upgrade: missing post-upgrade verification commands (1 expectation)
 
 Tested on live OpenShift cluster (OpenShift GitOps Operator v1.20.4) with `oc` CLI.
+
+
+</details>

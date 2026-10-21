@@ -1,5 +1,42 @@
 # argo-cluster-debug
 
+## Run 2 — 2026-10-21, live cluster, blind A/B
+
+**87.7% with the skill vs 88.6% baseline (-0.9) over 57 expectations.**
+
+Measured against a live OpenShift cluster (OpenShift GitOps 1.21.3, Argo CD v3.4.5).
+Graders saw "Condition A"/"Condition B" without knowing which was which and could not
+read `skills/`. Partial credit; every verdict carries an evidence string. Raw verdicts:
+[`results/argo-cluster-debug.with-skill.results.json`](results/argo-cluster-debug.with-skill.results.json) and
+[`results/argo-cluster-debug.baseline.results.json`](results/argo-cluster-debug.baseline.results.json).
+
+| # | Eval | n | with-skill | baseline | delta |
+|---|------|--:|-----------:|---------:|------:|
+| 1 | Application OutOfSync and Degraded | 8 | 75% | 88% | -12 **←** |
+| 2 | Canary Rollout stuck at step 2 | 8 | 94% | 81% | +12 |
+| 3 | Argo CD installation health check | 8 | 100% | 88% | +12 |
+| 4 | ApplicationSet not generating expected Applications | 6 | 100% | 100% | +0 |
+| 5 | ApplicationSet RollingSync stuck on production step | 6 | 75% | 83% | -8 |
+| 6 | Blue-green rollout stuck at preview, never promotes | 6 | 92% | 100% | -8 |
+| 7 | Ambiguous debug request with multiple Argo CD instances | 5 | 90% | 100% | -10 **←** |
+| 8 | Suspended Application reported as broken | 5 | 90% | 90% | +0 |
+| 9 | Multi-source Application with one failing source | 5 | 70% | 70% | +0 |
+| | **total** | **57** | **87.7%** | **88.6%** | **-0.9** |
+
+**Largest gains:** #3 Argo CD installation health check (+12); #2 Canary Rollout stuck at step 2 (+12).
+
+**Lost to baseline:** #1 Application OutOfSync and Degraded (-12); #7 Ambiguous debug request with multiple Argo CD instances (-10); #5 ApplicationSet RollingSync stuck on production step (-8).
+
+> **Baseline reused from run 1 and regraded.** The eval prompts were verified
+> byte-identical between runs, and baselines never see `skills/`. See the grader-drift
+> table in the [root README](../README.md#benchmarks) — absolute scores move with the
+> grader, so read the direction, not the decimal.
+
+---
+
+<details>
+<summary>Superseded: v0.2.0 (2026-10-14) — simulated outcomes, no live cluster</summary>
+
 ## v0.2.0 (2026-10-14) — Cross-model, with-skill vs. baseline
 
 **Methodology:** 13 evals (expanded from 5) × 2 models (Opus-tier, Sonnet-tier) × with-skill/baseline,
@@ -61,3 +98,6 @@ Model: `claude-opus-4-6`
 - Config review compared both ArgoCD instances side-by-side with gap analysis
 
 Tested on live OpenShift cluster (OpenShift GitOps operator) with `oc` CLI.
+
+
+</details>

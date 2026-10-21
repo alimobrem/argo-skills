@@ -411,73 +411,120 @@ Production should require manual approval.
 | Helm/Kustomize/directory variants, Rollouts, notifications, sync windows, promoter | `onboarding-variants.md` |
 
 </details>
+
 ## Benchmarks
 
 Measured 2026-10-21 against a live OpenShift cluster (OpenShift GitOps 1.21.3, Argo CD
-v3.4.5). **572 expectations, graded twice — once with the skills, once without.**
+v3.4.5). **572 expectations per condition, graded twice — once with the skills, once
+without.** 1,144 verdicts, each with an evidence string, in
+[`benchmarks/results/`](benchmarks/results/).
 
 | Skill | with-skill | baseline | delta |
 |-------|-----------:|---------:|------:|
-| [`argo-performance-tuning`](benchmarks/argo-performance-tuning.md) | **91.8%** | 70.2% | **+21.6** |
-| [`argo-repo-audit`](benchmarks/argo-repo-audit.md) | **97.5%** | 88.1% | +9.4 |
-| [`argo-cluster-debug`](benchmarks/argo-cluster-debug.md) | **92.1%** | 87.7% | +4.4 |
-| [`argo-team-onboard`](benchmarks/argo-team-onboard.md) | **93.7%** | 89.3% | +4.4 |
-| [`argo-knowledge`](benchmarks/argo-knowledge.md) | **97.3%** | 95.5% | +1.9 |
-| [`argo-operations`](benchmarks/argo-operations.md) | 90.1% | **93.8%** | **−3.6** |
-| **Weighted overall** | **94.0%** | **87.7%** | **+6.3** |
+| [`argo-performance-tuning`](benchmarks/argo-performance-tuning.md) | **94.2%** | 66.8% | **+27.4** |
+| [`argo-repo-audit`](benchmarks/argo-repo-audit.md) | **97.5%** | 81.2% | **+16.2** |
+| [`argo-operations`](benchmarks/argo-operations.md) | **93.8%** | 84.4% | **+9.4** |
+| [`argo-knowledge`](benchmarks/argo-knowledge.md) | **98.5%** | 93.9% | +4.5 |
+| [`argo-team-onboard`](benchmarks/argo-team-onboard.md) | 84.5% | 84.5% | **0.0** |
+| [`argo-cluster-debug`](benchmarks/argo-cluster-debug.md) | 87.7% | 88.6% | **−0.9** |
+| **Weighted overall** | **93.2%** | **83.4%** | **+9.8** |
 
 ### What the numbers actually say
 
 **The delta tracks how product-specific the skill is.** Performance tuning — where answers
 turn on exact setting names, defaults the operator silently overrides, and which CR field
-actually takes effect — gains most. General Argo CD knowledge, which a competent engineer
-already has, gains least. That is the useful finding: *encode what is version- and
-product-specific; do not re-encode what the model already knows.*
+actually takes effect — gains most. The baseline there was confidently wrong rather than
+merely vague: it called an experimental sharding algorithm "GA, supported… the sane
+default", never named `ARGOCD_APPLICATION_TREE_SHARD_SIZE` for a resource-tree problem,
+and applied patches with no dry-run and no confirmation step. That is the useful finding:
+*encode what is version- and product-specific; do not re-encode what the model already
+knows.*
 
-**`argo-operations` lost to its own baseline, and the reason is actionable.** The
-with-skill run took four outright fails, all the same category: **no post-action
-verification**. Generate → Preview → Confirm stops at the gate and never says "now check
-it worked". The baseline verified after acting. That is a real design gap, not noise —
-tracked as a follow-up.
+**Two skills show no measurable benefit, and we are publishing that.**
+`argo-team-onboard` tied its baseline exactly (87/103 each) and `argo-cluster-debug` came
+in fractionally behind. Both split rather than dominated: the skill arm reliably ended at
+a "commit this?" Git gate and honored "don't re-create what already exists", while the
+baseline wrote more complete literal YAML and was stronger on scenarios the skill handles
+in prose. Those are addressable gaps, not noise about which direction to go.
+
+**`argo-operations` went from −3.6 to +9.4.** Run 1 lost to its own baseline on a single
+category — no post-action verification. The skill stopped at the confirmation gate and
+never said "now check it worked". Adding a Step 4: Verify closed it. Roughly a third of
+the swing is that fix; the rest is a baseline that is no longer contaminated (below).
 
 **The baselines are strong, and that is deliberate.** Each baseline agent was an
-experienced OpenShift GitOps engineer with the same prompts, the same seven CLIs, the same
-live cluster and the same read-only limits — just no access to `skills/`. A hobbled
-baseline would have produced a flattering number and told us nothing. Several baselines
-beat their with-skill counterpart on specific items; one found the empty
-conversion-webhook `caBundle` behind a 47-day stuck operator upgrade that the with-skill
-run missed.
+experienced OpenShift GitOps engineer with the same prompts, the same CLIs, the same live
+cluster and the same read-only limits — just no access to `skills/`. A hobbled baseline
+would produce a flattering number and tell us nothing. Several baselines beat their
+with-skill counterpart on specific items.
 
 ### Method
 
-- **Blind A/B.** Scorers saw "Condition A" and "Condition B" with a seeded flip and were
-  never told which was which. Flips came out mixed across the six skills.
-- **Per expectation, not per eval**, with partial credit, and every verdict carries an
-  evidence string. Raw verdicts: [`benchmarks/results/`](benchmarks/results/).
-- **Reproduce:** `make score` · `make score-compare PRIOR=<dir>` for regressions.
+- **Blind A/B.** Graders saw "Condition A" and "Condition B" with a seeded flip and were
+  never told which was which, nor allowed to read `skills/`. Flips came out mixed.
+- **Per expectation, not per eval**, with partial credit and a required evidence string.
+- **Integrity-checked before publication:** every expectation graded exactly once, every
+  verdict's text joined verbatim against the eval definition, and every blind input
+  md5-verified complete against its source. Run 1 shipped a truncated input; this check
+  exists because of it.
+- **Reproduce:** `make score` · `make score-compare PRIOR=benchmarks/results-run1-2026-10-20`.
+
+### How much of this is grader noise? We measured it.
+
+Four baselines were reused unchanged from run 1 and regraded by a fresh grader. Same
+answer text, same expectations — so any difference is the grader, not the skill:
+
+| Reused baseline | n | grader agreement | drift |
+|---|--:|--:|--:|
+| `argo-knowledge` | 131 | 98% | −0.8 |
+| `argo-performance-tuning` | 101 | 92% | −2.0 |
+| `argo-cluster-debug` | 57 | 88% | +0.9 |
+| `argo-repo-audit` | 80 | 86% | **−6.9** |
+| **pooled** | **369** | **92%** | — |
+
+Disagreements are almost entirely one-directional (`pass` → `partial`): the run-2 grader
+is stricter at that boundary, not randomly different. Two consequences, both of which cut
+against the headline numbers:
+
+1. **Absolute scores are not comparable across grading passes.** A single skill's score
+   can move ~7 points with no change to the skill at all.
+2. **A stricter grader *widens* deltas when the with-skill arm is near ceiling.**
+   `argo-repo-audit` is the clean example: its with-skill score was 97.5% in both runs,
+   but the regraded baseline fell 88.1% → 81.2%, so the delta grew +9.4 → +16.2 without
+   the skill improving. Read that one as "somewhere in +9 to +16", not +16.2.
+
+Within a single run both conditions share one grader and one bar, so the **direction and
+rank-ordering** of the deltas are the trustworthy part. Treat anything under ~5 points as
+indistinguishable from zero.
 
 ### Caveats — read these before quoting the numbers
 
-1. **Two baselines were contaminated by the prompt author.** To protect a live cluster,
-   the `argo-operations` and `argo-team-onboard` baselines were told to stop before
-   writing — which is part of what those evals measure (25/96 and 9/103 expectations).
-   Excluding those: operations **90% vs 94% (−4)**, team-onboard **94% vs 93% (+2)**. Cite
-   the excluded figures.
-2. **These are a floor.** Two mutually unsatisfiable expectation pairs were live during
-   scoring (`oci://` in knowledge evals 1 vs 2; round-robin across perf evals 3/11/21), so
-   no answer could pass both sides and both conditions were capped. Since fixed; a re-run
-   should move both up slightly.
-3. **One input was corrupted mid-run and caught before publication.** The `argo-knowledge`
-   baseline was snapshotted while still being written; the first grader saw 8 of 16
-   sections and failed 44 expectations for absence. Had that shipped it would have read as
-   roughly **+40 instead of +1.9** — the most flattering number in the set, and entirely an
-   artifact. Quarantined and re-scored.
-4. **Single run, single model.** No repeats, no cross-model comparison, no confidence
-   intervals. Treat small deltas (±2) as noise.
+1. **Four of the six baselines are run-1 answers, reused.** Only `argo-operations` and
+   `argo-team-onboard` baselines were re-run. Reuse is sound here because baselines never
+   see `skills/`, and the eval prompts were verified byte-identical between runs — but it
+   means those four baselines were regraded, with the drift quantified above.
+2. **Run 1's two contaminated baselines are fixed.** To protect a live cluster, the
+   `argo-operations` and `argo-team-onboard` baselines had been told to stop before
+   writing — which is part of what those evals measure. Both were re-run with the
+   write ban stated purely as an environment constraint. This is why `team-onboard`
+   dropped from an apparent +4.4 to 0.0: the earlier gap was largely the contamination.
+3. **Some expectations are unsatisfiable on this cluster, capping both arms.** Several
+   `argo-cluster-debug` prompts name resources that do not exist here, so
+   symptom-identification expectations graded `partial` in both conditions regardless of
+   skill. `argo-team-onboard` eval 13 asks the agent to detect that Argo CD is absent,
+   but it is installed. These compress deltas toward zero and are an eval-design bug, not
+   a result.
+4. **Fixes made in response to this run are not reflected in it.** Each skill's files were
+   verified unchanged during its own run, but defects the run surfaced — notably two
+   `argo-repo-audit` credential/TLS scans that returned zero on their own fixtures — were
+   fixed afterward. Those numbers describe the pre-fix skill.
+5. **Single run, single model, no confidence intervals.** Combined with the measured
+   grader variance, treat small deltas as unresolved rather than real.
 
-<sub>Full per-eval breakdown per skill in <a href="benchmarks/">benchmarks/</a>.
-Cluster-dependent suites need a real cluster — run them locally with <code>make eval-*</code>;
-CI can only run the two that do not.</sub>
+<sub>Full per-eval breakdown per skill in <a href="benchmarks/">benchmarks/</a>. Run-1
+verdicts kept at <a href="benchmarks/results-run1-2026-10-20/">benchmarks/results-run1-2026-10-20/</a>
+so the drift table above is reproducible. Cluster-dependent suites need a real cluster —
+run them locally with <code>make eval-*</code>; CI can only run the two that do not.</sub>
 
 ## Contributing
 

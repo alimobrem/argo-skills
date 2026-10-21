@@ -1,5 +1,43 @@
 # argo-repo-audit
 
+## Run 2 — 2026-10-21, live cluster, blind A/B
+
+**97.5% with the skill vs 81.2% baseline (+16.2) over 80 expectations.**
+
+Measured against a live OpenShift cluster (OpenShift GitOps 1.21.3, Argo CD v3.4.5).
+Graders saw "Condition A"/"Condition B" without knowing which was which and could not
+read `skills/`. Partial credit; every verdict carries an evidence string. Raw verdicts:
+[`results/argo-repo-audit.with-skill.results.json`](results/argo-repo-audit.with-skill.results.json) and
+[`results/argo-repo-audit.baseline.results.json`](results/argo-repo-audit.baseline.results.json).
+
+| # | Eval | n | with-skill | baseline | delta |
+|---|------|--:|-----------:|---------:|------:|
+| 1 | app-of-apps-audit | 12 | 100% | 50% | +50 |
+| 2 | applicationset-audit | 11 | 100% | 100% | +0 |
+| 3 | mixed-issues-audit | 11 | 100% | 86% | +14 |
+| 4 | validate-only | 6 | 100% | 83% | +17 |
+| 5 | detect-wildcard-project | 5 | 100% | 90% | +10 |
+| 6 | detect-plain-secret | 4 | 100% | 88% | +12 |
+| 7 | detect-no-sync-policy | 4 | 100% | 88% | +12 |
+| 8 | detect-head-in-prod | 4 | 75% | 75% | +0 |
+| 9 | detect-weak-analysis | 4 | 75% | 62% | +12 |
+| 10 | detect-hardcoded-helm-password | 4 | 100% | 88% | +12 |
+| 11 | clean-repo-zero-findings | 9 | 100% | 94% | +6 |
+| 12 | subtle-rbac | 6 | 100% | 75% | +25 |
+| | **total** | **80** | **97.5%** | **81.2%** | **+16.2** |
+
+**Largest gains:** #1 app-of-apps-audit (+50); #12 subtle-rbac (+25); #4 validate-only (+17).
+
+> **Baseline reused from run 1 and regraded.** The eval prompts were verified
+> byte-identical between runs, and baselines never see `skills/`. See the grader-drift
+> table in the [root README](../README.md#benchmarks) — absolute scores move with the
+> grader, so read the direction, not the decimal.
+
+---
+
+<details>
+<summary>Superseded: v0.2.0 (2026-10-14) — simulated outcomes, no live cluster</summary>
+
 ## v0.3.0 (2026-10-14) — Cross-model, with-skill vs. baseline (real file audits)
 
 Unlike the other five skills in this repo, `argo-repo-audit` has no live cluster to simulate —
@@ -136,3 +174,6 @@ reported PASS with zero Critical/Warning findings. SealedSecret ciphertext not f
 ClusterRole/ClusterRoleBinding creation (escalation path) and exec into pods.
 
 Evals test outcomes (issues found, report quality) not process (which tools were used).
+
+
+</details>

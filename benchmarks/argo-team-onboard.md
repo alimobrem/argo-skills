@@ -1,5 +1,47 @@
 # argo-team-onboard
 
+## Run 2 — 2026-10-21, live cluster, blind A/B
+
+**84.5% with the skill vs 84.5% baseline (+0.0) over 103 expectations.**
+
+Measured against a live OpenShift cluster (OpenShift GitOps 1.21.3, Argo CD v3.4.5).
+Graders saw "Condition A"/"Condition B" without knowing which was which and could not
+read `skills/`. Partial credit; every verdict carries an evidence string. Raw verdicts:
+[`results/argo-team-onboard.with-skill.results.json`](results/argo-team-onboard.with-skill.results.json) and
+[`results/argo-team-onboard.baseline.results.json`](results/argo-team-onboard.baseline.results.json).
+
+| # | Eval | n | with-skill | baseline | delta |
+|---|------|--:|-----------:|---------:|------:|
+| 1 | Basic team onboarding (Kustomize) | 10 | 90% | 90% | +0 |
+| 2 | Helm chart team onboarding | 9 | 78% | 94% | -17 **←** |
+| 3 | Self-service ApplicationSet onboarding | 9 | 78% | 89% | -11 **←** |
+| 4 | Discovery: detect existing setup and fill gaps | 7 | 100% | 79% | +21 |
+| 5 | Refuse overprivileged onboarding | 8 | 94% | 100% | -6 |
+| 6 | Multi-env onboarding with gitops-promoter | 9 | 83% | 94% | -11 **←** |
+| 7 | Plain directory source onboarding | 6 | 100% | 92% | +8 |
+| 8 | New team, namespaces do not exist yet | 6 | 58% | 92% | -33 **←** |
+| 9 | Production SyncWindow for change control | 5 | 100% | 100% | +0 |
+| 10 | Onboarding request collides with an existing AppProject name | 5 | 100% | 60% | +40 |
+| 11 | Validate onboarding after apply | 6 | 58% | 58% | +0 |
+| 12 | Out-of-scope request — CI pipeline and secrets setup | 5 | 90% | 90% | +0 |
+| 13 | Onboarding attempted before Argo CD is installed | 5 | 30% | 40% | -10 **←** |
+| 14 | Choose and scaffold the values-based onboarding model | 6 | 100% | 67% | +33 |
+| 15 | Tenant security baseline: NetworkPolicies and Pod Security Standards | 7 | 100% | 93% | +7 |
+| | **total** | **103** | **84.5%** | **84.5%** | **+0.0** |
+
+**Largest gains:** #10 Onboarding request collides with an existing AppProject name (+40); #14 Choose and scaffold the values-based onboarding model (+33); #4 Discovery: detect existing setup and fill gaps (+21).
+
+**Lost to baseline:** #8 New team, namespaces do not exist yet (-33); #2 Helm chart team onboarding (-17); #3 Self-service ApplicationSet onboarding (-11).
+
+> **Baseline re-run for run 2.** The run-1 baseline for this skill was contaminated
+> by the prompt author (told to stop before writing, which is part of what these evals
+> measure). This run states the write ban as an environment constraint only.
+
+---
+
+<details>
+<summary>Superseded: v0.2.0 (2026-10-14) — simulated outcomes, no live cluster</summary>
+
 ## v0.2.0 (2026-10-14) — Cross-model, with-skill vs. baseline
 
 **Methodology:** 13 evals (expanded from 6) × 2 models (Opus-tier, Sonnet-tier) × with-skill/baseline,
@@ -79,3 +121,6 @@ Both models handle the onboarding skill well:
 - **Refuse eval:** Both refuse firmly but helpfully. Opus cites specific rules; Sonnet labels as BLOCKER and offers options.
 - **Promoter eval:** Both generate correct branch-per-environment model. Sonnet adds more commit status gates (integration-tests, smoke-tests, security-scan).
 - **Discovery-first:** Opus explicitly builds a "Team Profile" before generating. Sonnet also profiles first.
+
+
+</details>
