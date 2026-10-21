@@ -490,7 +490,7 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 # Install prerequisites (macOS)
 brew bundle
 
-# Download Argo CRD schemas for validation (12 schemas, every in-scope kind)
+# Download Argo CRD schemas for validation (13 schemas, every in-scope kind)
 make download-schemas
 
 # Checks — all of these also run in CI
