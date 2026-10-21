@@ -426,8 +426,8 @@ without.** 1,144 verdicts, each with an evidence string, in
 | [`argo-operations`](benchmarks/argo-operations.md) | **93.8%** | 84.4% | **+9.4** |
 | [`argo-knowledge`](benchmarks/argo-knowledge.md) | **98.5%** | 93.9% | +4.5 |
 | [`argo-team-onboard`](benchmarks/argo-team-onboard.md) | 84.5% | 84.5% | **0.0** |
-| [`argo-cluster-debug`](benchmarks/argo-cluster-debug.md) | 87.7% | 88.6% | **−0.9** |
-| **Weighted overall** | **93.2%** | **83.4%** | **+9.8** |
+| [`argo-cluster-debug`](benchmarks/argo-cluster-debug.md) | 92.1% | 92.1% | **0.0** |
+| **Weighted overall** | **93.6%** | **83.7%** | **+9.9** |
 
 ### What the numbers actually say
 
@@ -440,12 +440,29 @@ and applied patches with no dry-run and no confirmation step. That is the useful
 *encode what is version- and product-specific; do not re-encode what the model already
 knows.*
 
-**Two skills show no measurable benefit, and we are publishing that.**
-`argo-team-onboard` tied its baseline exactly (87/103 each) and `argo-cluster-debug` came
-in fractionally behind. Both split rather than dominated: the skill arm reliably ended at
-a "commit this?" Git gate and honored "don't re-create what already exists", while the
-baseline wrote more complete literal YAML and was stronger on scenarios the skill handles
-in prose. Those are addressable gaps, not noise about which direction to go.
+**Two skills show no measurable benefit, and we are publishing that.** Both
+`argo-team-onboard` and `argo-cluster-debug` tied their baselines exactly (87/103 and
+52.5/57). They split rather than dominated: the skill arm reliably ended at a "commit
+this?" Git gate and honored "don't re-create what already exists", while the baseline
+wrote more complete literal YAML.
+
+**`argo-cluster-debug` was re-measured after fixing the eval suite, and the tie held.**
+Four of its scenarios named resources that did not exist on the cluster, capping both
+arms. We deployed real broken fixtures — an Application driven OutOfSync *and* Degraded,
+a paused Rollout reporting `Suspended`, a multi-source Application failing on source 1 of
+2 — and re-ran both arms. Both rose about 4 points (87.7→92.1 and 88.6→92.1), almost
+exactly the headroom the per-expectation analysis predicted. **The gap did not move.**
+
+That re-run exposed a limitation in the evals themselves. On the two scenarios where the
+arms reached *different* root causes, the skill arm was right both times and the baseline
+wrong both times — the zero-length conversion-webhook `caBundle` blocking the operator
+upgrade (baseline: "the operator pod is down"; the pods are all `1/1 Running`), and a
+Rollout in `CrashLoopBackOff` from a probe/port mismatch (baseline: "paused mid-bringup";
+13 restarts, image binds :8443 against `containerPort: 80`). Both pairs scored
+**identically**, because expectations phrased as "identifies the root cause" are satisfied
+by naming a plausible cause, not the correct one. Until the expectations discriminate on
+correctness, this suite cannot resolve the difference it is meant to measure — so read
+`0.0` as "not resolved by this instrument", not "no difference".
 
 **`argo-operations` went from −3.6 to +9.4.** Run 1 lost to its own baseline on a single
 category — no post-action verification. The skill stopped at the confirmation gate and

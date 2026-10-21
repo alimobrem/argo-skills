@@ -1,36 +1,49 @@
 # argo-cluster-debug
 
-## Run 2 — 2026-10-21, live cluster, blind A/B
+## Run 3 — 2026-10-21, live cluster **with deployed fixtures**, blind A/B
 
-**87.7% with the skill vs 88.6% baseline (-0.9) over 57 expectations.**
+**92.1% with the skill vs 92.1% baseline (+0.0) over 57 expectations.**
 
-Measured against a live OpenShift cluster (OpenShift GitOps 1.21.3, Argo CD v3.4.5).
-Graders saw "Condition A"/"Condition B" without knowing which was which and could not
-read `skills/`. Partial credit; every verdict carries an evidence string. Raw verdicts:
-[`results/argo-cluster-debug.with-skill.results.json`](results/argo-cluster-debug.with-skill.results.json) and
-[`results/argo-cluster-debug.baseline.results.json`](results/argo-cluster-debug.baseline.results.json).
+Run 2 scored 87.7% vs 88.6%, but four scenarios named resources that did not exist on the
+cluster, so both arms were capped at `partial` on any expectation requiring a real
+finding. For this run we deployed genuine fixtures — an Application driven both OutOfSync
+and Degraded via live image drift with `selfHeal: false`, a paused blue-green Rollout
+reporting health `Suspended`, and a multi-source Application whose `$values` path does not
+exist (`ComparisonError: failed to generate manifest for source 1 of 2`) — then re-ran
+both arms and tore the fixtures down.
+
+Both arms rose ~4 points, matching the predicted fixture headroom almost exactly. **The
+gap did not move.**
 
 | # | Eval | n | with-skill | baseline | delta |
 |---|------|--:|-----------:|---------:|------:|
-| 1 | Application OutOfSync and Degraded | 8 | 75% | 88% | -12 **←** |
-| 2 | Canary Rollout stuck at step 2 | 8 | 94% | 81% | +12 |
-| 3 | Argo CD installation health check | 8 | 100% | 88% | +12 |
+| 1 | Application OutOfSync and Degraded | 8 | 100% | 88% | +12 |
+| 2 | Canary Rollout stuck at step 2 | 8 | 56% | 81% | -25 |
+| 3 | Argo CD installation health check | 8 | 94% | 94% | +0 |
 | 4 | ApplicationSet not generating expected Applications | 6 | 100% | 100% | +0 |
-| 5 | ApplicationSet RollingSync stuck on production step | 6 | 75% | 83% | -8 |
-| 6 | Blue-green rollout stuck at preview, never promotes | 6 | 92% | 100% | -8 |
-| 7 | Ambiguous debug request with multiple Argo CD instances | 5 | 90% | 100% | -10 **←** |
-| 8 | Suspended Application reported as broken | 5 | 90% | 90% | +0 |
-| 9 | Multi-source Application with one failing source | 5 | 70% | 70% | +0 |
-| | **total** | **57** | **87.7%** | **88.6%** | **-0.9** |
+| 5 | ApplicationSet RollingSync stuck on production step | 6 | 92% | 100% | -8 |
+| 6 | Blue-green rollout stuck at preview, never promotes | 6 | 100% | 75% | +25 |
+| 7 | Ambiguous debug request with multiple Argo CD instances | 5 | 100% | 100% | +0 |
+| 8 | Suspended Application reported as broken | 5 | 100% | 100% | +0 |
+| 9 | Multi-source Application with one failing source | 5 | 100% | 100% | +0 |
+| | **total** | **57** | **92.1%** | **92.1%** | **+0.0** |
 
-**Largest gains:** #3 Argo CD installation health check (+12); #2 Canary Rollout stuck at step 2 (+12).
+### The evals do not discriminate on correctness
 
-**Lost to baseline:** #1 Application OutOfSync and Degraded (-12); #7 Ambiguous debug request with multiple Argo CD instances (-10); #5 ApplicationSet RollingSync stuck on production step (-8).
+On the two scenarios where the arms reached *different* root causes, the skill arm was
+right both times and the baseline wrong both times — yet they scored the same:
 
-> **Baseline reused from run 1 and regraded.** The eval prompts were verified
-> byte-identical between runs, and baselines never see `skills/`. See the grader-drift
-> table in the [root README](../README.md#benchmarks) — absolute scores move with the
-> grader, so read the direction, not the decimal.
+| eval | with-skill | baseline | verified truth |
+|---|---|---|---|
+| 3 | zero-length conversion-webhook `caBundle` | "the operator pod is down" | `caBundle` length **0**; operator pods all **1/1 Running**. InstallPlan `install-fzm4w` Failed on exactly that webhook |
+| 8 | `CrashLoopBackOff`, probe/port mismatch | "pause landed mid-bringup" | pod **CrashLoopBackOff, 13 restarts**; `containerPort: 80` while the image binds **:8443** |
+
+Expectations phrased "identifies the root cause" are satisfied by naming a *plausible*
+cause, not the *correct* one. Until they discriminate, this suite cannot resolve the
+difference it exists to measure. Read `0.0` as "not resolved by this instrument".
+
+Fixture-capped run-2 verdicts kept in
+[`results-run2-fixturecapped/`](results-run2-fixturecapped/).
 
 ---
 
