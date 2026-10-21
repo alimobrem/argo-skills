@@ -614,7 +614,8 @@ data:
 syncWindows:
   # Business hours only for production
   - kind: allow
-    schedule: '0 8 * * 1-5'                          # Mon-Fri 8am UTC
+    schedule: '0 8 * * 1-5'
+    timeZone: UTC                                  # REQUIRED in practice: a bare schedule is evaluated in the controller's timezone, so a window annotated 'UTC' can fire hours off                          # Mon-Fri 8am UTC
     duration: 10h                                    # Until 6pm UTC
     applications: ['*']
     namespaces: ['{{TEAM_NAME}}-prod']
@@ -622,7 +623,8 @@ syncWindows:
 
   # Deny weekends for production
   - kind: deny
-    schedule: '0 18 * * 5'                           # Friday 6pm UTC
+    schedule: '0 18 * * 5'
+    timeZone: UTC                                  # REQUIRED in practice: a bare schedule is evaluated in the controller's timezone, so a window annotated 'UTC' can fire hours off                           # Friday 6pm UTC
     duration: 62h                                    # Until Monday 8am UTC
     applications: ['*']
     namespaces: ['{{TEAM_NAME}}-prod']

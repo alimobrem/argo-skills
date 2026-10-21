@@ -1,5 +1,55 @@
 # argo-cluster-debug
 
+## Run 3 — 2026-10-21, live cluster **with deployed fixtures**, blind A/B
+
+**92.1% with the skill vs 92.1% baseline (+0.0) over 57 expectations.**
+
+Run 2 scored 87.7% vs 88.6%, but four scenarios named resources that did not exist on the
+cluster, so both arms were capped at `partial` on any expectation requiring a real
+finding. For this run we deployed genuine fixtures — an Application driven both OutOfSync
+and Degraded via live image drift with `selfHeal: false`, a paused blue-green Rollout
+reporting health `Suspended`, and a multi-source Application whose `$values` path does not
+exist (`ComparisonError: failed to generate manifest for source 1 of 2`) — then re-ran
+both arms and tore the fixtures down.
+
+Both arms rose ~4 points, matching the predicted fixture headroom almost exactly. **The
+gap did not move.**
+
+| # | Eval | n | with-skill | baseline | delta |
+|---|------|--:|-----------:|---------:|------:|
+| 1 | Application OutOfSync and Degraded | 8 | 100% | 88% | +12 |
+| 2 | Canary Rollout stuck at step 2 | 8 | 56% | 81% | -25 |
+| 3 | Argo CD installation health check | 8 | 94% | 94% | +0 |
+| 4 | ApplicationSet not generating expected Applications | 6 | 100% | 100% | +0 |
+| 5 | ApplicationSet RollingSync stuck on production step | 6 | 92% | 100% | -8 |
+| 6 | Blue-green rollout stuck at preview, never promotes | 6 | 100% | 75% | +25 |
+| 7 | Ambiguous debug request with multiple Argo CD instances | 5 | 100% | 100% | +0 |
+| 8 | Suspended Application reported as broken | 5 | 100% | 100% | +0 |
+| 9 | Multi-source Application with one failing source | 5 | 100% | 100% | +0 |
+| | **total** | **57** | **92.1%** | **92.1%** | **+0.0** |
+
+### The evals do not discriminate on correctness
+
+On the two scenarios where the arms reached *different* root causes, the skill arm was
+right both times and the baseline wrong both times — yet they scored the same:
+
+| eval | with-skill | baseline | verified truth |
+|---|---|---|---|
+| 3 | zero-length conversion-webhook `caBundle` | "the operator pod is down" | `caBundle` length **0**; operator pods all **1/1 Running**. InstallPlan `install-fzm4w` Failed on exactly that webhook |
+| 8 | `CrashLoopBackOff`, probe/port mismatch | "pause landed mid-bringup" | pod **CrashLoopBackOff, 13 restarts**; `containerPort: 80` while the image binds **:8443** |
+
+Expectations phrased "identifies the root cause" are satisfied by naming a *plausible*
+cause, not the *correct* one. Until they discriminate, this suite cannot resolve the
+difference it exists to measure. Read `0.0` as "not resolved by this instrument".
+
+Fixture-capped run-2 verdicts kept in
+[`results-run2-fixturecapped/`](results-run2-fixturecapped/).
+
+---
+
+<details>
+<summary>Superseded: v0.2.0 (2026-10-14) — simulated outcomes, no live cluster</summary>
+
 ## v0.2.0 (2026-10-14) — Cross-model, with-skill vs. baseline
 
 **Methodology:** 13 evals (expanded from 5) × 2 models (Opus-tier, Sonnet-tier) × with-skill/baseline,
@@ -61,3 +111,6 @@ Model: `claude-opus-4-6`
 - Config review compared both ArgoCD instances side-by-side with gap analysis
 
 Tested on live OpenShift cluster (OpenShift GitOps operator) with `oc` CLI.
+
+
+</details>

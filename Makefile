@@ -59,6 +59,7 @@ download-schemas: ## Download Argo CRD schemas for kubeconform validation
 	@echo "Downloading Argo Rollouts CRDs ($(ROLLOUTS_VERSION))..."
 	$(call fetch_schema,argo-rollouts,$(ROLLOUTS_VERSION),rollout-crd.yaml,rollout-argoproj-v1alpha1)
 	$(call fetch_schema,argo-rollouts,$(ROLLOUTS_VERSION),analysis-template-crd.yaml,analysistemplate-argoproj-v1alpha1)
+	$(call fetch_schema,argo-rollouts,$(ROLLOUTS_VERSION),cluster-analysis-template-crd.yaml,clusteranalysistemplate-argoproj-v1alpha1)
 	$(call fetch_schema,argo-rollouts,$(ROLLOUTS_VERSION),analysis-run-crd.yaml,analysisrun-argoproj-v1alpha1)
 	$(call fetch_schema,argo-rollouts,$(ROLLOUTS_VERSION),experiment-crd.yaml,experiment-argoproj-v1alpha1)
 	@rm -rf $(SCHEMAS_DIR) && mv $(SCHEMAS_TMP) $(SCHEMAS_DIR)

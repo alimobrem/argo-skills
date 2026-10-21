@@ -119,11 +119,24 @@ Use when: user asks if Argo CD is installed, reports general Argo CD failures, o
    argocd version
    ```
    **In `--core` mode this is vacuous** — the CLI *is* the server, so client and server
-   always match. `.status.version` is also empty on the ArgoCD CR, so on an
-   operator-managed instance read the actual version off the image:
+   always match. Three fallbacks, in order, because the obvious ones fail on OpenShift:
+
    ```bash
-   kubectl get deploy -n "$NS" "$CR"-server -o jsonpath='{.spec.template.spec.containers[0].image}'
+   # 1. The CR's status — usually EMPTY on operator-managed instances. Try it, don't rely on it.
+   kubectl get argocd -n "$NS" -o jsonpath='{.items[0].status.version}{"\n"}'
+
+   # 2. The image — on OpenShift this is DIGEST-PINNED, so it gives you a sha256 and no
+   #    version. Useful for pinning down an exact build, useless for "what version is this".
+   kubectl get deploy -n "$NS" "$CR"-server -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
+
+   # 3. The operator CSV — the ONLY reliable source of a human-readable version on an
+   #    operator-managed cluster. Use the CSV's phase too: it is authoritative where the
+   #    Subscription's `state` is not.
+   oc get csv -n openshift-gitops-operator -o custom-columns=NAME:.metadata.name,PHASE:.status.phase
    ```
+
+   Report which source you used. "Version unknown" is a legitimate answer on a
+   digest-pinned install and is better than quoting a sha256 as if it were a version.
    Compare client and server versions. Mismatches beyond minor version can cause issues.
 
 6. Check the argocd-cm ConfigMap for server configuration:
@@ -290,9 +303,42 @@ Use when: user reports ApplicationSet not generating Applications, generating wr
 
 7. For progressive sync issues, check `spec.strategy`:
    ```bash
-   kubectl get applicationset <name> -n "$NS" -o jsonpath='{.spec.strategy}' | python3 -m json.tool
+   kubectl get applicationset <name> -n "$NS" -o jsonpath='{.spec.strategy}' | { read -r s || true; [ -n "$s" ] \
+     && printf '%s' "$s" | python3 -m json.tool \
+     || echo 'no spec.strategy set — this ApplicationSet syncs AllAtOnce'; }
    ```
    Check `rollingSync.steps`, `maxUpdate` values, and whether unhealthy apps are blocking progression.
+
+   **First, check that progressive syncs are switched on at all — on OpenShift GitOps
+   they are not by default.** `RollingSync` is a no-op unless the applicationset
+   controller runs with `--enable-progressive-syncs`. Without it the strategy block is
+   accepted, stored, and **completely ignored**: every Application syncs AllAtOnce while
+   the ApplicationSet still shows `ResourcesUpToDate=True` and reports no error anywhere.
+
+   ```bash
+   # The flag (operator installs do NOT set it by default). Note the label is NOT
+   # prefixed with the CR name, and `range` is used so an empty result prints nothing
+   # instead of crashing with "array index out of bounds" the way .items[0] does.
+   $KCTL get deploy -n "$NS" -l app.kubernetes.io/name=argocd-applicationset-controller \
+     -o jsonpath='{range .items[*]}{.metadata.name}{": "}{.spec.template.spec.containers[0].command}{"\n"}{end}'
+
+   # The tell: RollingSync populates .status.applicationStatus. An empty value or `[]`
+   # alongside a declared rollingSync strategy means the strategy is not running.
+   $KCTL get applicationset <name> -n "$NS" -o jsonpath='{.status.applicationStatus}{"\n"}'
+   ```
+
+   Verified on OpenShift GitOps 1.21.3: an ApplicationSet declaring two `rollingSync`
+   steps had an empty `.status.applicationStatus`, and both generated Applications
+   reached `Synced` at the **same revision** — the production app was never gated behind
+   a staging app that never became Healthy.
+
+   To enable it, set `spec.applicationSet.extraCommandArgs: ["--enable-progressive-syncs"]`
+   on the **`ArgoCD` CR**, not on the Deployment — the operator reverts direct Deployment
+   edits. Expect the controller to restart.
+
+   Only once the flag is on do the usual causes apply: a step whose `matchExpressions`
+   match no Application (that step completes vacuously), `maxUpdate` saturated by apps
+   that never converge, or an earlier step whose apps never reach Healthy.
 
 ---
 
@@ -328,6 +374,17 @@ Use when: user reports canary/blue-green rollout stuck, aborted, or degraded.
    kubectl get rollout <name> -n <namespace> -o jsonpath='{.spec.strategy.canary.steps}'
    ```
    Identify which step the rollout is paused/stuck at.
+
+   **Resolve the numbering before you answer.** `.status.currentStepIndex` is a
+   **0-based index into `spec.strategy.canary.steps`**, while users almost always count
+   steps from 1 — so "stuck at step 2" usually means `currentStepIndex: 1`, and an index
+   of 2 is the user's "step 3". The two readings point at different steps and therefore
+   different root causes. State the mapping explicitly, e.g.:
+
+   > `currentStepIndex: 1` → `steps[1]` = `pause: {duration: 30s}` — your "step 2".
+
+   If the user's wording is ambiguous, print the whole list with both numberings and say
+   which one you diagnosed. An index equal to `len(steps)` means every step completed.
 
 4. If paused, determine the reason:
    - `pause` step: manual approval required. Check `.status.pauseConditions`.
@@ -386,6 +443,30 @@ Use when: user reports canary/blue-green rollout stuck, aborted, or degraded.
      ```bash
      kubectl get traefikservice -n <namespace> -o yaml
      ```
+
+8b. **Blue-green: there are no steps, so "stuck" means something different.** A
+    blue-green Rollout has no `steps` array and no `currentStepIndex`, and it never
+    progresses on its own the way canary does between `setWeight`/`pause` entries. It
+    moves preview → active on exactly one trigger:
+
+    | | canary | blue-green |
+    |---|---|---|
+    | progression | automatic through `steps[]`, pausing only where told | single promotion event, no intermediate steps |
+    | what "stuck" means | sitting at one `steps[]` entry | preview is up and promotion never fired |
+    | usual cause | a `pause` with no duration, or a failing `analysis` step | `autoPromotionEnabled: false` was set explicitly and nobody promoted, a failing/running `prePromotionAnalysis`, or the new ReplicaSet never became Healthy |
+
+    So do not look for a step index on a blue-green Rollout — check, in order:
+    ```bash
+    kubectl get rollout <name> -n <namespace> \
+      -o jsonpath='{.spec.strategy.blueGreen.autoPromotionEnabled}{"\n"}{.status.pauseConditions}{"\n"}'
+    ```
+    **`autoPromotionEnabled` defaults to `true`** — an unset field means the rollout
+    *should* self-promote as soon as the new ReplicaSet is Healthy. So an unset field is
+    a red flag pointing at the ReplicaSet or at analysis, whereas an explicit
+    `autoPromotionEnabled: false` is **intended behaviour**: the rollout is waiting for
+    `kubectl argo rollouts promote <name>`, and you should report it as such rather than
+    as a fault. (`autoPromotionSeconds` only applies in that paused state — it promotes
+    automatically once that many seconds have elapsed; it defaults to nil, meaning never.)
 
 9. Check ReplicaSets — compare stable vs canary:
    ```bash

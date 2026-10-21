@@ -4,6 +4,55 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Benchmarks — run 2: re-measured all six skills, and measured the grader
+
+Re-ran every suite against a live OpenShift cluster after fixing the defects run 1
+surfaced, with the two contaminated baselines re-run clean.
+
+|                          | with-skill | baseline |  delta | run 1 |
+|--------------------------|-----------:|---------:|-------:|------:|
+| argo-performance-tuning  |      94.2% |    66.8% | +27.4  | +21.6 |
+| argo-repo-audit          |      97.5% |    81.2% | +16.2  |  +9.4 |
+| argo-operations          |      93.8% |    84.4% |  +9.4  |  −3.6 |
+| argo-knowledge           |      98.5% |    93.9% |  +4.5  |  +1.9 |
+| argo-team-onboard        |      84.5% |    84.5% |   0.0  |  +4.4 |
+| argo-cluster-debug       |      87.7% |    88.6% |  −0.9  |  +4.4 |
+| **weighted**             |  **93.2%** | **83.4%**| **+9.8**| +6.3 |
+
+**Two skills show no measurable benefit.** `argo-team-onboard` tied its baseline exactly
+(87/103 each) and `argo-cluster-debug` came in fractionally behind. `team-onboard`'s
+apparent +4.4 in run 1 was mostly a contaminated baseline, not a real gap.
+
+**We measured grader variance instead of asserting it.** Four baselines were reused
+unchanged and regraded by a fresh grader — same text, same expectations, so any
+difference is the grader. Pooled agreement 92% over 369 expectations; drift −6.9 to +0.9.
+Disagreements are nearly all one-directional (`pass` → `partial`), so the run-2 grader is
+systematically stricter rather than noisy. Consequence: a stricter grader *widens* deltas
+when the with-skill arm sits at ceiling — `argo-repo-audit` kept an identical 97.5% while
+its regraded baseline fell 88.1% → 81.2%, moving the delta +9.4 → +16.2 with no change to
+the skill. Within a run both arms share one grader, so direction and rank-ordering are the
+trustworthy part; treat anything under ~5 points as indistinguishable from zero.
+
+Run-1 verdicts preserved in `benchmarks/results-run1-2026-10-20/` so the drift table is
+reproducible. Per-skill docs in `benchmarks/*.md` regenerated from the run-2 verdicts;
+the older v0.2.0 simulated-outcome sections are retained but collapsed and marked
+superseded.
+
+### Fixed — argo-repo-audit: two scans that returned zero on their own fixtures
+
+- The hardcoded-credential pipeline filtered comments with `grep -v "...\|#"`, which drops
+  any line whose *value* contains `#`. It found **nothing** in
+  `hardcoded-helm-password/app.yaml` (`password: "Redis!Pr0d#2026"`) — the fixture that
+  exists to test it. The filter is now anchored to `#` in value position.
+- The insecure-TLS scan matched only `insecure: true` and missed the quoted JSON form
+  (`"insecure": true`) that appears in cluster Secrets.
+- The duplicate-name check used a `kind:`/`name:` proximity grep with `-h`, printing no
+  file paths despite the step requiring them, and breaking on any document not ordered
+  kind-then-name. Replaced with a document-level `yq` scan keyed on kind|namespace|name.
+- `ClusterAnalysisTemplate` appeared in three kind tables but shipped no schema, so
+  kubeconform silently **skipped** those manifests rather than validating them.
+
+
 ### Fixed — argo-operations: the verification gap the benchmark exposed
 
 `argo-operations` was the one skill that **lost** to its unaided baseline (90.1% vs

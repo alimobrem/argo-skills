@@ -213,6 +213,20 @@ Upstream, Image Updater is configured with `argocd-image-updater.argoproj.io/*`
 annotations on each Application. On OpenShift GitOps there is an operator-owned CRD —
 **note the separate API group**, `argocd-image-updater.argoproj.io`, not `argoproj.io`.
 
+**Two steps, exactly like notifications.** The CR alone does nothing — you must also turn
+the controller on, or the `ImageUpdater` applies cleanly with nothing running to act on it:
+
+```yaml
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: openshift-gitops
+  namespace: openshift-gitops
+spec:
+  imageUpdater:
+    enabled: true     # REQUIRED — installs the Image Updater controller
+```
+
 ```yaml
 apiVersion: argocd-image-updater.argoproj.io/v1alpha1
 kind: ImageUpdater
@@ -320,6 +334,7 @@ The recurring question when something will not stay changed:
 | Whether the notifications controller runs at all | `ArgoCD.spec.notifications.enabled` | — |
 | Rollouts controller image, HA, resources, scope | `RolloutManager` | the argo-rollouts Deployment |
 | Which namespaces an instance may manage | `NamespaceManagement` **and** `ArgoCD.spec.namespaceManagement` | `--application-namespaces` |
+| Whether the Image Updater controller runs at all | `ArgoCD.spec.imageUpdater.enabled` | — |
 | Image update rules | `ImageUpdater` CR (or legacy annotations) | — |
 | Infra node placement for *default* workloads | `GitopsService` | the default `ArgoCD` CR |
 

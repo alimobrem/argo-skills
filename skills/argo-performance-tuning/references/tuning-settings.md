@@ -17,19 +17,19 @@ fragments work for a community **Argo CD Operator** install under `metadata.name
 | Git shallow clone `depth` | full history | `1` | Repository `Secret` `stringData.depth` | Same — always a Secret, not the CR |
 | `ARGOCD_REPO_SERVER_PARALLELISM_LIMIT` | `0` (unlimited) | `20`, then tune | env on `argocd-repo-server` or `argocd-cmd-params-cm` `reposerver.parallelism.limit` | `spec.repo.env` |
 | `ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT` | `0` (unlimited) | `20` when Git rate-limits | env on `argocd-repo-server` | `spec.repo.env` |
-| `ARGOCD_EXEC_TIMEOUT` | `90s` | `180s`+ for heavy Helm/Kustomize | env on `argocd-repo-server` | `spec.repo.env` |
+| `ARGOCD_EXEC_TIMEOUT` | `90s` | `180s`+ for heavy Helm/Kustomize | env on `argocd-repo-server` | **`spec.repo.execTimeout`** (dedicated) |
 | `ARGOCD_EXEC_FATAL_TIMEOUT` | `10s` | leave default unless you know why | env on `argocd-repo-server` | `spec.repo.env` |
 | `ARGOCD_GIT_ATTEMPTS_COUNT` | `1` | `3`–`5` on flaky networks | env on `argocd-repo-server` | `spec.repo.env` |
 | `ARGOCD_REPO_CACHE_EXPIRATION` | `24h` | keep `24h` unless you know why | env on `argocd-repo-server` | `spec.repo.env` |
 | `ARGOCD_REVISION_CACHE_LOCK_TIMEOUT` | `10s` | raise (e.g. `30s`) for large charts | env on `argocd-repo-server` | `spec.repo.env` |
 | `ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS` | `60` | match repo render time (e.g. `180`) | env on `argocd-server` | `spec.server.env` |
 | Application Controller sharding | disabled / 1 replica | enabled; algorithm + replicas | HA StatefulSet, `argocd-cmd-params-cm` `controller.sharding.algorithm`, `ARGOCD_CONTROLLER_REPLICAS`/`ARGOCD_CONTROLLER_SHARD` | `spec.controller.sharding` + `spec.controller.env` (algorithm) |
-| `timeout.reconciliation` | `3m` | `600s`–`3600s` **with webhooks** | `argocd-cm` key | `spec.extraConfig` |
+| `timeout.reconciliation` | `3m` | `600s`–`3600s` **with webhooks** | `argocd-cm` key | **`spec.controller.appSync`** (dedicated) |
 | `timeout.reconciliation.jitter` | `60s` | non-zero fraction of the interval | `argocd-cm` key | `spec.extraConfig` |
 | `controller.status.processors` | `20` | `50`–`100` at large scale | `argocd-cmd-params-cm` | `spec.controller.processors.status` |
 | `controller.operation.processors` | `10` | raise when sync queue backs up | `argocd-cmd-params-cm` | `spec.controller.processors.operation` |
 | `ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS` | `60` | `120`–`300` for slow manifest RPCs | `argocd-cmd-params-cm` `controller.repo.server.timeout.seconds` | `spec.controller.env` (**not** `extraConfig`) |
-| `ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT` | upstream `20`; **OpenShift GitOps operator passes `--kubectl-parallelism-limit 10`** | match or sit slightly below `operation.processors` — and measure from 10, not 20, on OpenShift | `argocd-cmd-params-cm` `controller.kubectl.parallelism.limit` | `spec.controller.env` |
+| `ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT` | upstream `20`; **OpenShift GitOps operator passes `--kubectl-parallelism-limit 10`** | match or sit slightly below `operation.processors` — and measure from 10, not 20, on OpenShift | `argocd-cmd-params-cm` `controller.kubectl.parallelism.limit` | **`spec.controller.parallelismLimit`** (dedicated) |
 | `resource.ignoreResourceUpdatesEnabled` | `true` | keep `true`; tune the ignore rules, don't disable it | `argocd-cm` key | `spec.extraConfig` |
 | `resource.exclusions` | ships with defaults (v3.0+) | keep enabled; **extend, never replace** | `argocd-cm` key | **`spec.resourceExclusions`** (dedicated field — NOT `spec.extraConfig`) |
 | `argocd.argoproj.io/manifest-generate-paths` | unset | set on each Application sharing a monorepo | Application annotation | Application annotation (same on both) |
@@ -79,6 +79,20 @@ it working, or the absence of that line to find what still isn't covered).
 **Do not disable this setting** to "fix" a missed status change — find the specific field
 causing the problem and add it to the ignore rule instead; disabling it re-enables reconciling
 on every periodic status rewrite cluster-wide.
+
+### One instance's answer does not transfer to its siblings
+
+**Read every setting per instance.** A cluster commonly runs several ArgoCD CRs, and they
+diverge in ways that matter: on the cluster this reference was verified against, one
+instance has `clusters: ['*']` in its exclusions and the others do not, and one has no
+resource limits at all while its siblings OOMKill at the 256Mi operator default. A
+finding on `openshift-gitops` tells you nothing about `team-b`.
+
+```bash
+for NS in $(kubectl get argocd -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"\n"}{end}'); do
+  echo "== $NS"; kubectl get argocd -n "$NS" -o yaml | grep -E 'resourceExclusions|extraConfig|cmdParams|processors' 
+done
+```
 
 ### Dedicated `ArgoCD` CR fields — prefer these over env vars
 

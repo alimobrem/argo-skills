@@ -65,12 +65,25 @@ With the inventory:
    surviving project's `sourceRepos`/`destinations`. Schema validation cannot catch this —
    each file is individually valid.
 
+   Use a YAML-aware scan. A grep over `kind:`/`name:` proximity breaks on documents
+   ordered `apiVersion / metadata / kind`, on labels appearing before `name:`, and on any
+   indentation other than two spaces — and with `-h` it prints no file paths, which this
+   step asks for. Select at the **document** level: a recursive `..` match also picks up
+   `clusterResourceWhitelist[].kind`, producing phantom `*` entries.
+
    ```bash
-   grep -rh -A3 '^kind: \(Application\|AppProject\|ApplicationSet\)$' <repo-root> \
-     --include='*.yaml' --include='*.yml' \
-     | awk '/^kind:/{k=$2} /^  name:/{print k"/"$2}' | sort | uniq -d
+   # Requires yq. Reports kind|namespace|name collisions with the files involved.
+   find <repo-root> \( -name '*.yaml' -o -name '*.yml' \) -print | while read -r f; do
+     yq -r "select(.kind == \"Application\" or .kind == \"AppProject\" or .kind == \"ApplicationSet\")
+            | [.kind, (.metadata.namespace // \"-\"), .metadata.name, \"$f\"] | @tsv" "$f" 2>/dev/null
+   done | awk -F'\t' 'NF>=4{k=$1"|"$2"|"$3; seen[k]=seen[k]" "$4; n[k]++}
+                      END{c=0; for(x in n) if(n[x]>1){print x" ->"seen[x]; c++}
+                          if(!c) print "no duplicates"}'
    ```
 
+   Namespace is part of the key: the same Application name in two namespaces is legal, and
+   flagging it is a false positive. If `yq` is unavailable, say so in the report and mark
+   this check as not run rather than substituting a grep that silently under-reports.
    Any output is a **Critical** finding — report both file paths.
 
 ### Phase 2: Manifest Validation
@@ -122,7 +135,6 @@ Focus on categories that match the discovery results:
 - **Ignore differences** — fields managed by controllers (HPA replicas, mutating webhooks)
 - **Sync waves and hooks** — ordering via sync-wave annotations and PreSync/PostSync hooks
 - **Rollout configurations** — AnalysisTemplates, canary steps, traffic management
-- **Workflow resource limits** — activeDeadlineSeconds, retry strategies, pod GC
 
 Skip categories with zero matching resources.
 

@@ -304,7 +304,11 @@ spec:
   applicationSelector:          # which Argo CD Applications to report health for
     matchLabels:
       app.kubernetes.io/name: my-app
-  # url: https://argocd.example.com   # optional, surfaced on the SCM status check
+  # url:                        # OPTIONAL — and it is an OBJECT, not a string.
+  #   template: "https://argocd.example.com/applications/{{.app.metadata.name}}"
+  #   options: []
+  # A bare string here fails admission. Verified: `kubectl explain
+  # argocdcommitstatus.spec.url` returns <Object> with template/options.
 ```
 
 > Verified against the installed CRD: `spec` accepts **`promotionStrategyRef`**,

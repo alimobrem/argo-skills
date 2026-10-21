@@ -1,5 +1,49 @@
 # argo-knowledge
 
+## Run 2 — 2026-10-21, live cluster, blind A/B
+
+**98.5% with the skill vs 93.9% baseline (+4.5) over 132 expectations.**
+
+Measured against a live OpenShift cluster (OpenShift GitOps 1.21.3, Argo CD v3.4.5).
+Graders saw "Condition A"/"Condition B" without knowing which was which and could not
+read `skills/`. Partial credit; every verdict carries an evidence string. Raw verdicts:
+[`results/argo-knowledge.with-skill.results.json`](results/argo-knowledge.with-skill.results.json) and
+[`results/argo-knowledge.baseline.results.json`](results/argo-knowledge.baseline.results.json).
+
+| # | Eval | n | with-skill | baseline | delta |
+|---|------|--:|-----------:|---------:|------:|
+| 1 | Multi-source Application (OCI Helm + Git values) | 12 | 96% | 83% | +12 |
+| 2 | ApplicationSet merge generator fleet | 10 | 95% | 85% | +10 |
+| 3 | Blue-green Rollout with Job AnalysisTemplate | 10 | 100% | 100% | +0 |
+| 4 | Notifications: Slack Block Kit + GitHub commit status | 10 | 95% | 100% | -5 |
+| 5 | OpenShift GitOps ArgoCD CRs and SCCs | 12 | 100% | 100% | +0 |
+| 6 | Multi-tenant apps-in-any-namespace | 12 | 100% | 92% | +8 |
+| 7 | 200 edge clusters behind firewalls | 10 | 100% | 100% | +0 |
+| 8 | GitOps Promoter three-environment strategy | 12 | 100% | 96% | +4 |
+| 9 | Notifications on OpenShift GitOps | 6 | 100% | 100% | +0 |
+| 10 | Deploy Argo Rollouts on OpenShift GitOps | 5 | 100% | 90% | +10 |
+| 11 | Attach a tenant namespace to a central Argo CD | 5 | 100% | 70% | +30 |
+| 12 | Why do ArgoCD CR edits revert on the default instance | 5 | 100% | 100% | +0 |
+| 13 | Image Updater via the operator CRD | 7 | 100% | 93% | +7 |
+| 14 | Resource tracking method and sync policy for a shared cluster | 5 | 100% | 90% | +10 |
+| 15 | Secret management choice for a GitOps repo | 5 | 100% | 100% | +0 |
+| 16 | Choose a GitOps repository pattern | 6 | 92% | 100% | -8 |
+| | **total** | **132** | **98.5%** | **93.9%** | **+4.5** |
+
+**Largest gains:** #11 Attach a tenant namespace to a central Argo CD (+30); #1 Multi-source Application (OCI Helm + Git values) (+12); #14 Resource tracking method and sync policy for a shared cluster (+10).
+
+**Lost to baseline:** #16 Choose a GitOps repository pattern (-8); #4 Notifications: Slack Block Kit + GitHub commit status (-5).
+
+> **Baseline reused from run 1 and regraded.** The eval prompts were verified
+> byte-identical between runs, and baselines never see `skills/`. See the grader-drift
+> table in the [root README](../README.md#benchmarks) — absolute scores move with the
+> grader, so read the direction, not the decimal.
+
+---
+
+<details>
+<summary>Superseded: v0.2.0 (2026-10-14) — simulated outcomes, no live cluster</summary>
+
 ## v0.2.0 (2026-10-14) — Sonnet baseline added
 
 The only remaining untested cell for this skill's cross-model table was Sonnet's unaided
@@ -108,3 +152,6 @@ perfectly controlled apples-to-apples diff.
 - **Core Argo CD** — no delta on well-established APIs. Both models know these well.
 - **Sonnet with skill matches or beats Opus baseline** on newer features — the skill
   effectively upgrades Sonnet to Opus-level accuracy for Argo-specific tasks.
+
+
+</details>

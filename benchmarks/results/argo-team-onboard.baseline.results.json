@@ -2,6 +2,7 @@
  "skill": "argo-team-onboard",
  "model": "claude-opus-5",
  "condition": "baseline",
+ "run": 2,
  "evals": [
   {
    "id": 1,
@@ -10,52 +11,52 @@
     {
      "text": "Output includes kind: AppProject with sourceRepos restricted to https://github.com/acme/checkout-svc.git",
      "verdict": "pass",
-     "evidence": "Full AppProject YAML with sourceRepos: [https://github.com/acme/checkout-svc.git] only."
+     "evidence": "Full AppProject YAML: 'sourceRepos: - https://github.com/acme/checkout-svc.git'"
     },
     {
      "text": "AppProject destinations are scoped to checkout-dev and checkout-prod namespaces only (no wildcards)",
      "verdict": "pass",
-     "evidence": "Two destinations on the in-cluster server: checkout-dev and checkout-prod. No wildcards."
+     "evidence": "destinations: two exact {server: https://kubernetes.default.svc, namespace: checkout-dev / checkout-prod} entries"
     },
     {
      "text": "AppProject clusterResourceWhitelist is empty or limited to Namespace only",
      "verdict": "pass",
-     "evidence": "clusterResourceWhitelist: [] with a comment that any future addition is a reviewed change, not a wildcard."
+     "evidence": "'clusterResourceWhitelist: []  # no cluster-scoped objects, incl. Namespace'"
     },
     {
      "text": "AppProject has namespaceResourceBlacklist blocking ResourceQuota and/or LimitRange",
      "verdict": "pass",
-     "evidence": "Blacklist includes ResourceQuota, LimitRange, NetworkPolicy, ClusterRole and ClusterRoleBinding."
+     "evidence": "namespaceResourceBlacklist includes ResourceQuota, LimitRange, NetworkPolicy, Role, RoleBinding, SCC"
     },
     {
      "text": "AppProject has orphanedResources.warn: true",
-     "verdict": "pass",
-     "evidence": "orphanedResources: warn: true."
+     "verdict": "fail",
+     "evidence": "orphanedResources does not appear anywhere in the AppProject or the answer"
     },
     {
      "text": "AppProject includes a role for checkout-developers group with scoped permissions (not wildcard actions)",
      "verdict": "pass",
-     "evidence": "Role 'developer' bound to checkout-developers with get/sync/action/*/logs scoped to checkout/*, plus explicit denies on delete, override and exec; explains why applications:'*' is wrong."
+     "evidence": "role 'developer' with groups: [checkout-developers] and explicit get/sync/action/*/logs allows plus override, delete and exec denies"
     },
     {
      "text": "Output includes kind: Application with source.path pointing to a Kustomize overlay (overlays/dev or similar)",
      "verdict": "pass",
-     "evidence": "Application checkout-dev with source.path: overlays/dev against checkout-svc.git."
+     "evidence": "Application checkout-dev with 'path: overlays/dev' (prod variant uses overlays/production)"
     },
     {
      "text": "Application has syncPolicy with automated, prune, selfHeal, and retry",
      "verdict": "pass",
-     "evidence": "automated: {prune: true, selfHeal: true} plus retry limit 5 with 5s/factor-2/3m backoff on the dev Application."
+     "evidence": "'automated: { prune: true, selfHeal: true, allowEmpty: false }' and 'retry: { limit: 5, backoff: {...} }'"
     },
     {
      "text": "Application uses project: checkout (references the generated AppProject)",
      "verdict": "pass",
-     "evidence": "project: checkout, matching the AppProject metadata.name: checkout."
+     "evidence": "'project: checkout' in the Application spec, matching the generated AppProject name"
     },
     {
      "text": "Application destination is scoped to the correct namespace (checkout-dev)",
      "verdict": "pass",
-     "evidence": "destination namespace checkout-dev with CreateNamespace=false since the platform owns namespaces."
+     "evidence": "'destination: server: https://kubernetes.default.svc, namespace: checkout-dev'"
     }
    ]
   },
@@ -66,47 +67,47 @@
     {
      "text": "Output includes kind: AppProject with sourceRepos containing both the OCI registry URL and the Git config repo",
      "verdict": "pass",
-     "evidence": "sourceRepos lists oci://registry.acme.com/charts/analytics-dashboard, registry.acme.com/charts and https://github.com/acme/analytics-config.git, with reasoning for listing both OCI forms."
+     "evidence": "sourceRepos: oci://registry.acme.com/charts/analytics-dashboard and https://github.com/acme/analytics-config.git"
     },
     {
      "text": "AppProject destinations scoped to analytics-prod namespace",
      "verdict": "pass",
-     "evidence": "Single destination: in-cluster server, namespace analytics-prod."
+     "evidence": "'destinations: - { server: https://kubernetes.default.svc, namespace: analytics-prod }'"
     },
     {
      "text": "Output includes kind: Application with multi-source configuration (sources array, not single source)",
      "verdict": "pass",
-     "evidence": "Application analytics-dashboard-prod with a two-entry spec.sources array."
+     "evidence": "Application spec uses a 'sources:' array with two entries"
     },
     {
      "text": "One source references the OCI Helm chart with chart name and targetRevision: 3.2.0",
      "verdict": "pass",
-     "evidence": "repoURL registry.acme.com/charts, chart: analytics-dashboard, targetRevision: \"3.2.0\" (quoted deliberately); notes the oci:// prefix and chart name are stripped from repoURL."
+     "evidence": "'repoURL: registry.acme.com/charts / chart: analytics-dashboard / targetRevision: 3.2.0'"
     },
     {
      "text": "Another source references the Git config repo with values file path",
      "verdict": "pass",
-     "evidence": "ref-only source repoURL analytics-config.git, targetRevision main, ref: cfg; values path $cfg/values/production.yaml."
+     "evidence": "second source repoURL https://github.com/acme/analytics-config.git with 'ref: values'; valueFiles: $values/values/production.yaml"
     },
     {
      "text": "The Helm source uses $values reference to pull values from the Git source",
      "verdict": "pass",
-     "evidence": "Uses the ref-variable mechanism correctly with the ref named cfg: valueFiles: [$cfg/values/production.yaml]. Functionally identical to $values; the ref name is arbitrary."
+     "evidence": "'valueFiles: - $values/values/production.yaml' and an explanation that $values resolves to the ref source's repo root"
     },
     {
      "text": "Application has syncPolicy with automated sync and retry",
-     "verdict": "pass",
-     "evidence": "automated: {prune: true, selfHeal: true}, syncOptions, and retry limit 5 with backoff."
+     "verdict": "partial",
+     "evidence": "retry block is present, but automated sync is deliberately omitted ('Deliberate choice: no auto-sync' for prod)"
     },
     {
      "text": "Application uses project: analytics (references the AppProject)",
      "verdict": "pass",
-     "evidence": "project: analytics, matching the AppProject metadata.name: analytics."
+     "evidence": "'project: analytics' in the Application spec"
     },
     {
      "text": "Does NOT generate a Kustomize-based Application \u2014 respects the team's Helm-based workflow",
      "verdict": "pass",
-     "evidence": "Pure multi-source Helm Application; no kustomize block."
+     "evidence": "Multi-source OCI Helm chart + values repo; no Kustomize anywhere"
     }
    ]
   },
@@ -117,47 +118,47 @@
     {
      "text": "Output includes a teams.yaml schema with fields for team name, repos, namespaces, source type, SSO group",
      "verdict": "partial",
-     "evidence": "tenants/<name>/tenant.yaml covers tenant name, repoURL, per-env namespace, and SSO groups (developer/admin), plus quota and podSecurityStandard \u2014 but there is no source type field (kustomize/helm/directory); the template assumes a path-based source."
+     "evidence": "Schema is tenants/<team>/tenant.yaml with name, owners/approvers (SSO groups), repoURL and per-environment namespaces; no source-type field, and not a teams.yaml"
     },
     {
      "text": "Output includes kind: ApplicationSet with a git-file generator pointing to teams.yaml",
-     "verdict": "pass",
-     "evidence": "ApplicationSet tenant-apps with a matrix whose outer generator is git files path 'tenants/*/tenant.yaml' and inner generator fans out over .envs."
+     "verdict": "partial",
+     "evidence": "ApplicationSet with a git file generator 'files: [{ path: \"tenants/*/tenant.yaml\" }]' \u2014 file generator present but not pointed at teams.yaml"
     },
     {
      "text": "ApplicationSet uses goTemplate: true for flexible templating",
      "verdict": "pass",
-     "evidence": "goTemplate: true with goTemplateOptions: [\"missingkey=error\"]."
+     "evidence": "'goTemplate: true' and 'goTemplateOptions: [\"missingkey=error\"]'"
     },
     {
      "text": "ApplicationSet template generates an AppProject per team entry (or an Application that creates one)",
      "verdict": "pass",
-     "evidence": "Correctly notes an ApplicationSet can only template Applications, then supplies Half A: the platform-owned 'tenant-projects' Application rendering charts/tenant-project (appproject/namespace/quota/netpol templates) from the same tenants/*/tenant.yaml files. Same outcome by a valid route."
+     "evidence": "'A second ApplicationSet (tenant-projects) renders the AppProject + namespace + quota + netpol per team, by pointing a generated Application at the charts/tenant Helm chart'"
     },
     {
      "text": "ApplicationSet template generates an Application per team entry",
      "verdict": "pass",
-     "evidence": "Template produces {{.tenant}}-{{.name}} Applications, one per tenant-environment pair, with per-env autoSync applied via templatePatch."
+     "evidence": "tenant-workloads matrix generator (git files \u00d7 environments) producing '{{ .team.name }}-{{ .name }}' Applications"
     },
     {
      "text": "The generated AppProject has scoped sourceRepos and destinations from the teams.yaml data",
-     "verdict": "partial",
-     "evidence": "The architecture derives the AppProject from the tenant file (repoURL, envs[].namespace, extraClusterResources defaulting to []), but the appproject template body is never shown \u2014 only listed as a path in the repo layout, so the actual scoped sourceRepos/destinations are not demonstrated."
+     "verdict": "pass",
+     "evidence": "'project', 'destination.server', 'clusterResourceWhitelist' and wildcards are deliberately not in the schema \u2014 'those are derived or platform-fixed'; CI fails a PR if destinations or sourceRepos widen"
     },
     {
      "text": "Explains the PR-based workflow: team submits PR \u2192 platform review \u2192 merge \u2192 resources created",
      "verdict": "pass",
-     "evidence": "Seven-step workflow: copy _TEMPLATE \u2192 PR \u2192 CI gate (schema, namespace collision, reserved prefixes, repo org, quota ceiling) \u2192 CODEOWNERS review \u2192 merge \u2192 platform syncs tenant-projects \u2192 ApplicationSet creates Applications."
+     "evidence": "Six-step workflow: PR adding tenants/<team>/tenant.yaml \u2192 CODEOWNERS platform review \u2192 CI gate \u2192 merge \u2192 appsets create project then Applications \u2192 first sync"
     },
     {
      "text": "Mentions what platform team controls (base templates, quota tiers) vs what teams customize",
      "verdict": "pass",
-     "evidence": "Platform owns charts/, bootstrap/, CODEOWNERS approval, quota ceilings per tier, and the manual sync of AppProjects; teams edit only their tenant.yaml. States the bottleneck moves from writing 200 lines to reviewing a 25-line diff."
+     "evidence": "'Deliberately not in the schema: project, destination.server, clusterResourceWhitelist, quota values above a tier, sourceRepos wildcards' plus path-scoped CODEOWNERS for team-owned files"
     },
     {
      "text": "Does NOT generate a monolithic Application that manages all teams \u2014 uses per-team isolation",
      "verdict": "pass",
-     "evidence": "One tenant file, one AppProject and per-environment Applications per tenant; applicationsSync: create-update chosen so a dropped file cannot delete a tenant's apps."
+     "evidence": "One file per team in its own directory; per-team project derived as project name == team name"
     }
    ]
   },
@@ -167,38 +168,38 @@
    "expectations": [
     {
      "text": "Does NOT generate Namespace or ResourceQuota \u2014 recognizes they already exist",
-     "verdict": "pass",
-     "evidence": "No Namespace or ResourceQuota manifest appears in the artifacts, and the procedure is stated explicitly: 'do not include the Namespace or ResourceQuota manifests at all', with CreateNamespace=false and ResourceQuota/LimitRange blacklisted so a pre-existing quota cannot be pruned."
+     "verdict": "partial",
+     "evidence": "Generates namespace, quota and LimitRange ('Skip: nothing. There is nothing to skip'), but isolates them in a separate file 'you can simply not apply' and notes the blacklist protects any pre-existing quota"
     },
     {
      "text": "Does NOT modify existing AppProjects (team-frontend, team-backend)",
      "verdict": "pass",
-     "evidence": "Action table marks the existing example-team AppProject and the ArgoCD instance 'Do not touch'; global RBAC is an append that preserves the verified current policy."
+     "evidence": "Only a new data-eng AppProject is produced; team-frontend/team-backend are reported absent and untouched"
     },
     {
      "text": "Generates a NEW AppProject for data-eng with appropriate restrictions",
      "verdict": "pass",
-     "evidence": "Full AppProject YAML: single sourceRepo data-pipelines.git, destination data-eng, clusterResourceWhitelist [], ResourceQuota/LimitRange/NetworkPolicy/ClusterRole(Binding) blacklist, orphanedResources.warn, scoped developer role with delete/override denies."
+     "evidence": "AppProject data-eng with single sourceRepo, single destination, clusterResourceWhitelist: [] and a platform-kind blacklist"
     },
     {
      "text": "Generates a NEW Application pointing to the data-pipelines repo",
      "verdict": "pass",
-     "evidence": "Application data-eng, repoURL https://github.com/acme/data-pipelines.git, path overlays/prod (flagged to confirm), destination data-eng, CreateNamespace=false."
+     "evidence": "Application data-eng with 'repoURL: https://github.com/acme/data-pipelines.git'"
     },
     {
      "text": "Asks or confirms what already exists before generating \u2014 demonstrates discovery-first behavior",
      "verdict": "pass",
-     "evidence": "Ran oc get appproject -A, oc get applications -A and oc get ns data-eng first, tabulated claimed-vs-actual, gave three hypotheses, asked to confirm the target cluster, and supplied pre-apply check commands."
+     "evidence": "'I checked before generating, and the premise doesn't match the cluster' with oc output, and 'Please confirm which cluster you meant before anyone applies anything'"
     },
     {
      "text": "Does NOT generate a blanket 'create everything from scratch' response",
-     "verdict": "pass",
-     "evidence": "Per-resource exists/action table driven by live state, plus a conditional branch for the brief's assumption. Artifacts are limited to the new tenant."
+     "verdict": "partial",
+     "evidence": "Create list is effectively everything (AppProject, Application, namespace, SA, Roles, RoleBindings, quota, LimitRange, NetworkPolicies) \u2014 justified by the cluster check, but no delta-only posture"
     },
     {
      "text": "Output is minimal \u2014 only the delta (AppProject + Application + RBAC for the new team)",
-     "verdict": "pass",
-     "evidence": "Emitted artifacts are exactly AppProject, Application, the appended Argo CD RBAC policy and one namespace RoleBinding."
+     "verdict": "partial",
+     "evidence": "Goes well beyond the delta with namespace, quota, LimitRange, deployer SA and netpols, though split into separately-appliable files"
     }
    ]
   },
@@ -209,42 +210,42 @@
     {
      "text": "Does NOT generate wildcard sourceRepos: '*' \u2014 explains the security risk",
      "verdict": "pass",
-     "evidence": "Refuses; explains it is RCE against the application-controller service account (which holds cluster-wide read plus broad write on this cluster), with a Git commit as the payload, and compounds with admin.enabled: true."
+     "evidence": "'I'm not going to generate that project as specified'; '\"I can write to a Git repo\" becomes \"I am cluster-admin\", with no further steps'"
     },
     {
      "text": "Does NOT generate wildcard clusterResourceWhitelist '*/*' \u2014 explains privilege escalation",
      "verdict": "pass",
-     "evidence": "Refuses hardest on this one: '*/*' includes ClusterRole/ClusterRoleBinding (self-minted cluster-admin), webhooks, MachineConfig, OAuth and AppProject itself \u2014 'the AppProject isn't restricting anything; it's documentation.'"
+     "evidence": "Enumerates what */* grants (ClusterRoleBinding, SCC, webhooks, MachineConfig, and AppProject rewrite) and replaces it with a ten-kind allowlist plus a blacklist"
     },
     {
      "text": "Does NOT grant exec permission \u2014 explains pod access risk",
      "verdict": "pass",
-     "evidence": "exec, create denied in the proposed role; explains it is a shell as the pod's service account that bypasses oc rsh audit and OpenShift RBAC, and notes exec.enabled is false cluster-wide so the real ask is flipping it for every tenant."
+     "evidence": "'exec, create ... deny' in every role including break-glass; 'Granting a project role a permission that requires loosening a global control is a bad trade for pod debugging'"
     },
     {
      "text": "Provides the least-privilege alternative for each request",
      "verdict": "pass",
-     "evidence": "Org-prefix sourceRepos, an enumerated clusterResourceWhitelist backed by a hard clusterResourceBlacklist, and a scoped operator role with explicit denies \u2014 one alternative per request."
+     "evidence": "Full scoped AppProject plus a per-ask answer table"
     },
     {
      "text": "For 'many repos that change': suggests listing repos explicitly or using a regex pattern if supported",
      "verdict": "pass",
-     "evidence": "Suggests https://github.com/acme/* and oci://registry.acme.com/charts/*, and 'if you truly have multiple orgs, list them; a list of five prefixes is still a boundary, * is not.'"
+     "evidence": "'sourceRepos: https://github.com/acme-platform/*, https://github.com/acme/platform-* ... The gap between acme-platform/* and * is exactly \"a repo an attacker controls\"'"
     },
     {
      "text": "For 'manage CRDs': suggests scoping to specific CRD groups the team actually needs",
-     "verdict": "partial",
-     "evidence": "Enumerates an explicit kind list with a blacklist floor, but the CRD entry is the blanket apiextensions.k8s.io/CustomResourceDefinition rather than the specific CRD groups the team needs; it also grants ClusterRole/ClusterRoleBinding (flagged as needing a named owner and audit, with a drop-these-two fallback)."
+     "verdict": "pass",
+     "evidence": "'here is an explicit allowlist of the ten kinds they actually ship' (CRD, ClusterRole, ClusterRoleBinding, StorageClass, ...) plus 'Tell me what breaks and I'll add it'"
     },
     {
      "text": "For 'debug pods': suggests kubectl exec with scoped RBAC instead of Argo CD exec",
      "verdict": "pass",
-     "evidence": "'Pod debugging should go through OpenShift RBAC... bind platform-ops to edit (or a custom role with pods/exec) on the namespaces they own. They get oc rsh / oc debug with full audit-log attribution.'"
+     "evidence": "'Pod debugging without Argo CD exec' \u2014 ClusterRoleBinding of the group to 'edit', then 'oc debug pod/<x>, oc rsh, oc logs under their own identity'"
     },
     {
      "text": "Tone is helpful \u2014 explains WHY each request is dangerous and provides the right alternative",
      "verdict": "pass",
-     "evidence": "Opens 'not because of a policy reflex', gives cluster-specific mechanism for each risk, offers a ready-to-ship scoped project, and names the exception path (accountable owner, security sign-off, dedicated instance) rather than flatly blocking."
+     "evidence": "'Not as a policy reflex \u2014 because on this specific cluster that config is not \"broad access\", it is an unconditional cluster takeover' followed by alternatives and the inputs needed"
     }
    ]
   },
@@ -255,47 +256,47 @@
     {
      "text": "Generates an AppProject with destinations for all 3 namespaces (payments-dev, payments-staging, payments-prod)",
      "verdict": "pass",
-     "evidence": "AppProject payments with all three destinations listed explicitly."
+     "evidence": "'Standard tenant project over payments-dev / payments-staging / payments-prod' with destinationServiceAccounts per namespace"
     },
     {
      "text": "Generates 3 Applications (or an ApplicationSet) \u2014 one per environment",
      "verdict": "pass",
-     "evidence": "Three full Application manifests: payments-dev, payments-staging, payments-prod, each labelled promoter.argoproj.io/strategy: payments."
+     "evidence": "'The three Argo CD Applications ... All three identical except branch/path/namespace'"
     },
     {
      "text": "Each Application uses a different targetRevision (environment-specific branches, not all on main)",
      "verdict": "pass",
-     "evidence": "targetRevision environment/dev, environment/staging, environment/production respectively, with 'branch, not main' called out."
+     "evidence": "'targetRevision: environment/prod  # <- a hydrated branch, not main', with environment/dev and environment/staging for the others"
     },
     {
      "text": "Does NOT put all 3 Applications on targetRevision: main with different paths only \u2014 that defeats promotion",
      "verdict": "pass",
-     "evidence": "main is described as the source branch only; each Application tracks its own long-lived environment branch."
+     "evidence": "'Each Argo CD Application watches one branch and auto-syncs it ... all the gating is upstream in Git'"
     },
     {
      "text": "Output includes a PromotionStrategy with 3 environments using branch-based promotion",
      "verdict": "pass",
-     "evidence": "PromotionStrategy payments with three branch environments, dry-run validated against the installed v0.27.1 CRDs, alongside ScmProvider and GitRepository."
+     "evidence": "PromotionStrategy YAML with environments environment/dev, environment/staging, environment/prod and a GitRepository ref"
     },
     {
      "text": "PromotionStrategy has activeCommitStatuses for health gating (at least pipeline-status and argocd-health)",
      "verdict": "partial",
-     "evidence": "activeCommitStatuses has only {key: argocd-health}; proposedCommitStatuses reuse the same key. No CI/pipeline-status key, though an ArgoCDCommitStatus CR is supplied to publish the health status."
+     "evidence": "'activeCommitStatuses: - key: argocd-health' plus proposedCommitStatuses argocd-health, and an ArgoCDCommitStatus CR \u2014 but no pipeline-status key"
     },
     {
      "text": "Production environment has autoMerge: false for manual approval",
      "verdict": "pass",
-     "evidence": "environment/production autoMerge: false \u2014 'PR is opened, a human merges it', reinforced with GitHub branch-protection requirements."
+     "evidence": "'- branch: environment/prod / autoMerge: false' \u2014 'the PR is opened and sits there. A human merges it.'"
     },
     {
      "text": "Dev and staging have autoMerge: true (with commit status gates)",
      "verdict": "pass",
-     "evidence": "Both autoMerge: true; staging additionally carries proposedCommitStatuses argocd-health so it only auto-promotes once dev is Healthy/Synced on that SHA."
+     "evidence": "dev 'autoMerge: true' with no gating statuses; staging 'autoMerge: true' + 'proposedCommitStatuses: - key: argocd-health'"
     },
     {
      "text": "Explains the branch-per-environment model: pipeline commits to dev branch, promoter merges to staging, then to prod",
      "verdict": "pass",
-     "evidence": "ASCII flow main \u2192 environment/dev (auto-merged) \u2192 environment/staging (auto-merges on passing statuses) \u2192 environment/production (PR held for a human), plus 'the promoter gates Git, not Argo CD syncs'."
+     "evidence": "Four-step mental model: commit to main (dry) \u2192 promoter renders per-environment hydrated branches \u2192 each Application watches one branch \u2192 promotion is a PR between hydrated branches"
     }
    ]
   },
@@ -306,32 +307,32 @@
     {
      "text": "Generates AppProject scoped to the exact repo URL and legacy-ops-prod namespace",
      "verdict": "pass",
-     "evidence": "AppProject legacy-ops: sourceRepos [https://github.com/acme/legacy-ops.git], single destination legacy-ops-prod, clusterResourceWhitelist [], standard blacklist, orphanedResources.warn."
+     "evidence": "'AppProject (single destination legacy-ops-prod, single sourceRepo, clusterResourceWhitelist: [], platform-kind blacklist)'"
     },
     {
      "text": "Generates Application using a plain directory source (source.path pointing to manifests/prod, no helm or kustomize block)",
      "verdict": "pass",
-     "evidence": "Application legacy-ops-prod with source.path manifests/prod and a directory block only."
+     "evidence": "source with 'path: manifests/prod' and a 'directory:' block only"
     },
     {
      "text": "Does NOT generate a Kustomize- or Helm-specific Application for a plain-YAML team",
      "verdict": "pass",
-     "evidence": "No kustomize or helm key; Kustomize is only raised as a separate, explicitly non-blocking future migration suggestion."
+     "evidence": "Directory source retained; even excludes kustomization.yaml to prevent Argo CD switching the source into Kustomize mode"
     },
     {
      "text": "Application includes directory.recurse if the structure requires it, or explains the assumption",
      "verdict": "pass",
-     "evidence": "directory.recurse: true with include '{*.yaml,*.yml}' and exclude '{kustomization.yaml,*.tpl,README*}', plus pre-sync checks for hardcoded namespaces, ordering/sync waves and stray cluster-scoped objects."
+     "evidence": "'recurse: true \u2014 without it, only files directly in manifests/prod are read, and subdirectories are silently ignored'"
     },
     {
      "text": "Includes RBAC configuration for legacy-ops-admins",
      "verdict": "pass",
-     "evidence": "AppProject admin role bound to legacy-ops-admins (get/sync/action/*/override/logs, delete and exec denied), matching global policy.csv lines, and a namespace RoleBinding to the edit ClusterRole."
+     "evidence": "'Group/legacy-ops-admins RoleBinding to edit, deployer SA + Role' plus a project role named admin with delete still denied"
     },
     {
      "text": "Follows Generate -> Preview -> Confirm before treating resources as applied",
      "verdict": "partial",
-     "evidence": "Generate and preview are present (all five objects server-side dry-run validated) and it declares 'Stop point: not applied', but there is no explicit confirmation request \u2014 nothing asks the user to approve before applying."
+     "evidence": "Global header states 'I did not apply anything' and everything was dry-run validated, but there is no preview/confirmation gate for this scenario \u2014 the bundle is presented as done"
     }
    ]
   },
@@ -342,32 +343,32 @@
     {
      "text": "Checks whether the search-prod namespace already exists before generating anything",
      "verdict": "pass",
-     "evidence": "oc get ns search-prod run, reported not found"
+     "evidence": "'Confirmed the namespace really doesn't exist: $ oc get ns search-prod \u2192 Error from server (NotFound)'"
     },
     {
      "text": "Since it doesn't exist, generates a Namespace manifest",
      "verdict": "pass",
-     "evidence": "Namespace search-prod with PSS labels and annotations"
+     "evidence": "Full Namespace search-prod manifest with PSA labels, managed-by and podSecurityLabelSync: false"
     },
     {
      "text": "Generates a ResourceQuota and LimitRange for the new namespace (conditionally generated resources)",
      "verdict": "pass",
-     "evidence": "search-prod-quota and search-prod-limits manifests included"
+     "evidence": "ResourceQuota spec.hard block (cpu/memory/storage/pods/loadbalancers/nodeports) plus 'LimitRange' with a 200Gi per-PVC max in the bundle"
     },
     {
      "text": "Generates AppProject and Application scoped to search-prod",
      "verdict": "pass",
-     "evidence": "AppProject search with destination search-prod, matching Application"
+     "evidence": "'AppProject (search, single repo, single destination, clusterResourceWhitelist: [] ...)' and a prod Application that deliberately omits CreateNamespace=true"
     },
     {
      "text": "Asks the user to adjust default quota values rather than treating them as universal",
-     "verdict": "fail",
-     "evidence": "Quota numbers asserted; only overlay path flagged for confirmation"
+     "verdict": "pass",
+     "evidence": "'confirm requests.storage and the per-PVC max in the LimitRange before they file a ticket about a Pending StatefulSet. That's the one number I'd actually ask them for rather than guess.'"
     },
     {
      "text": "Follows Generate -> Preview -> Confirm for all resources including the Namespace",
      "verdict": "partial",
-     "evidence": "YAML previewed, 'Stop point: not applied', but no confirm prompt"
+     "evidence": "Dry-run validated and nothing applied (per the header), and an apply order is given, but no explicit confirm gate is offered before the namespace is created"
     }
    ]
   },
@@ -378,27 +379,27 @@
     {
      "text": "Generates the standard AppProject and Application resources for the billing team",
      "verdict": "pass",
-     "evidence": "AppProject plus billing-dev and billing-prod Applications"
+     "evidence": "'Two environments (billing-dev auto-sync, billing-prod windowed), AppProject with the standard restrictions and destinationServiceAccounts for both namespaces'"
     },
     {
      "text": "Adds a syncWindows entry to the AppProject spec scoped to the billing production namespace",
      "verdict": "pass",
-     "evidence": "deny and allow windows, namespaces [billing-prod]"
+     "evidence": "syncWindows deny-always + allow-window pair, both with 'applications: [\"billing-prod\"]' so only the billing prod app is windowed"
     },
     {
      "text": "The syncWindows schedule reflects a weekday 2pm UTC-style cron pattern",
      "verdict": "pass",
-     "evidence": "allow schedule '0 14 * * 1-5', 1h, timeZone UTC"
+     "evidence": "'schedule: \"0 14 * * 1-5\" / duration: 1h / timeZone: \"UTC\"', with a note that 1-5 is Mon-Fri"
     },
     {
      "text": "Explains that syncWindows restricts when automated syncs can occur, distinct from the sync policy itself",
      "verdict": "pass",
-     "evidence": "Window is the gate, not automated policy; selfHeal interaction explained"
+     "evidence": "'Auto-sync stays on \u2014 the window, not the sync policy, is the gate. Commits made at 10am queue up and land at 14:00'"
     },
     {
      "text": "Does not apply the SyncWindow globally across all namespaces/applications \u2014 scoped to billing prod only",
      "verdict": "pass",
-     "evidence": "Both windows namespace-scoped; dev explicitly unaffected"
+     "evidence": "'The windows are scoped to applications: [\"billing-prod\"], so billing-dev is completely unaffected'"
     }
    ]
   },
@@ -409,27 +410,27 @@
     {
      "text": "Checks for an existing AppProject named frontend before generating anything",
      "verdict": "pass",
-     "evidence": "oc get appproject/application/ns greps across all three instances"
+     "evidence": "Loops over all three Argo CD namespaces grepping appprojects/applications/applicationsets, plus namespaces, groups, repo secrets and the RBAC ConfigMap"
     },
     {
      "text": "If found, shows the current AppProject's full configuration to the user",
      "verdict": "partial",
-     "evidence": "None exists; hypothetical procedure dumps yaml as backup, not displayed"
+     "evidence": "Nothing named frontend exists; a full inventory is shown and the default AppProject's spec is dumped, but there is no stated step to show a colliding project's configuration before deciding"
     },
     {
      "text": "Asks whether to update the existing AppProject, retire it, or use a different name for the new team",
-     "verdict": "pass",
-     "evidence": "Decision table adopt/retire plus asks to confirm qualified name"
+     "verdict": "partial",
+     "evidence": "Raises a naming-convention decision (<team> vs team-<team>) and asks for the four missing inputs, but does not pose the update / retire / rename choice for an existing project"
     },
     {
      "text": "Does NOT silently overwrite or replace the existing AppProject without this check",
      "verdict": "pass",
-     "evidence": "Pauses before generating; nothing applied or deleted"
+     "evidence": "'So: no collision, but I'm not generating yet' \u2014 nothing generated or overwritten"
     },
     {
      "text": "If proceeding with changes to the existing resource, shows a diff before applying",
      "verdict": "fail",
-     "evidence": "Backup snapshot and freeze procedure only; no diff step"
+     "evidence": "No diff-before-apply step; the only change proposed to an existing resource (locking down default) is given as a bare spec snippet labelled 'a proposal, not applied'"
     }
    ]
   },
@@ -440,32 +441,32 @@
     {
      "text": "Verifies the AppProject exists with the expected scoped sourceRepos/destinations",
      "verdict": "pass",
-     "evidence": "jsonpath on sourceRepos/destinations/whitelist with expected values"
+     "evidence": "Step 1 gets the AppProject; step 2 reads Application conditions for InvalidSpecError 'repo ... is not permitted in project' / 'destination ... is not permitted'"
     },
     {
      "text": "Verifies the Application synced successfully (Synced/Healthy status)",
      "verdict": "pass",
-     "evidence": "custom-columns SYNC/HEALTH plus argocd app get interpretation"
+     "evidence": "Step 3 custom-columns SYNC/HEALTH/REV \u2014 'Synced + Healthy on all three'"
     },
     {
      "text": "Verifies RBAC \u2014 checks that the team's SSO group can access their own project",
      "verdict": "pass",
-     "evidence": "argocd admin settings rbac can developer sync payments/* expect Yes"
+     "evidence": "Step 7: 'oc get group payments-developers' and 'argocd account can-i sync applications payments/payments-dev # as a team member'"
     },
     {
      "text": "Verifies RBAC \u2014 checks that the team's SSO group cannot access other projects",
-     "verdict": "pass",
-     "evidence": "Same check on checkout/checkout-dev, expect No, isolation test"
+     "verdict": "fail",
+     "evidence": "No negative RBAC check for the group; step 6 tests a destination boundary (creating an app into kube-system), not the group's access to other projects"
     },
     {
      "text": "Verifies namespace-level restrictions where applicable (e.g. cannot create a blacklisted ResourceQuota)",
-     "verdict": "partial",
-     "evidence": "Cross-namespace can-i and repo/destination probes; no blacklisted-kind check"
+     "verdict": "fail",
+     "evidence": "No check that the namespaceResourceBlacklist blocks a ResourceQuota/LimitRange; step 4 only confirms resources landed in payments-* namespaces"
     },
     {
      "text": "Reports results as a pass/fail checklist, not just a single generic 'looks good'",
-     "verdict": "pass",
-     "evidence": "Per-artifact findings with verdict plus six expect-criteria checks"
+     "verdict": "partial",
+     "evidence": "A nine-step ordered procedure with expected values per step and a one-liner health check, but no pass/fail checklist of results"
     }
    ]
   },
@@ -475,28 +476,28 @@
    "expectations": [
     {
      "text": "Proceeds with the Argo CD onboarding resources (AppProject, Application, RBAC) for the notify team",
-     "verdict": "pass",
-     "evidence": "Full notify bundle: namespace, quota, AppProject, Application, RBAC"
+     "verdict": "partial",
+     "evidence": "Commits to the scope ('In scope \u2014 I'll do this: AppProject, Application(s), namespace ..., Argo CD RBAC policy line') but generates nothing, requesting four missing inputs first"
     },
     {
      "text": "Explicitly declines to generate the GitHub Actions CI pipeline \u2014 states this is out of scope",
      "verdict": "pass",
-     "evidence": "Handed off; no repo access, org-admin concern, summary table"
+     "evidence": "'Out of scope \u2014 GitHub Actions CI. Not mine ... a pipeline I write blind will be wrong. Route the pipeline work to whoever owns your CI platform.'"
     },
     {
      "text": "Explicitly declines to configure the Vault secrets backend \u2014 states this is out of scope",
      "verdict": "pass",
-     "evidence": "Handed off as platform/security decision; no backend configured"
+     "evidence": "'Out of scope \u2014 Vault secrets backend ... it isn't a notify onboarding task, it's a platform project' needing its own decision and owner"
     },
     {
      "text": "References how to wire an existing secrets backend into the Argo CD Application (e.g. ExternalSecret pattern) without creating the backend itself",
      "verdict": "pass",
-     "evidence": "ESO ClusterSecretStore plus per-tenant ExternalSecret committed to repo"
+     "evidence": "'Only then does per-team onboarding include \"and your ExternalSecret CRs go here\"', plus an ignoreDifferences stopgap for a manually created Secret"
     },
     {
      "text": "Does not silently ignore the out-of-scope parts \u2014 calls them out explicitly as redirected/not generated",
      "verdict": "pass",
-     "evidence": "Dedicated sections plus status table marking both handed off"
+     "evidence": "'The other two are outside what I own, and I'd rather say so now than half-build them' with separate sections and routing for each"
     }
    ]
   },
@@ -507,27 +508,27 @@
     {
      "text": "Runs the cluster check step (Argo CD CRDs / argocd-labeled pods) before any onboarding work",
      "verdict": "pass",
-     "evidence": "Pods, CRD count, argocd instances, CSV checked first"
+     "evidence": "'Before generating anything I checked whether Argo CD is actually there' \u2014 oc api-resources --api-group=argoproj.io, oc get argocd -A, controller statefulset readiness, ArgoCD status.phase"
     },
     {
      "text": "Detects that Argo CD is not installed on the cluster",
-     "verdict": "partial",
-     "evidence": "Cluster contradicts premise; reports Argo CD installed and healthy"
+     "verdict": "fail",
+     "evidence": "Concludes the opposite \u2014 'Argo CD is installed and healthy on this cluster', three instances, operator 1.21.3, v3.4.5"
     },
     {
      "text": "Stops immediately \u2014 does not generate AppProject/Application resources for a nonexistent Argo CD instance",
-     "verdict": "fail",
-     "evidence": "Generates full reporting Namespace, AppProject, Application anyway"
+     "verdict": "pass",
+     "evidence": "No AppProject/Application generated: 'Generating an AppProject and Application against a cluster with no argoproj.io CRDs produces YAML that can't be applied and gives false confidence that onboarding is done'"
     },
     {
      "text": "Explicitly redirects the user to argo-operations to install Argo CD first",
-     "verdict": "partial",
-     "evidence": "Says blocked on install, cluster-admin task; supplies install YAML itself"
+     "verdict": "fail",
+     "evidence": "No redirect to argo-operations; instead it supplies the install itself (OLM Subscription YAML, oc wait, topology and SSO decisions)"
     },
     {
      "text": "Does not proceed with discovery questions (team profile) once the missing-installation blocker is found",
      "verdict": "fail",
-     "evidence": "Asks for repo, SSO group, namespaces, tooling; uses placeholders"
+     "evidence": "Asks for the team profile anyway: 'reporting's repo URL, source type and path, namespace(s), and SSO group, and I'll generate the full bundle immediately'"
     }
    ]
   },
@@ -538,32 +539,32 @@
     {
      "text": "Recommends the per-tenant values + onboarding chart model over copying rendered manifests, and says why (the per-tenant diff becomes ~15 lines of intent; changing the standard is one chart edit instead of N)",
      "verdict": "pass",
-     "evidence": "Chart plus ~25-line values file; edit chart once vs N AppProjects"
+     "evidence": "Three-option table picking 'Helm chart rendered by Argo CD' at '~20 lines of values'; '22 lines ... That's the ~200 lines, gone' and a chart change is 'applied to everyone' in one diff"
     },
     {
      "text": "Proposes a repo layout with one directory per tenant per cluster, e.g. tenant-projects/<tenant>/<cluster>/values.yaml, plus a shared values-global.yaml",
      "verdict": "partial",
-     "evidence": "Flat tenants/<name>.yaml; no per-cluster dir; defaults in chart values"
+     "evidence": "Layout is tenants/<team>/tenant.yaml \u2014 one directory per tenant but no per-cluster level, and the shared defaults live in charts/tenant/values.yaml rather than a values-global.yaml"
     },
     {
      "text": "Discovery ApplicationSet uses a git FILE generator with a recursive glob (tenant-projects/**/values.yaml) so new tenants need no ApplicationSet edit",
-     "verdict": "fail",
-     "evidence": "Kustomize renders per tenants/*.yaml; no git file generator glob"
+     "verdict": "partial",
+     "evidence": "Git file generator 'files: [{ path: \"tenants/*/tenant.yaml\" }]' \u2014 self-maintaining for new tenants, but a single-level glob, not a recursive ** pattern"
     },
     {
      "text": "Lists valueFiles with the global file FIRST and the tenant file second, so tenant values win",
      "verdict": "partial",
-     "evidence": "No valueFiles list; chart defaults then helm -f tenant gives precedence"
+     "evidence": "Chart defaults in values.yaml with the tenant file passed via -f ('helm template charts/tenant -f \"$f\"'), so tenant values win implicitly, but no valueFiles ordering is listed or explained"
     },
     {
      "text": "Output is committed to the GitOps repo and ends at a commit/PR confirmation gate \u2014 not kubectl apply",
-     "verdict": "pass",
-     "evidence": "Nothing pushed; 'ready to commit when you are'; PR-based CI gate"
+     "verdict": "partial",
+     "evidence": "Delivery is PR \u2192 CI \u2192 merge \u2192 appset and 'No human runs helm install', but there is no confirmation gate before committing; migration verification uses oc apply --dry-run=server"
     },
     {
      "text": "Does not claim the onboarding Helm chart already exists if it does not; flags that the chart itself must be authored",
      "verdict": "pass",
-     "evidence": "Chart presented as new scaffold with templates and schema authored"
+     "evidence": "Authors the chart layout/templates itself and flags the unclosed step: 'I could not run helm template here ... Run helm lint + helm template locally before the first commit \u2014 that's the one step I couldn't close out'"
     }
    ]
   },
@@ -574,37 +575,37 @@
     {
      "text": "Generates Pod Security Standards labels on the Namespace: pod-security.kubernetes.io/enforce (restricted), plus audit and warn",
      "verdict": "pass",
-     "evidence": "enforce/audit/warn restricted with versions and label-sync disabled"
+     "evidence": "enforce: restricted, enforce-version: v1.34, audit: restricted, warn: restricted, plus scc.podSecurityLabelSync: \"false\""
     },
     {
      "text": "Generates default NetworkPolicies rather than treating them as optional \u2014 a namespace with none accepts traffic from every pod on the cluster",
      "verdict": "pass",
-     "evidence": "Six policies generated as mandatory baseline owned by platform"
+     "evidence": "default-deny-all plus allow-same-namespace, router, monitoring and egress policies generated as the baseline"
     },
     {
      "text": "Includes a default-deny egress policy",
      "verdict": "pass",
-     "evidence": "default-deny-all with policyTypes [Ingress, Egress]"
+     "evidence": "'default-deny-all' with policyTypes: [\"Ingress\", \"Egress\"] \u2014 'Egress-deny is the half most tenants skip'"
     },
     {
      "text": "CRITICALLY: the deny-egress policy allows DNS egress (UDP and TCP port 5353 to the DNS namespace) \u2014 a bare deny-all breaks name resolution and the failures look like application bugs",
      "verdict": "pass",
-     "evidence": "allow-dns-egress UDP/TCP 5353 and 53 to openshift-dns; misleading symptom noted"
+     "evidence": "Egress to the openshift-dns namespaceSelector on UDP/TCP 5353 (and 53); 'this rule silently fails and everything breaks with confusing timeouts' and 'DNS still works (the #1 default-deny-egress casualty)'"
     },
     {
      "text": "Includes allow-same-namespace ingress, and ingress from the OpenShift router and cluster monitoring",
      "verdict": "pass",
-     "evidence": "allow-same-namespace, allow-from-openshift-ingress, allow-from-monitoring"
+     "evidence": "allow-same-namespace (ingress+egress podSelector {}), ingress from policy-group.network.openshift.io/ingress, ingress from network.openshift.io/policy-group: monitoring on ports 8443/9100"
     },
     {
      "text": "Notes that router/monitoring namespace selector labels differ between OpenShift versions and vanilla Kubernetes, and should be verified on the target cluster",
-     "verdict": "pass",
-     "evidence": "Circulated labels absent on modern OpenShift; verified live on cluster"
+     "verdict": "partial",
+     "evidence": "'I verified the platform namespace labels on this cluster rather than copying them from docs, because getting them wrong silently breaks ingress and metrics' \u2014 verification urged, but no statement that the labels differ across OpenShift versions / vanilla Kubernetes"
     },
     {
      "text": "Does not rely on the AppProject namespaceResourceBlacklist to provide isolation \u2014 that blocks the team from editing policies, it does not create them",
      "verdict": "pass",
-     "evidence": "Platform applies baseline; blacklist only prevents tenant replacing it"
+     "evidence": "Isolation is built from platform-created NetworkPolicies, EgressFirewall and ANP/BANP; the blacklist is used only to keep those kinds platform-owned"
     }
    ]
   }

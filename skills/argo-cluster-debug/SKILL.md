@@ -21,7 +21,6 @@ Debug and troubleshoot the full Argo ecosystem on live Kubernetes clusters.
 |------|----------|---------|
 | `kubectl` **or** `oc` | Yes | CRD inspection, pod logs, resource status |
 | argocd | No | Richer Application output, diff, sync operations |
-| argo | No | Workflow logs, node inspection |
 | kubectl-argo-rollouts | No | Rollout status, step details, promotion |
 
 **Resolve the CLI before any workflow. On OpenShift, `oc` is the default.**
@@ -93,7 +92,7 @@ of the investigation, not just finding the first error.
 
 ## Debugging Workflows
 
-Five self-contained workflows live in `references/debug-workflows.md`. Match the reported
+Workflows 1–5 live in `references/debug-workflows.md`; Workflow 6 is inline below. Match the reported
 symptom to a workflow below, **load that file, and work its steps in order** — each step
 builds context for the next. The value is in completing the investigation, not in stopping
 at the first error.
@@ -105,6 +104,38 @@ at the first error.
 | 3 | ApplicationSet Debugging | ApplicationSet not generating Applications, generating the wrong ones, or reporting errors |
 | 4 | Rollout Debugging | Canary or blue-green Rollout stuck, aborted, or degraded |
 | 5 | Log Analysis | Cross-component log correlation when the failing component is not yet known |
+| 6 | Operator / OLM triage | Argo CD itself is misbehaving and the instance looks healthy — upgrade wedged, operator pod crash-looping, CRD conversion webhook failing. See below; this is often upstream of everything else |
+
+### Workflow 6: Operator / OLM triage (OpenShift GitOps)
+
+Not an Argo CD problem but an *operator* problem, and it masquerades as one. Symptoms:
+CR edits revert, a new setting never takes effect, components run an old version, or
+everything is "Available" while nothing you change sticks.
+
+```bash
+# 1. Is the operator itself healthy? Restart count is the tell.
+oc get pods -n openshift-gitops-operator
+
+# 2. CSV phase is authoritative. The Subscription's `state` is NOT — it reports
+#    AtLatestKnown while the CSV behind it is stuck Pending or Replacing.
+oc get csv -n openshift-gitops-operator -o custom-columns=NAME:.metadata.name,PHASE:.status.phase
+oc get subscriptions.operators.coreos.com -n openshift-gitops-operator \
+  -o jsonpath='installedCSV={.items[0].status.installedCSV} state={.items[0].status.state}{"\n"}'
+
+# 3. A failed InstallPlan is the usual blocker
+oc get installplan -n openshift-gitops-operator \
+  -o custom-columns=NAME:.metadata.name,PHASE:.status.phase
+oc describe installplan -n openshift-gitops-operator | grep -A5 -i 'message\|condition'
+
+# 4. Conversion webhook — an empty caBundle or a crash-looping operator pod makes every
+#    ArgoCD CR write fail admission, which looks like "my edits revert"
+oc get crd argocds.argoproj.io \
+  -o jsonpath='{.spec.conversion.webhook.clientConfig.caBundle}{"\n"}' | wc -c
+```
+
+**A zero-length `caBundle`, or an operator pod with hundreds of restarts, means the
+operator cannot reconcile anything.** Fix that before investigating any Argo CD symptom
+downstream of it — otherwise you are debugging the shadow.
 
 Run **Workflow 1 first** whenever Argo CD's own health is unverified — a broken controller
 or repo-server explains most Application-level symptoms, and skipping it leads to
@@ -121,10 +152,15 @@ Every debugging session must conclude with a structured report.
 | Field | Value |
 |-------|-------|
 | Cluster Context | `<context-name>` |
-| Argo Component | CD / Rollouts / Workflows / Events |
-| Component Versions | e.g., Argo CD v2.14.2 |
+| Argo Component | Argo CD / Rollouts |
+| Component Versions | Operator CSV + Argo CD version, e.g. `openshift-gitops-operator.v1.21.3` / Argo CD v3.4.5 |
 | Resource | `<kind>/<namespace>/<name>` |
 | Current Status | Sync/Health/Phase status |
+
+**When more than one Argo CD instance is in scope**, repeat sections 1–4 per instance
+under an `## Instance: <namespace>` heading, then give one combined section 5. A single
+flat report across instances hides which instance owns which fault — and on OpenShift,
+`openshift-gitops` plus one or more tenant instances is the normal case, not an edge case.
 
 ### 2. Resource Analysis
 
@@ -137,7 +173,6 @@ Every debugging session must conclude with a structured report.
 Map the full dependency chain relevant to the problem:
 - Argo CD: `Git Repo -> Repo Server -> Application -> Managed Resources -> Pods`
 - Rollouts: `Rollout -> ReplicaSets -> Pods`, `Rollout -> AnalysisRun -> Metric Provider`
-- Workflows: `Workflow -> DAG/Steps -> Pods -> Artifacts`
 
 ### 4. Root Cause
 
@@ -163,15 +198,52 @@ Handle these scenarios explicitly:
 | Scenario | Behavior |
 |----------|----------|
 | Argo CD not installed (no argocd namespace or CRDs) | Report "Argo CD is not installed on this cluster" and stop Application/AppSet workflows |
-| argocd CLI not logged in | Detect `FATAL: Argo CD server address unspecified` and suggest `argocd login <server>` |
-| Multiple Argo CD instances | If multiple namespaces found, list them and ask user to specify |
+| argocd CLI not logged in | Detect `{"level":"fatal","msg":"Argo CD server address unspecified",...}` (JSON, not a literal `FATAL:` prefix — grep for `\"level\":\"fatal\"` or just `fatal`) and suggest `argocd login <server>` |
+| **The named resource does not exist** | Do not invent findings and do not silently debug a different object. Run the not-found procedure below, report what you searched, then either ask for the right name or clearly label any substitute as a method demonstration only |
+| Multiple Argo CD instances | Report **per instance** (see Report Format) rather than asking the user to choose — multiple instances are the norm on OpenShift. Ask only if a *write* is required and the target is ambiguous |
 | Application in Progressing state | Note that the resource is actively reconciling — wait 60s and re-check before diagnosing |
 | Suspended Application or Rollout | Report as intentional suspension, do not treat as error unless user says otherwise |
 | Unknown health status | Check for custom health check Lua scripts in `argocd-cm` under `resource.customizations.health.<group_kind>` |
 | Rollout without traffic management | Note that canary is replica-based only — weight percentages are approximated by replica ratio |
-| Workflow pods cleaned up by GC | Report that logs are unavailable due to pod GC — suggest increasing `spec.podGC.strategy` or checking archived workflows |
 | Helm source with missing values files | Check `spec.source.helm.valueFiles` paths relative to the chart, not the repo root |
 | Multi-source Application | Iterate all entries in `spec.sources[]` — each source can fail independently |
+
+## When the named resource does not exist
+
+The most common real debugging session does not start from a broken resource — it starts
+from a name that does not resolve. Typo, wrong namespace, wrong cluster context, wrong
+Argo CD instance, or already deleted. **Establish this before running any workflow**, or
+you will produce a confident analysis of nothing.
+
+```bash
+# 1. Search cluster-wide. Always the FULL resource name — see the gotcha below.
+$KCTL get applications.argoproj.io -A | grep -i <name>
+
+# 2. Not there? It may have been deleted recently.
+$KCTL get events -A --field-selector involvedObject.name=<name> \
+  --sort-by=.lastTimestamp 2>/dev/null | tail -5
+
+# 3. Confirm you are on the cluster the user means.
+$KCTL config current-context
+
+# 4. Confirm which Argo CD instance should own it.
+$KCTL get argocd -A
+```
+
+**Gotcha — the short form can resolve to the wrong CRD.** On clusters running Open
+Cluster Management (common on OpenShift), `kubectl get application <name>` resolves to
+`applications.app.k8s.io`, not Argo CD, and returns a `NotFound` for the *wrong kind*:
+
+```
+Error from server (NotFound): applications.app.k8s.io "<name>" not found
+```
+
+That reads as "your Application is gone" when it may exist perfectly well. Always write
+`applications.argoproj.io` explicitly.
+
+**Then report it as a finding, not a failure.** State what you searched and what exists.
+If you demonstrate the method on a different resource, say so in the heading — never let
+a substitute read as the user's resource.
 
 ## Argo CRD Reference
 

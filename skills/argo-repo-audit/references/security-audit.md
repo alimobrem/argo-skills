@@ -183,7 +183,10 @@ grep -rn "argocd.argoproj.io/secret-type: cluster" <repo-root> --include="*.yaml
 ### Scanning: Find insecure TLS config
 
 ```bash
-grep -rn "insecure: true\|insecure: \"true\"" <repo-root> --include="*.yaml" --include="*.yml"
+# Matches both YAML (insecure: true) and the quoted-JSON form that appears inside an
+# Argo CD cluster Secret's embedded `config` blob ("insecure": true) — the latter is how
+# it actually shows up in practice and the plain YAML pattern misses it entirely.
+grep -rniE '"?insecure"?[[:space:]]*:[[:space:]]*"?true' <repo-root> --include="*.yaml" --include="*.yml"
 ```
 
 ---
@@ -243,10 +246,10 @@ grep -rn "kind: ArgoCD" <repo-root> --include="*.yaml" --include="*.yml"
 grep -rn "kind: DeploymentConfig" <repo-root> --include="*.yaml" --include="*.yml"
 
 # Find Routes without TLS
-grep -A5 "kind: Route" <repo-root> --include="*.yaml" --include="*.yml" | grep -L "tls:"
+grep -rn -A5 "kind: Route" <repo-root> --include="*.yaml" --include="*.yml" | grep -L "tls:"
 
 # Find namespace-scoped instances with cluster permissions
-grep -B2 -A10 "kind: ArgoCD" <repo-root> --include="*.yaml" --include="*.yml" | grep -A10 "namespace:" | grep "clusterScoped\|cluster-admin"
+grep -rn -B2 -A10 "kind: ArgoCD" <repo-root> --include="*.yaml" --include="*.yml" | grep -A10 "namespace:" | grep "clusterScoped\|cluster-admin"
 ```
 
 ---

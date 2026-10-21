@@ -134,13 +134,14 @@ spec:
         repoURL: https://github.com/{{ORG}}/gitops-platform.git
         revision: main
         files:
-          - path: teams.yaml
+          - path: "teams/*/config.yaml"              # one file per team — NOT teams.yaml
   template:
     metadata:
-      name: 'appproject-{{ range .teams }}{{ .name }}{{ end }}'
+      name: 'appproject-{{ .team.name }}'
     spec:
-      # This ApplicationSet creates one Application per team.
-      # That Application points to a rendered AppProject manifest.
+      # One Application per matched FILE, so one per team. With a central teams.yaml
+      # array this produces exactly ONE Application whose name is every team
+      # concatenated — see the warning at the top of this file.
       project: default
       source:
         repoURL: https://github.com/{{ORG}}/gitops-platform.git
@@ -382,10 +383,10 @@ TEAMS_FILE="${1:-teams.yaml}"
 yq eval '.' "$TEAMS_FILE" > /dev/null || { echo "FAIL: invalid YAML"; exit 1; }
 
 # 2. Required fields
-for team in $(yq eval '.teams[].name' "$TEAMS_FILE"); do
-  repos=$(yq eval ".teams[] | select(.name == \"$team\") | .repos | length" "$TEAMS_FILE")
-  envs=$(yq eval ".teams[] | select(.name == \"$team\") | .environments | length" "$TEAMS_FILE")
-  sso=$(yq eval ".teams[] | select(.name == \"$team\") | .ssoGroup" "$TEAMS_FILE")
+for team in $(yq eval '.team   # per-file shape; was .teams[] when this assumed a central array.name' "$TEAMS_FILE"); do
+  repos=$(yq eval ".team   # per-file shape; was .teams[] when this assumed a central array | select(.name == \"$team\") | .repos | length" "$TEAMS_FILE")
+  envs=$(yq eval ".team   # per-file shape; was .teams[] when this assumed a central array | select(.name == \"$team\") | .environments | length" "$TEAMS_FILE")
+  sso=$(yq eval ".team   # per-file shape; was .teams[] when this assumed a central array | select(.name == \"$team\") | .ssoGroup" "$TEAMS_FILE")
 
   [[ "$repos" -gt 0 ]] || { echo "FAIL: $team has no repos"; exit 1; }
   [[ "$envs" -gt 0 ]] || { echo "FAIL: $team has no environments"; exit 1; }
@@ -393,12 +394,12 @@ for team in $(yq eval '.teams[].name' "$TEAMS_FILE"); do
 done
 
 # 3. Namespace uniqueness across all teams
-all_ns=$(yq eval '.teams[].namespaces[]' "$TEAMS_FILE" | sort)
+all_ns=$(yq eval '.team   # per-file shape; was .teams[] when this assumed a central array.namespaces[]' "$TEAMS_FILE" | sort)
 dupes=$(echo "$all_ns" | uniq -d)
 [[ -z "$dupes" ]] || { echo "FAIL: duplicate namespaces: $dupes"; exit 1; }
 
 # 4. No wildcard repos
-wildcards=$(yq eval '.teams[].repos[]' "$TEAMS_FILE" | grep -c '^\*$' || true)
+wildcards=$(yq eval '.team   # per-file shape; was .teams[] when this assumed a central array.repos[]' "$TEAMS_FILE" | grep -c '^\*$' || true)
 [[ "$wildcards" -eq 0 ]] || { echo "FAIL: wildcard repo detected"; exit 1; }
 
 echo "PASS: all validations passed"

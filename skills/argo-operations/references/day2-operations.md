@@ -104,7 +104,7 @@ The operator upgrades are managed by OLM. For automatic upgrades:
 kubectl get csv -n openshift-gitops-operator | grep gitops
 
 # Check install plan approval
-kubectl get subscription openshift-gitops-operator -n openshift-gitops-operator -o jsonpath='{.spec.installPlanApproval}'
+kubectl get subscriptions.operators.coreos.com openshift-gitops-operator -n openshift-gitops-operator -o jsonpath='{.spec.installPlanApproval}'
 ```
 
 For manual approval:
@@ -498,13 +498,18 @@ argocd repo get <repo-url> 2>/dev/null || \
 
 ### Verifying an upgrade
 
+> **Always qualify `subscriptions.operators.coreos.com`.** On a cluster with Red Hat ACM,
+> `subscriptions.apps.open-cluster-management.io` shadows the OLM kind, and a bare
+> `kubectl get subscription` returns `No resources found` while the OLM Subscription
+> exists — the same failure class as bare `applications`. Verified on a live cluster.
+
 **An upgrade is not done when the command returns.** Check all four, and report the output:
 
 ```bash
 # 1. The CSV must be Succeeded. Do NOT trust the Subscription's `state` — it reports
 #    AtLatestKnown while the CSV behind it is stuck Pending or Failed.
 kubectl get csv -n <operator-ns> -o custom-columns=NAME:.metadata.name,PHASE:.status.phase
-kubectl get subscription -n <operator-ns> -o jsonpath='{.items[*].status.installedCSV}{"\n"}'
+kubectl get subscriptions.operators.coreos.com -n <operator-ns> -o jsonpath='{.items[*].status.installedCSV}{"\n"}'
 
 # 2. No failed InstallPlan left behind
 kubectl get installplan -n <operator-ns> -o custom-columns=NAME:.metadata.name,PHASE:.status.phase
