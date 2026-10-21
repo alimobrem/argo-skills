@@ -368,9 +368,9 @@
    "name": "detect-hardcoded-helm-password",
    "expectations": [
     {
-     "text": "Detects the hardcoded password in helm.values (auth.password: Redis!Pr0d#2026) as Critical security issue",
+     "text": "Detects the hardcoded password in helm.values (auth.password: EXAMPLE-NotARealSecret#2026) as Critical security issue",
      "verdict": "pass",
-     "evidence": "'Hardcoded credential in Helm values | Fail | app.yaml:16 \u2014 inside spec.source.helm.values: auth.password: \"Redis!Pr0d#2026\" | Critical'."
+     "evidence": "'Hardcoded credential in Helm values | Fail | app.yaml:16 \u2014 inside spec.source.helm.values: auth.password: \"EXAMPLE-NotARealSecret#2026\" | Critical'."
     },
     {
      "text": "Explains the risk: password is visible in Git history and in the Application resource on the cluster",

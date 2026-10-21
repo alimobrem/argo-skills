@@ -13,7 +13,7 @@ spec:
       values: |
         auth:
           enabled: true
-          password: "Redis!Pr0d#2026"
+          password: "EXAMPLE-NotARealSecret#2026"
         master:
           persistence:
             size: 10Gi

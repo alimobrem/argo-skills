@@ -42,8 +42,10 @@ superseded.
 
 - The hardcoded-credential pipeline filtered comments with `grep -v "...\|#"`, which drops
   any line whose *value* contains `#`. It found **nothing** in
-  `hardcoded-helm-password/app.yaml` (`password: "Redis!Pr0d#2026"`) — the fixture that
-  exists to test it. The filter is now anchored to `#` in value position.
+  `hardcoded-helm-password/app.yaml`, whose planted password deliberately contains a `#`
+  — the fixture that exists to test exactly this. The filter is now anchored to `#` in
+  value position. (The fixture value is synthetic test data, not a credential; release
+  notes no longer reproduce it verbatim, to keep secret scanners from flagging prose.)
 - The insecure-TLS scan matched only `insecure: true` and missed the quoted JSON form
   (`"insecure": true`) that appears in cluster Secrets.
 - The duplicate-name check used a `kind:`/`name:` proximity grep with `-h`, printing no
