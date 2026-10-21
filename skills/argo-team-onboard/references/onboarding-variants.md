@@ -327,7 +327,8 @@ Delta: add `syncWindows` to the AppProject spec.
 spec:
   syncWindows:
     - kind: allow
-      schedule: '0 8 * * 1-5'                       # Mon-Fri 8am UTC
+      schedule: '0 8 * * 1-5'
+      timeZone: UTC                                  # REQUIRED in practice: a bare schedule is evaluated in the controller's timezone, so a window annotated 'UTC' can fire hours off                       # Mon-Fri 8am UTC
       duration: 10h                                  # Until 6pm UTC
       applications: ['*']
       namespaces: ['{{TEAM_NAME}}-prod']
@@ -340,7 +341,8 @@ spec:
 spec:
   syncWindows:
     - kind: deny
-      schedule: '0 18 * * 5'                         # Friday 6pm UTC
+      schedule: '0 18 * * 5'
+      timeZone: UTC                                  # REQUIRED in practice: a bare schedule is evaluated in the controller's timezone, so a window annotated 'UTC' can fire hours off                         # Friday 6pm UTC
       duration: 62h                                  # Until Monday 8am UTC
       applications: ['*']
       namespaces: ['{{TEAM_NAME}}-prod']
@@ -354,12 +356,14 @@ spec:
   syncWindows:
     - kind: allow
       schedule: '0 8 * * 1-5'
+      timeZone: UTC                                  # REQUIRED in practice: a bare schedule is evaluated in the controller's timezone, so a window annotated 'UTC' can fire hours off
       duration: 10h
       applications: ['*']
       namespaces: ['{{TEAM_NAME}}-prod']
       manualSync: true
     - kind: deny
       schedule: '0 18 * * 5'
+      timeZone: UTC                                  # REQUIRED in practice: a bare schedule is evaluated in the controller's timezone, so a window annotated 'UTC' can fire hours off
       duration: 62h
       applications: ['*']
       namespaces: ['{{TEAM_NAME}}-prod']
@@ -372,7 +376,8 @@ spec:
 spec:
   syncWindows:
     - kind: allow
-      schedule: '0 2 * * 3'                          # Wednesday 2am UTC
+      schedule: '0 2 * * 3'
+      timeZone: UTC                                  # REQUIRED in practice: a bare schedule is evaluated in the controller's timezone, so a window annotated 'UTC' can fire hours off                          # Wednesday 2am UTC
       duration: 4h                                   # Until 6am UTC
       applications: ['*']
       namespaces: ['{{TEAM_NAME}}-prod']

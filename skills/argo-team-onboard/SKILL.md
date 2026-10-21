@@ -201,7 +201,11 @@ If `kubectl` is available, optionally verify Argo CD is installed (read-only):
 kubectl get crd applications.argoproj.io 2>/dev/null && echo "Argo CD CRDs: installed" || echo "Argo CD CRDs: NOT FOUND"
 
 # Find Argo CD namespace
-kubectl get pods -A -l app.kubernetes.io/part-of=argocd --no-headers 2>/dev/null | awk '{print $1}' | sort -u
+# The CRD check above is the PRIMARY signal. Do not detect Argo CD by the part-of label:
+# operator-managed installs do not set it on pods, so this returns nothing on a cluster
+# running several instances. Use the ArgoCD CR, falling back to the label for Helm.
+kubectl get argocd -A --no-headers 2>/dev/null | awk '{print $1"\t"$2"\t(operator)"}'
+kubectl get pods -A -l app.kubernetes.io/part-of=argocd --no-headers 2>/dev/null | awk '{print $1"\t-\t(helm)"}' | sort -u
 
 # Check for OpenShift GitOps operator
 kubectl get crd argocds.argoproj.io 2>/dev/null && echo "OpenShift GitOps: installed" || echo "OpenShift GitOps: not detected"
@@ -285,7 +289,8 @@ cluster access to produce a correct commit.
 kubectl api-resources --api-group=route.openshift.io 2>/dev/null && echo "Platform: OpenShift" || echo "Platform: Kubernetes"
 
 # Argo CD installation
-kubectl get pods -A -l app.kubernetes.io/part-of=argocd --no-headers 2>/dev/null
+kubectl get argocd -A --no-headers 2>/dev/null   # operator-managed: the authoritative check
+kubectl get pods -A -l app.kubernetes.io/part-of=argocd --no-headers 2>/dev/null  # Helm only
 
 # Existing AppProjects (to avoid conflicts)
 kubectl get appprojects -A --no-headers 2>/dev/null
@@ -371,6 +376,8 @@ covers *what* to generate and the decisions behind it; the guide has the YAML.
 | 1 | AppProject — the security boundary, the most important resource | *AppProject Template* |
 | 2 | Application — one per environment, matching the team's source type | *Application Templates* (Kustomize / Helm / Multi-Source Helm / Directory) |
 | 3 | RBAC — **pick one**, do not generate both | *RBAC Template* |
+| 4 | Namespace with Pod Security Standards + monitoring labels | *Namespace* |
+| 5 | Default NetworkPolicies — deny-all egress plus explicit allows | *Default NetworkPolicies* |
 
 **The two RBAC placements are alternatives, not a pair.** AppProject `spec.roles[]` with
 `groups:` scopes permissions to that project and travels with it — prefer it. A
@@ -379,9 +386,6 @@ produces duplicate policy lines for the same group, which is confusing to audit 
 to half-revoke later. `onboarding-guide.md`'s AppProject template already contains the
 project-scoped form; only add the ConfigMap patch if the user's estate manages RBAC
 centrally.
-| 4 | Namespace with Pod Security Standards + monitoring labels | *Namespace* |
-| 5 | Default NetworkPolicies — deny-all egress plus explicit allows | *Default NetworkPolicies* |
-
 **Namespaces and NetworkPolicies are not optional extras.** A tenant namespace with no
 `pod-security.kubernetes.io/enforce` label and no NetworkPolicy is open to lateral traffic
 from every other tenant on the cluster, which defeats the AppProject boundary you just
@@ -512,7 +516,7 @@ onboarding is committed but unverified rather than implying it is live.
 argocd app get <onboarding-app> --refresh
 
 # Verify AppProject was created with correct restrictions
-kubectl get appproject <team-name> -n <argocd-namespace> -o yaml
+kubectl get appproject team-<team-name>   # templates prefix with 'team-' -n <argocd-namespace> -o yaml
 
 # Verify Application syncs successfully
 argocd app get <team-app-name> 2>/dev/null || \
