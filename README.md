@@ -411,172 +411,73 @@ Production should require manual approval.
 | Helm/Kustomize/directory variants, Rollouts, notifications, sync windows, promoter | `onboarding-variants.md` |
 
 </details>
-
 ## Benchmarks
 
-Evals test **outcomes** (issues found, report quality), not process (which tools were used).
-Tested on real repos and a live OpenShift cluster.
+Measured 2026-10-21 against a live OpenShift cluster (OpenShift GitOps 1.21.3, Argo CD
+v3.4.5). **572 expectations, graded twice — once with the skills, once without.**
 
-> ### ⚠️ These scores are a historical record, not a current measurement
->
-> The numbers below were produced against earlier eval sets. Since then the suites have
-> changed materially, so **they are not reproducible from the current `evals.json` files
-> and should not be read as the present state**:
->
-> | Skill | Scored against | Now | What changed |
-> |---|---|---|---|
-> | `argo-knowledge` | 8 evals | **16** | +5 operator CRDs, +3 best-practices / repo-patterns / secrets |
-> | `argo-cluster-debug` | 13 | **9** | −4 Workflows/Events evals removed as out of scope |
-> | `argo-repo-audit` | 13 | **12** | −1 WorkflowTemplate eval removed |
-> | `argo-operations` | 13 | **13** | unchanged in count |
-> | `argo-performance-tuning` | 14 | **21** | +7 from the earlier web-research pass |
-> | `argo-team-onboard` | 13 | **15** | +2 for the values-based model and security baseline |
->
-> Separately — and more importantly — **three expectations were found grading *for* output
-> the API server rejects or silently prunes** (`preserveResourcesOnDeletion` at spec level,
-> `oci://` in `repoURL`, `ArgoCDCommitStatus.gitRepositoryRef`), plus two asserting
-> removed fields (`spec.dex`, CronWorkflow `spec.schedule`). Those are fixed, and
-> `make test-expectations` now validates every asserted field path against the CRD schemas
-> in CI — but it does mean the affected prompts were previously scored against the wrong
-> answer.
->
-> **Re-running the suites is the top outstanding task.** Four of six skills need a live
-> cluster, so `make eval-*` locally is the path; CI can only run the two that don't.
+| Skill | with-skill | baseline | delta |
+|-------|-----------:|---------:|------:|
+| [`argo-performance-tuning`](benchmarks/argo-performance-tuning.md) | **91.8%** | 70.2% | **+21.6** |
+| [`argo-repo-audit`](benchmarks/argo-repo-audit.md) | **97.5%** | 88.1% | +9.4 |
+| [`argo-cluster-debug`](benchmarks/argo-cluster-debug.md) | **92.1%** | 87.7% | +4.4 |
+| [`argo-team-onboard`](benchmarks/argo-team-onboard.md) | **93.7%** | 89.3% | +4.4 |
+| [`argo-knowledge`](benchmarks/argo-knowledge.md) | **97.3%** | 95.5% | +1.9 |
+| [`argo-operations`](benchmarks/argo-operations.md) | 90.1% | **93.8%** | **−3.6** |
+| **Weighted overall** | **94.0%** | **87.7%** | **+6.3** |
 
-<table>
-<thead>
-<tr>
-<th width="200">Skill</th>
-<th width="80">Score</th>
-<th>Highlights</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><a href="benchmarks/argo-knowledge.md"><b>argo-knowledge</b></a></td>
-<td><b>98%</b><br><sub>vs 86% baseline</sub></td>
-<td>+70% on argocd-agent, +17% on gitops-promoter, +8% on multi-tenant RBAC. Skill differentiates on newer features not saturated in training data.</td>
-</tr>
-<tr>
-<td><a href="benchmarks/argo-repo-audit.md"><b>argo-repo-audit</b></a></td>
-<td><b>94–98%</b><br><sub>vs 84% baseline</sub></td>
-<td>Catches all Critical issues (wildcard AppProjects, plain-text Secrets, hardcoded passwords) in every condition, with or without the skill — this draws on general security judgment both models already have. The skill's real gap-closing is on comprehensiveness: ApplicationSet-specific checklist items (<code>goTemplateOptions</code>, <code>preserveResourcesOnDeletion</code>) that baseline reliably skips on open-ended audits.</td>
-</tr>
-<tr>
-<td><a href="benchmarks/argo-cluster-debug.md"><b>argo-cluster-debug</b></a></td>
-<td><b>99–100%</b><br><sub>vs 93% baseline</sub></td>
-<td>97.5% on the original live-OpenShift advanced evals (multi-tenant audit, ApplicationSet deep dive, Rollout analysis). On the expanded 13-eval cross-model run, narrowest with-skill/baseline gap of any skill (+6–7%) — Argo troubleshooting patterns are well-represented in general training data; the skill's edge is committing to a specific root cause instead of a generic checklist.</td>
-</tr>
-<tr>
-<td><a href="benchmarks/argo-operations.md"><b>argo-operations</b></a></td>
-<td><b>99–100%</b><br><sub>vs 74–89% baseline</sub></td>
-<td>Safety model fully compliant: dry-run preview + confirmation on every write. Cross-model run shows the gap is mostly the confirmation gate itself — baseline Opus skipped it 74% of the time, baseline Sonnet adopted it unprompted 89% of the time, closed to 100% for both once the skill enforces it explicitly.</td>
-</tr>
-<tr>
-<td><a href="benchmarks/argo-performance-tuning.md"><b>argo-performance-tuning</b></a></td>
-<td><b>99–100%</b><br><sub>vs 47–56% baseline</sub></td>
-<td>+52% (Opus-tier) / +44% (Sonnet-tier) vs. unaided baseline, 14 evals × 2 models × with-skill/baseline. Biggest deltas: catches the <code>spec.extraConfig</code> processors misconfiguration baseline Opus validated outright (+100%), timeout-chain alignment (+100% Opus), Git <code>ls-remote</code> rate-limit setting unknown to both baselines (+100% Sonnet). Zero delta on reasoning derivable without Argo-specific knowledge (single-cluster sharding, cache-TTL-vs-image-freshness).</td>
-</tr>
-<tr>
-<td><a href="benchmarks/argo-team-onboard.md"><b>argo-team-onboard</b></a></td>
-<td><b>100%</b><br><sub>vs 72–76% baseline</sub></td>
-<td>Discovery-first onboarding, Opus and Sonnet both 100% with skill. Sharpest finding in this repo: asked for wildcard <code>sourceRepos</code>/<code>clusterResourceWhitelist</code>/<code>exec</code>, both baseline models <i>generated the overprivileged config exactly as asked</i> with a caveat attached — neither refused. Both skill-equipped runs refused and substituted the scoped alternative, as the skill's hard rules require.</td>
-</tr>
-</tbody>
-</table>
+### What the numbers actually say
 
-### Cross-Model: Sonnet with skill beats Opus without
+**The delta tracks how product-specific the skill is.** Performance tuning — where answers
+turn on exact setting names, defaults the operator silently overrides, and which CR field
+actually takes effect — gains most. General Argo CD knowledge, which a competent engineer
+already has, gains least. That is the useful finding: *encode what is version- and
+product-specific; do not re-encode what the model already knows.*
 
-<table>
-<thead>
-<tr>
-<th width="220"></th>
-<th width="120">Opus + Skill</th>
-<th width="120">Opus Baseline</th>
-<th width="120">Sonnet + Skill</th>
-<th width="120">Sonnet Baseline</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><b>argo-knowledge</b> (8 evals)</td>
-<td><b>98%</b></td>
-<td>86%</td>
-<td><b>95%</b></td>
-<td>88%<sup>†</sup></td>
-</tr>
-<tr>
-<td><b>argo-repo-audit</b> (13 evals)</td>
-<td><b>98%</b></td>
-<td>84%</td>
-<td><b>94%</b></td>
-<td>84%</td>
-</tr>
-<tr>
-<td><b>argo-cluster-debug</b> (13 evals)</td>
-<td><b>99%</b></td>
-<td>93%</td>
-<td><b>100%</b></td>
-<td>93%</td>
-</tr>
-<tr>
-<td><b>argo-operations</b> (13 evals)</td>
-<td><b>99%</b></td>
-<td>74%</td>
-<td><b>100%</b></td>
-<td>89%</td>
-</tr>
-<tr>
-<td><b>argo-performance-tuning</b> (14 evals<sup>‡</sup>)</td>
-<td><b>99%</b></td>
-<td>47%</td>
-<td><b>100%</b></td>
-<td>56%</td>
-</tr>
-<tr>
-<td><b>argo-team-onboard</b> (13 evals)</td>
-<td><b>100%</b></td>
-<td>72%</td>
-<td><b>100%</b></td>
-<td>76%</td>
-</tr>
-</tbody>
-</table>
+**`argo-operations` lost to its own baseline, and the reason is actionable.** The
+with-skill run took four outright fails, all the same category: **no post-action
+verification**. Generate → Preview → Confirm stops at the gate and never says "now check
+it worked". The baseline verified after acting. That is a real design gap, not noise —
+tracked as a follow-up.
 
-Every cell above is a real score — no skill has an unrun condition left. See each skill's
-`benchmarks/*.md` for the full per-eval breakdown and methodology notes (in particular, `argo-team-onboard`'s
-baseline runs were not given the same "simulate a committed outcome" instruction as the
-with-skill runs, which affects one eval; `argo-repo-audit` is a static-file-audit skill, so its
-baseline runs had real read access to the same fixture files as the with-skill runs, differing
-only in whether `SKILL.md`/`references/` were loaded).
+**The baselines are strong, and that is deliberate.** Each baseline agent was an
+experienced OpenShift GitOps engineer with the same prompts, the same seven CLIs, the same
+live cluster and the same read-only limits — just no access to `skills/`. A hobbled
+baseline would have produced a flattering number and told us nothing. Several baselines
+beat their with-skill counterpart on specific items; one found the empty
+conversion-webhook `caBundle` behind a 47-day stuck operator upgrade that the with-skill
+run missed.
 
-<sup>†</sup> `argo-knowledge`'s Sonnet Baseline was scored against a slightly expanded
-`evals.json` (88 checks) than the Opus columns in this row were originally scored against (86
-checks) — see `benchmarks/argo-knowledge.md` for the exact delta. Directionally comparable, not
-a perfectly controlled identical-rubric diff.
+### Method
 
-<sup>‡</sup> `argo-performance-tuning`'s `evals.json` now has 21 scenarios after a web-research
-pass added 7 covering settings this skill didn't previously document (`resource.exclusions`,
-`manifest-generate-paths`, Dynamic Cluster Distribution, and others — see
-`references/tuning-settings.md`). The 99%/47%/100%/56% scores above are the real, unmodified
-result of the original 14-eval benchmark and have not been re-run against the new 21; treat
-them as the pre-expansion baseline, not a current full-coverage score.
+- **Blind A/B.** Scorers saw "Condition A" and "Condition B" with a seeded flip and were
+  never told which was which. Flips came out mixed across the six skills.
+- **Per expectation, not per eval**, with partial credit, and every verdict carries an
+  evidence string. Raw verdicts: [`benchmarks/results/`](benchmarks/results/).
+- **Reproduce:** `make score` · `make score-compare PRIOR=<dir>` for regressions.
 
-> **Sonnet + skill (94–100%) beats Opus without skill (47–93%) on every skill — but the size of
-> that gap varies enormously by skill.** It's widest on `argo-performance-tuning` (100% vs.
-> 47%, +53 points) and `argo-team-onboard` (100% vs. 72%, +28 points) — skills whose baseline
-> evals include an adversarial trap (an Operator misconfiguration both models' baselines
-> validated outright; an overprivileged-RBAC request both baselines generated as asked instead
-> of refusing). It's narrowest on `argo-cluster-debug` (100% vs. 93%, +7 points) and
-> `argo-repo-audit` (94–98% vs. 84%, +10–14 points) — tasks where the underlying judgment (common
-> troubleshooting patterns; "wildcard RBAC and plaintext secrets are bad") is common enough that
-> baseline models already handle most of it correctly without any skill-specific knowledge. The
-> skill's real, measurable value is concentrated in the specific settings, CRD-field names,
-> checklist comprehensiveness, and hard safety rules that aren't common knowledge — not a flat
-> tax on every task.
+### Caveats — read these before quoting the numbers
 
-<sub>Run locally with <code>make eval</code> or via GitHub Actions (<code>evals</code> workflow).
-Full results per model in <a href="benchmarks/">benchmarks/</a>.</sub>
+1. **Two baselines were contaminated by the prompt author.** To protect a live cluster,
+   the `argo-operations` and `argo-team-onboard` baselines were told to stop before
+   writing — which is part of what those evals measure (25/96 and 9/103 expectations).
+   Excluding those: operations **90% vs 94% (−4)**, team-onboard **94% vs 93% (+2)**. Cite
+   the excluded figures.
+2. **These are a floor.** Two mutually unsatisfiable expectation pairs were live during
+   scoring (`oci://` in knowledge evals 1 vs 2; round-robin across perf evals 3/11/21), so
+   no answer could pass both sides and both conditions were capped. Since fixed; a re-run
+   should move both up slightly.
+3. **One input was corrupted mid-run and caught before publication.** The `argo-knowledge`
+   baseline was snapshotted while still being written; the first grader saw 8 of 16
+   sections and failed 44 expectations for absence. Had that shipped it would have read as
+   roughly **+40 instead of +1.9** — the most flattering number in the set, and entirely an
+   artifact. Quarantined and re-scored.
+4. **Single run, single model.** No repeats, no cross-model comparison, no confidence
+   intervals. Treat small deltas (±2) as noise.
+
+<sub>Full per-eval breakdown per skill in <a href="benchmarks/">benchmarks/</a>.
+Cluster-dependent suites need a real cluster — run them locally with <code>make eval-*</code>;
+CI can only run the two that do not.</sub>
 
 ## Contributing
 

@@ -4,6 +4,70 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — real benchmark numbers, measured both ways
+
+Ran all six suites twice against a live OpenShift cluster: once with the skills, once
+with `skills/` off-limits. **572 expectations per condition, 1,144 verdicts**, each with
+an evidence string, in `benchmarks/results/`.
+
+| Skill | with-skill | baseline | delta |
+|---|---:|---:|---:|
+| argo-performance-tuning | 91.8% | 70.2% | +21.6 |
+| argo-repo-audit | 97.5% | 88.1% | +9.4 |
+| argo-cluster-debug | 92.1% | 87.7% | +4.4 |
+| argo-team-onboard | 93.7% | 89.3% | +4.4 |
+| argo-knowledge | 97.3% | 95.5% | +1.9 |
+| argo-operations | 90.1% | 93.8% | **−3.6** |
+| **Weighted** | **94.0%** | **87.7%** | **+6.3** |
+
+The previously published numbers (claiming baselines of 47–93%) were measured against a
+much weaker baseline and are replaced, not updated. The delta tracks how
+product-specific each skill is: tuning, where answers depend on exact setting names and
+operator-overridden defaults, gains most; general Argo CD knowledge gains least.
+
+**`argo-operations` lost to its baseline** — four fails, all the same category: no
+post-action verification. Generate → Preview → Confirm ends at the gate. Logged as a
+design gap to fix rather than smoothed over.
+
+Method: blind A/B (scorers never knew which condition they graded, seeded flips, mixed
+outcomes), per-expectation grading with partial credit, identical prompts/tooling/cluster
+and read-only limits in both conditions.
+
+Four caveats are published with the numbers: two baselines were contaminated by the
+prompt author (write-behaviour hints; excluded figures given), two mutually unsatisfiable
+expectation pairs were live during scoring so the results are a floor, one input was
+corrupted mid-run and caught before publication (would have read as +40 instead of +1.9
+for argo-knowledge), and it is a single run on a single model.
+
+### Fixed — two contradictory expectation pairs in the eval sets
+
+No answer could satisfy both sides, so the suites capped their own ceiling and penalised
+internal consistency:
+
+- `argo-knowledge` eval 1 required omitting the `oci://` scheme from `repoURL`; eval 2
+  required including it. Reconciled to the documented form.
+- `argo-performance-tuning` evals 3 and 11 presented round-robin as a reasonable default
+  while eval 21 required correcting the premise that it is production-hardened. All three
+  now agree it is experimental.
+
+### Fixed — `make score` silently dropped half its input
+
+`score_evals.py` keyed results by skill name alone, so a skill's baseline and with-skill
+files collided and one overwrote the other. Now keyed by (skill, condition), with a
+warning on genuine duplicates. Also widens the column to fit condition-qualified names,
+and the unblinder stitches sharded scorer output (needed when a suite is too large for
+one grading pass) while rejecting duplicate eval ids.
+
+### Changed — `KNOWN_DIVERGENCES` in the expectation validator
+
+`spec.controller.sharding.algorithm` exists on OpenShift GitOps 1.21.3 but not in
+upstream `argocd-operator` v0.18.0, which is where the shipped ArgoCD CR schema comes
+from (Red Hat's build has no public raw URL). Rather than silence the mismatch, the
+validator now prints known divergences with how each was verified, and still fails on
+unknown paths. Worth knowing generally: **validating OpenShift GitOps content against
+upstream `argocd-operator` produces both false positives and false negatives.**
+
+
 ### Fixed — three tuning defaults the OpenShift GitOps operator contradicts
 
 All three verified against a live operator-managed cluster. They matter more now the

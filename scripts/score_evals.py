@@ -34,6 +34,8 @@ WEIGHT = {"pass": 1.0, "partial": 0.5, "fail": 0.0}
 
 
 def load(d):
+    """Key by (skill, condition) — a skill has one file per condition and keying by
+    skill alone silently drops one of them."""
     out = {}
     for f in sorted(pathlib.Path(d).glob("*.results.json")):
         try:
@@ -41,7 +43,11 @@ def load(d):
         except json.JSONDecodeError as exc:
             print(f"warn: {f.name} is not valid JSON ({exc})", file=sys.stderr)
             continue
-        out[data["skill"]] = data
+        key = (data["skill"], data.get("condition", "with-skill"))
+        if key in out:
+            print(f"warn: duplicate results for {key} — {f.name} ignored", file=sys.stderr)
+            continue
+        out[key] = data
     return out
 
 
@@ -83,17 +89,18 @@ def main():
     prior = load(a.compare) if a.compare else {}
 
     summary, worst = {}, 100.0
-    for skill in sorted(cur):
-        e, t, per = score(cur[skill])
+    for key in sorted(cur):
+        skill = f"{key[0]} [{key[1]}]" if len({k for k in cur if k[0] == key[0]}) > 1 else key[0]
+        e, t, per = score(cur[key])
         pct = (100 * e / t) if t else 0.0
         worst = min(worst, pct)
         entry = {"evals": len(per), "expectations": int(t),
                  "earned": round(e, 1), "pct": round(pct, 1),
-                 "model": cur[skill].get("model"),
-                 "condition": cur[skill].get("condition"),
+                 "model": cur[key].get("model"),
+                 "condition": cur[key].get("condition"),
                  "weakest": sorted(per, key=lambda x: x["pct"])[:3]}
-        if skill in prior:
-            pe, pt, _ = score(prior[skill])
+        if key in prior:
+            pe, pt, _ = score(prior[key])
             entry["prior_pct"] = round((100 * pe / pt) if pt else 0.0, 1)
             entry["delta"] = round(pct - entry["prior_pct"], 1)
         summary[skill] = entry
@@ -101,19 +108,20 @@ def main():
     if a.json:
         print(json.dumps(summary, indent=2))
     else:
-        print(f"{'skill':<26}{'evals':>6}{'expect':>8}{'score':>8}" +
+        w = max([26] + [len(s) + 2 for s in summary])
+        print(f"{'skill':<{w}}{'evals':>6}{'expect':>8}{'score':>8}" +
               ("  delta" if prior else ""))
-        print("-" * (48 + (7 if prior else 0)))
+        print("-" * (w + 22 + (7 if prior else 0)))
         for s, v in summary.items():
-            line = f"{s:<26}{v['evals']:>6}{v['expectations']:>8}{v['pct']:>7.1f}%"
+            line = f"{s:<{w}}{v['evals']:>6}{v['expectations']:>8}{v['pct']:>7.1f}%"
             if "delta" in v:
                 d = v["delta"]
                 line += f"  {d:+.1f}" + ("  REGRESSION" if d < -2 else "")
             print(line)
         tot_e = sum(v["earned"] for v in summary.values())
         tot_t = sum(v["expectations"] for v in summary.values())
-        print("-" * (48 + (7 if prior else 0)))
-        print(f"{'OVERALL':<26}{sum(v['evals'] for v in summary.values()):>6}"
+        print("-" * (w + 22 + (7 if prior else 0)))
+        print(f"{'OVERALL':<{w}}{sum(v['evals'] for v in summary.values()):>6}"
               f"{tot_t:>8}{(100*tot_e/tot_t if tot_t else 0):>7.1f}%")
         print("\nWeakest evals per skill:")
         for s, v in summary.items():

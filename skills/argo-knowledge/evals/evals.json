@@ -33,7 +33,7 @@
         "Merge generator contains a clusters generator with selector matchLabels tier: production",
         "Merge generator contains a git file generator with repoURL https://github.com/org/fleet-config.git",
         "Git file generator path references clusters/{{.name}}/config.json or equivalent Go template syntax",
-        "Template source uses oci:// prefix for the chart URL",
+        "Template source points at the OCI registry host and path WITHOUT the oci:// scheme (e.g. repoURL: ghcr.io/org with the chart name in a separate chart: field) \u2014 consistent with eval 1 and the Argo CD docs' \"the oci:// syntax is not included\"",
         "Template source targetRevision references the appVersion field from the config (e.g., {{.appVersion}})",
         "preserveResourcesOnDeletion: true is under spec.syncPolicy (NOT at spec level and NOT under strategy) \u2014 spec.preserveResourcesOnDeletion is not in the CRD and is silently pruned by the API server",
         "ignoreApplicationDifferences is present with jsonPointers or jqPathExpressions targeting spec.source.targetRevision"
