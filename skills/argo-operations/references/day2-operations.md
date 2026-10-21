@@ -479,10 +479,47 @@ kubectl create secret generic repo-<name> \
 # 3. Add the public key to the Git provider
 cat argocd-repo-key.pub
 
+# 4. VERIFY — a credential that applies cleanly and cannot authenticate is the whole
+#    failure mode. Confirm Argo CD can actually reach the repo with the new credential.
+argocd repo get <repo-url> 2>/dev/null || \
+  kubectl get secret repo-<name> -n "$NS" -o jsonpath='{.metadata.labels}{"\n"}'
+# Force a fresh fetch rather than trusting the repo-server cache:
+argocd app get <app-using-that-repo> --refresh 2>/dev/null || \
+  kubectl annotate applications.argoproj.io <app> -n "$NS" \
+    argocd.argoproj.io/refresh=hard --overwrite
+# Then confirm the Application is not in ComparisonError:
+kubectl get applications.argoproj.io <app> -n "$NS" \
+  -o jsonpath='sync={.status.sync.status} cond={.status.conditions[*].type}{"\n"}'
+
 # 4. Test connectivity
 argocd repo get <repo-url> 2>/dev/null || \
   kubectl get secret repo-<name> -n "$NS" -o jsonpath='{.data.sshPrivateKey}' | base64 -d | head -1
 ```
+
+### Verifying an upgrade
+
+**An upgrade is not done when the command returns.** Check all four, and report the output:
+
+```bash
+# 1. The CSV must be Succeeded. Do NOT trust the Subscription's `state` — it reports
+#    AtLatestKnown while the CSV behind it is stuck Pending or Failed.
+kubectl get csv -n <operator-ns> -o custom-columns=NAME:.metadata.name,PHASE:.status.phase
+kubectl get subscription -n <operator-ns> -o jsonpath='{.items[*].status.installedCSV}{"\n"}'
+
+# 2. No failed InstallPlan left behind
+kubectl get installplan -n <operator-ns> -o custom-columns=NAME:.metadata.name,PHASE:.status.phase
+
+# 3. Components actually rolled to the new version
+kubectl get pods -n "$NS" -o custom-columns=NAME:.metadata.name,READY:.status.containerStatuses[0].ready,RESTARTS:.status.containerStatuses[0].restartCount
+kubectl get deploy,sts -n "$NS" -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.template.spec.containers[0].image}{"\n"}{end}'
+
+# 4. The instance reconciled cleanly afterwards
+kubectl get argocd -A -o custom-columns=NS:.metadata.namespace,NAME:.metadata.name,PHASE:.status.phase
+```
+
+If the CSV sits in `Pending` or `Replacing` for more than a few minutes, the upgrade is
+**stuck, not slow** — read `.status.conditions` on the CSV and the InstallPlan before
+retrying anything.
 
 ### Git PAT (Personal Access Token)
 
