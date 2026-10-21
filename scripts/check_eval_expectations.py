@@ -22,6 +22,18 @@ IGNORE_PREFIXES = (
     "spec.strategy.canary.steps",  # list items, resolved positionally
 )
 
+# Known divergences between the schema we ship and what Red Hat's OpenShift GitOps
+# actually serves. We fetch the ArgoCD CR schema from upstream argoproj-labs/argocd-operator
+# because Red Hat's build has no public raw URL — but the two are NOT identical, and the
+# product is the thing this repo targets. Each entry must cite how it was verified.
+KNOWN_DIVERGENCES = {
+    # Present on OpenShift GitOps 1.21.3, absent from argocd-operator v0.18.0.
+    # Verified: `oc explain argocd.spec.controller.sharding.algorithm` resolves, and the
+    # live CRD enum-validates legacy|round-robin|consistent-hashing.
+    "spec.controller.sharding.algorithm":
+        "OpenShift GitOps 1.21.3 has it; upstream argocd-operator v0.18.0 does not",
+}
+
 
 def load_schemas():
     out = {}
@@ -60,7 +72,7 @@ def main():
         return 0
 
     path_re = re.compile(r"\bspec(?:\.[a-zA-Z][a-zA-Z0-9]*){1,6}\b")
-    findings = []
+    findings, diverged = [], []
     checked = 0
 
     for ef in sorted(pathlib.Path(".").glob(EVAL_GLOB)):
@@ -80,11 +92,19 @@ def main():
                 if negated:
                     continue
                 checked += 1
+                if raw in KNOWN_DIVERGENCES:
+                    diverged.append((raw, KNOWN_DIVERGENCES[raw]))
+                    continue
                 if not any(resolve(s, raw) for s in schemas.values()):
                     findings.append((str(ef), ev.get("id", "?"), raw))
 
     print(f"Checked {checked} distinct spec.* paths across eval expectations "
           f"against {len(schemas)} CRD schemas.\n")
+    if diverged:
+        print("Allowed via KNOWN_DIVERGENCES (shipped schema differs from the product):")
+        for p_, why in sorted(set(diverged)):
+            print(f"  {p_}\n      {why}")
+        print()
 
     if not findings:
         print("All asserted spec.* paths resolve in at least one Argo CRD schema.")

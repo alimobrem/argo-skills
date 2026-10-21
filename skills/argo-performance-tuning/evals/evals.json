@@ -36,7 +36,7 @@
         "Recommends enabling application controller sharding",
         "Asks about or accounts for whether this is standalone Argo CD or the OpenShift GitOps Operator",
         "Provides the ArgoCD CR spec.controller.sharding (enabled, replicas, minShards, maxShards) for the Operator case",
-        "Recommends a sharding algorithm (round-robin as a reasonable default) and explains the legacy/round-robin/consistent-hashing trade-offs",
+        "Recommends a sharding algorithm and explains the legacy/round-robin/consistent-hashing trade-offs. Round-robin is a reasonable choice for balance, but must be presented as still experimental rather than a safe default \u2014 consistent with evals 11 and 21",
         "Notes sharding distributes whole clusters, not individual applications, across replicas",
         "Notes that repo-server and argocd-server scale independently of controller sharding"
       ]
@@ -50,7 +50,7 @@
         "Recommends aligning it with ARGOCD_EXEC_TIMEOUT on the repo-server",
         "Also checks/recommends ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS for the controller-side timeout",
         "Distinguishes the three related timeouts (repo-server exec timeout, controller->repo-server timeout, server->repo-server timeout) and explains they must be consistent",
-        "States the correct Operator CR locations (spec.server.env, spec.repo.env, spec.controller.env — not spec.extraConfig)"
+        "States the correct Operator CR locations (spec.server.env, spec.repo.env, spec.controller.env \u2014 not spec.extraConfig)"
       ]
     },
     {
@@ -91,7 +91,7 @@
     {
       "id": 8,
       "name": "Sharding requested with only one cluster",
-      "prompt": "We have one cluster and 3,000 applications on it. Argo CD feels slow — should we enable sharding to speed it up?",
+      "prompt": "We have one cluster and 3,000 applications on it. Argo CD feels slow \u2014 should we enable sharding to speed it up?",
       "expectations": [
         "States clearly that sharding will not help with only one registered cluster",
         "Explains sharding distributes clusters across controller replicas, not individual applications",
@@ -113,7 +113,7 @@
     {
       "id": 10,
       "name": "Shallow clone on a public repo with no existing Secret",
-      "prompt": "Set git shallow clone depth to 1 for our public repo https://github.com/acme/infra — we haven't configured anything for it in Argo CD yet.",
+      "prompt": "Set git shallow clone depth to 1 for our public repo https://github.com/acme/infra \u2014 we haven't configured anything for it in Argo CD yet.",
       "expectations": [
         "Recognizes that a repository Secret does not exist yet for this public repo and must be created first",
         "Generates a complete repository Secret manifest with the argocd.argoproj.io/secret-type: repository label, url, type: git, and depth: \"1\"",
@@ -126,18 +126,18 @@
       "name": "Unsupported sharding algorithm requested on OpenShift GitOps",
       "prompt": "We're on OpenShift GitOps 1.19. Set ARGOCD_CONTROLLER_SHARDING_ALGORITHM to consistent-hashing for better balance across our 15 clusters.",
       "expectations": [
-        "Notes that consistent-hashing is not documented/officially supported on OpenShift GitOps",
+        "Notes that consistent-hashing is not documented/officially supported on OpenShift GitOps \u2014 while being accurate that the API does accept it (spec.controller.sharding.algorithm is enum-validated to legacy|round-robin|consistent-hashing), so the caveat is about support posture, not availability",
         "Recommends verifying against the installed operator version before relying on it in production",
         "Still generates the requested patch if the user confirms after the caveat, rather than refusing outright",
-        "Offers round-robin as the better-supported alternative for improving balance"
+        "Offers round-robin as an alternative for improving balance while noting it is ALSO still experimental \u2014 not as a safe/production-hardened default (must stay consistent with eval 21)"
       ]
     },
     {
       "id": 12,
-      "name": "Multiple simultaneous symptoms — prioritization",
+      "name": "Multiple simultaneous symptoms \u2014 prioritization",
       "prompt": "We're planning to add 10 more clusters (currently have 5). Right now the UI is already sluggish, we occasionally get Git rate-limited, and we're about to make it worse. Where do we even start?",
       "expectations": [
-        "Does not just list all settings in isolation — sequences recommendations",
+        "Does not just list all settings in isolation \u2014 sequences recommendations",
         "Follows the order of leverage: reduce unnecessary Git/render work first, then align timeouts, then bound concurrency, then scale out with sharding",
         "Explicitly connects the Git rate-limiting to ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT before addressing sharding",
         "Recommends sharding/replica scaling as preparation for the additional 10 clusters, not as the first fix for current sluggishness",
@@ -182,7 +182,7 @@
     {
       "id": 16,
       "name": "High API load on managed clusters from non-GitOps resources",
-      "prompt": "We're seeing high connection load on our managed clusters' API servers from Argo CD watching resources we never put in Git — things like Kyverno policy reports and Endpoints/EndpointSlice objects.",
+      "prompt": "We're seeing high connection load on our managed clusters' API servers from Argo CD watching resources we never put in Git \u2014 things like Kyverno policy reports and Endpoints/EndpointSlice objects.",
       "expectations": [
         "Recommends resource.exclusions as the fix, not resource.customizations.ignoreResourceUpdates",
         "Explains the distinction: exclusions stop the controller from watching the kind at all, while ignoreResourceUpdates still watches but skips reconciling on specific field changes",
@@ -234,7 +234,7 @@
       "prompt": "We have one Application that manages several thousand resources (a platform-level app-of-apps rendering a huge number of objects). Our Redis instance shows unusually high write traffic correlated with that Application's syncs specifically, not the rest of our ~800 other apps.",
       "expectations": [
         "Identifies ARGOCD_APPLICATION_TREE_SHARD_SIZE as the relevant setting, not cluster sharding",
-        "Explicitly distinguishes resource-tree sharding (splitting one Application's cached resource tree across Redis keys) from application-controller cluster sharding (distributing clusters across controller replicas) — does not conflate the two",
+        "Explicitly distinguishes resource-tree sharding (splitting one Application's cached resource tree across Redis keys) from application-controller cluster sharding (distributing clusters across controller replicas) \u2014 does not conflate the two",
         "States the default is 0 (entire tree in one Redis key) and recommends a value like 100",
         "Explains that only the changed shard is rewritten instead of the whole tree, explaining the observed correlation with this specific large Application",
         "Notes this setting will not help the other ~800 apps with normal-sized resource trees and shouldn't be tuned on their account"
@@ -243,13 +243,13 @@
     {
       "id": 21,
       "name": "Round-robin assumed to be risk-free",
-      "prompt": "We're about to remove one of our registered clusters. We're on round-robin sharding across 4 controller replicas — that's the safe, production-ready algorithm, right? Just want to confirm before we proceed.",
+      "prompt": "We're about to remove one of our registered clusters. We're on round-robin sharding across 4 controller replicas \u2014 that's the safe, production-ready algorithm, right? Just want to confirm before we proceed.",
       "expectations": [
         "Corrects the premise: round-robin is still an experimental sharding algorithm, not a fully production-hardened default",
         "Specifically warns that removing the cluster at shard rank-0 triggers reshuffling of every cluster across every shard, with a temporary performance impact",
         "Recommends checking which rank the cluster being removed currently holds before proceeding, or planning for a brief rebalancing window regardless",
         "Does not simply confirm the user's assumption that round-robin removal is risk-free",
-        "Does not recommend switching sharding algorithms mid-conversation as a non-sequitur — stays focused on the removal operation being asked about"
+        "Does not recommend switching sharding algorithms mid-conversation as a non-sequitur \u2014 stays focused on the removal operation being asked about"
       ]
     }
   ]
