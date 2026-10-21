@@ -344,6 +344,17 @@ Use when: user reports canary/blue-green rollout stuck, aborted, or degraded.
    ```
    Identify which step the rollout is paused/stuck at.
 
+   **Resolve the numbering before you answer.** `.status.currentStepIndex` is a
+   **0-based index into `spec.strategy.canary.steps`**, while users almost always count
+   steps from 1 — so "stuck at step 2" usually means `currentStepIndex: 1`, and an index
+   of 2 is the user's "step 3". The two readings point at different steps and therefore
+   different root causes. State the mapping explicitly, e.g.:
+
+   > `currentStepIndex: 1` → `steps[1]` = `pause: {duration: 30s}` — your "step 2".
+
+   If the user's wording is ambiguous, print the whole list with both numberings and say
+   which one you diagnosed. An index equal to `len(steps)` means every step completed.
+
 4. If paused, determine the reason:
    - `pause` step: manual approval required. Check `.status.pauseConditions`.
    - `analysis` step: AnalysisRun in progress. Proceed to step 5.
@@ -401,6 +412,30 @@ Use when: user reports canary/blue-green rollout stuck, aborted, or degraded.
      ```bash
      kubectl get traefikservice -n <namespace> -o yaml
      ```
+
+8b. **Blue-green: there are no steps, so "stuck" means something different.** A
+    blue-green Rollout has no `steps` array and no `currentStepIndex`, and it never
+    progresses on its own the way canary does between `setWeight`/`pause` entries. It
+    moves preview → active on exactly one trigger:
+
+    | | canary | blue-green |
+    |---|---|---|
+    | progression | automatic through `steps[]`, pausing only where told | single promotion event, no intermediate steps |
+    | what "stuck" means | sitting at one `steps[]` entry | preview is up and promotion never fired |
+    | usual cause | a `pause` with no duration, or a failing `analysis` step | `autoPromotionEnabled: false` was set explicitly and nobody promoted, a failing/running `prePromotionAnalysis`, or the new ReplicaSet never became Healthy |
+
+    So do not look for a step index on a blue-green Rollout — check, in order:
+    ```bash
+    kubectl get rollout <name> -n <namespace> \
+      -o jsonpath='{.spec.strategy.blueGreen.autoPromotionEnabled}{"\n"}{.status.pauseConditions}{"\n"}'
+    ```
+    **`autoPromotionEnabled` defaults to `true`** — an unset field means the rollout
+    *should* self-promote as soon as the new ReplicaSet is Healthy. So an unset field is
+    a red flag pointing at the ReplicaSet or at analysis, whereas an explicit
+    `autoPromotionEnabled: false` is **intended behaviour**: the rollout is waiting for
+    `kubectl argo rollouts promote <name>`, and you should report it as such rather than
+    as a fault. (`autoPromotionSeconds` only applies in that paused state — it promotes
+    automatically once that many seconds have elapsed; it defaults to nil, meaning never.)
 
 9. Check ReplicaSets — compare stable vs canary:
    ```bash
