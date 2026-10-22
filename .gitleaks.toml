@@ -10,6 +10,13 @@
 # tested against. Those fixtures are synthetic by construction. Without them the
 # scanner under test has nothing to find.
 
+# Gitleaks v8 REPLACES its default ruleset when given a config. Without this
+# stanza an allowlist-only file leaves v8 with zero rules, so every scan passes
+# and reports nothing -- verified. PwnedAlert/rh-gitleaks (v7.6.1) read only the
+# [allowlist] table and ignore this, so it is safe for both.
+[extend]
+  useDefault = true
+
 [allowlist]
   description = "Synthetic credentials in the argo-repo-audit test corpus"
 

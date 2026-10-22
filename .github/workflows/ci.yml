@@ -63,3 +63,58 @@ jobs:
 
       - name: Validate eval expectations against CRD schemas
         run: bash scripts/check-eval-expectations.sh
+
+  secrets:
+    name: secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history: a PR can add a secret in one commit and remove it in a
+          # later one, and the secret is still in the history being merged.
+          # The default fetch-depth of 1 would scan a single commit and pass.
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        env:
+          GITLEAKS_VERSION: 8.30.0
+        run: |
+          curl -sL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar xzf - -C /usr/local/bin gitleaks
+          gitleaks version
+
+      # Guard against the allowlist silently disabling every rule. Gitleaks v8
+      # REPLACES its default ruleset when handed a config, so an allowlist-only
+      # .gitleaks.toml leaves it with zero rules: every scan then passes and
+      # reports nothing. `[extend] useDefault = true` prevents that, and this
+      # step fails loudly if someone ever removes it.
+      - name: Self-test — the config must still detect a planted secret
+        run: |
+          probe="$(mktemp -d)"
+          # Generate the probe token at RUNTIME. Writing a literal secret-shaped
+          # string into this file would itself trip secret scanners -- including
+          # this repo's own pre-commit hook, which is how that was caught.
+          body="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 36)"
+          printf 'token: ghp_%s\n' "$body" > "$probe/planted.yaml"
+          cp .gitleaks.toml "$probe/"
+          if gitleaks detect --source="$probe" --no-git --no-banner \
+               --config="$probe/.gitleaks.toml" --redact >/dev/null 2>&1; then
+            echo "::error::.gitleaks.toml did NOT detect a planted secret — the ruleset is disabled."
+            echo "Check that [extend] useDefault = true is still present."
+            exit 1
+          fi
+          echo "OK: the config detects a planted secret, so rules are active."
+
+      - name: Scan repository and full history
+        run: |
+          gitleaks detect --source=. --no-banner --config=.gitleaks.toml \
+            --redact --report-format=json --report-path=gitleaks-report.json
+
+      - name: Upload findings
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-report
+          path: gitleaks-report.json
+          if-no-files-found: ignore
