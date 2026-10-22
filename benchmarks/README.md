@@ -11,7 +11,7 @@ without.** 1,144 verdicts, each carrying an evidence string, in [`results/`](res
 | `argo-operations` | **93.8%** | 84.4% | **+9.4** | [↗](argo-operations.md) |
 | `argo-knowledge` | **98.5%** | 93.9% | +4.5 | [↗](argo-knowledge.md) |
 | `argo-team-onboard` | 84.5% | 84.5% | **0.0** | [↗](argo-team-onboard.md) |
-| `argo-cluster-debug` | **94.1%** | 90.7% | **+3.4** | [↗](argo-cluster-debug.md) |
+| `argo-cluster-debug` | **94.1%** | 84.7% | **+9.3** | [↗](argo-cluster-debug.md) |
 | **Weighted overall** | **93.6%** | **83.7%** | **+9.9** | |
 
 ## Method
@@ -125,8 +125,8 @@ supports. The baseline lost exactly where it should: it explained `Available=Fal
 asserting a Service-selector problem with no output shown, while the other answer showed
 the pod in `CrashLoopBackOff` with zero Service endpoints.
 
-**Re-run against the new suite (run 4, 2026-10-22):** `argo-cluster-debug` scores
-**94.1% vs 90.7% (+3.4)** over 59 expectations, where the old suite showed 92.1% vs
+**Re-run against the corrected suite (run 5, 2026-10-22):** `argo-cluster-debug` scores
+**94.1% vs 84.7% (+9.3)** over 59 expectations, where the old suite showed 92.1% vs
 92.1% (+0.0) on the same skill. The instrument now resolves a difference it previously
 could not. The other five skills were not re-run; their rows predate the change.
 

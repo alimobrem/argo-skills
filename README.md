@@ -425,8 +425,8 @@ blind.
 | [`argo-operations`](benchmarks/argo-operations.md) | **93.8%** | 84.4% | **+9.4** |
 | [`argo-knowledge`](benchmarks/argo-knowledge.md) | **98.5%** | 93.9% | +4.5 |
 | [`argo-team-onboard`](benchmarks/argo-team-onboard.md) | 84.5% | 84.5% | **0.0** |
-| [`argo-cluster-debug`](benchmarks/argo-cluster-debug.md) | **94.1%** | 90.7% | **+3.4** |
-| **Weighted overall** | **93.8%** | **83.6%** | **+10.2** |
+| [`argo-cluster-debug`](benchmarks/argo-cluster-debug.md) | **94.1%** | 84.7% | **+9.3** |
+| **Weighted overall** | **93.8%** | **83.0%** | **+10.8** |
 
 **The delta tracks how product-specific a skill is.** Performance tuning — exact setting
 names, defaults the operator silently overrides, which CR field actually wins — gains
