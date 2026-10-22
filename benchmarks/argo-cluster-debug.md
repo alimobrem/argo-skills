@@ -33,12 +33,18 @@ other asserted the Subscription and all InstallPlans had been deleted — a fals
 from a bare `oc get subscription`, which on an ACM cluster resolves to a different API
 group entirely.
 
-**Known defect in eval 9.** Its final expectation says the report "must not attribute the
-failure to the other" source when the error names one. The live error names source 1 while
-the missing values file is reached through the `ref` source, and both arms correctly
-explained that discrepancy — so the clause penalises the better answer. It is a fixture
-flaw as much as a wording one: both sources point at the same repo, making "which source
-is failing" ill-posed. It cost both arms equally, so the delta is unaffected.
+**Eval 9 was defective when this run was scored, and has since been fixed.** The
+expectation required that the report "must not attribute the failure to the other" source
+when the error names one. But Argo CD blames the source it is *rendering* (source 1),
+while the missing values file lives in the `ref` source — so the clause penalised answers
+that correctly explained that gap, which both arms did. It was a fixture flaw too: both
+sources pointed at the same repository, making "which source is failing" unanswerable.
+
+Both are now fixed — the values source is a separate repository, and the expectation asks
+the answer to *distinguish* the blamed source from the faulty one rather than echo the
+error text. **The numbers above predate that fix.** It cost both arms equally so the
++3.4 delta is unaffected, but these are no longer current-suite figures; `make history`
+flags this skill as needing a re-run.
 
 Prior runs of this skill, graded against the older and more permissive suite, are in
 [`results-run3-oldsuite/`](results-run3-oldsuite/) and

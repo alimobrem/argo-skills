@@ -94,8 +94,22 @@ spec:
       selfHeal: false
 ---
 # EVAL 9 — "Application platform-ui uses multiple sources, one is the problem"
-# Source[0] is a Helm chart whose valueFiles points through $values at a path that does
-# not exist in source[1]. Chart source is fine; the values source is the failing one.
+# Source[0] is a Helm chart; source[1] is a SEPARATE values repo. The chart's valueFiles
+# points through $values at a path that does not exist in the values repo.
+#
+# The two sources deliberately use DIFFERENT repositories. An earlier version pointed
+# both at the same repo, which made "which source is the problem" genuinely unanswerable
+# — and the expectation that asked for it penalised answers that said so. With distinct
+# repos the faulty one can be named without ambiguity.
+#
+# NOT YET VERIFIED ON A LIVE CLUSTER. The manifests pass `--dry-run=server
+# --validate=strict`, and the values repo is confirmed to lack envs/production/values.yaml
+# (HTTP 404), but the resulting ComparisonError text has not been observed. Check it on
+# the first run that deploys these.
+#
+# Note the gap this is designed to expose: Argo CD blames "source 1 of 2" because that is
+# the source being rendered, while the missing file actually lives in source 2's
+# checkout. A good answer distinguishes the two; a shallow one just echoes the error.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -112,7 +126,9 @@ spec:
       helm:
         valueFiles:
           - $values/envs/production/values.yaml
-    - repoURL: https://github.com/argoproj/argocd-example-apps.git
+    # Separate values repo — a different repository from the chart source above.
+    # It has no envs/ directory, so the chart's valueFiles path cannot resolve.
+    - repoURL: https://github.com/stefanprodan/podinfo.git
       targetRevision: HEAD
       ref: values
   destination:

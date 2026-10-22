@@ -120,7 +120,7 @@
         "Iterates every entry in spec.sources[] individually, checking repoURL, targetRevision, path, and Helm valueFiles for each",
         "Identifies which specific source is failing (e.g. wrong values file path, inaccessible repo, or bad targetRevision)",
         "Does not treat a multi-source Application as if it were single-source",
-        "Produces a report naming WHICH source is failing \u2014 by its index or repoURL/chart, not just 'a source' \u2014 and the concrete fix. Must be consistent with the evidence shown: if the error names one source, the report must not attribute the failure to the other."
+        "Produces a report naming WHICH source is at fault \u2014 by index AND repoURL, not just 'a source' \u2014 and the concrete fix. Must distinguish the source Argo CD's error blames (the one being rendered) from the source that actually lacks the file, rather than only repeating 'source N of 2' from the error text."
       ]
     }
   ]
