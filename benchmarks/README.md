@@ -101,6 +101,35 @@ cause, not the *correct* one. Until they discriminate on correctness, this suite
 resolve the difference it exists to measure. **Read `0.0` as "not resolved by this
 instrument", not "no difference".** This is the next change to the suite.
 
+## The suite changed after these numbers were measured
+
+The `argo-cluster-debug` expectations were rewritten after run 3 to test whether a
+stated root cause is **correct and grounded**, not merely plausible — the limitation
+described above. Expectations that said "produces a report with root cause and
+recommendations" now add: *every root cause asserted must be backed by the specific
+observation that establishes it, and a cause contradicted by output shown elsewhere in
+the same answer fails even if it is plausible and well written.* Evals 3 and 8 also
+gained expectations naming the specific finding each must land.
+
+The rewrite was validated rather than assumed. Re-grading the **same two stored
+answers** from run 3 blind, against old and new expectations:
+
+| | with-skill | baseline | gap |
+|---|---:|---:|---:|
+| old expectations | 96.2% | 96.2% | **+0.0** |
+| new expectations | 100.0% | 86.7% | **+13.3** |
+
+The old wording scored a correct diagnosis and a factually wrong one identically. The
+new wording separates them, in the direction the independently verified cluster state
+supports. The baseline lost exactly where it should: it explained `Available=False` by
+asserting a Service-selector problem with no output shown, while the other answer showed
+the pod in `CrashLoopBackOff` with zero Service endpoints.
+
+Consequence: **the numbers on this page predate that change.** They were measured
+against the older, more permissive suite (572 expectations; the suite is now 574), so
+a future run is not directly comparable to them and should be reported as a new
+baseline rather than a delta against these.
+
 ## Caveats — read these before quoting the numbers
 
 1. **Four of the six baselines are run-1 answers, reused.** Only `argo-operations` and

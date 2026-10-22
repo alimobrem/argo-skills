@@ -32,6 +32,15 @@ KNOWN_DIVERGENCES = {
     # live CRD enum-validates legacy|round-robin|consistent-hashing.
     "spec.controller.sharding.algorithm":
         "OpenShift GitOps 1.21.3 has it; upstream argocd-operator v0.18.0 does not",
+
+    # A CORE Kubernetes field, not an Argo CRD one, so it cannot resolve against the
+    # Argo schemas this script loads. Verified against the Kubernetes batch/v1
+    # OpenAPI spec: io.k8s.api.batch.v1.CronJobSpec.suspend, type boolean.
+    # Cited by argo-cluster-debug eval 8 because a suspended CronJob is one of the
+    # two things that make an Argo CD Application report health Suspended (the
+    # other is a paused Rollout, whose spec.paused IS in the shipped schema).
+    "spec.suspend":
+        "core Kubernetes CronJob field (batch/v1), not an Argo CRD — no Argo schema covers it",
 }
 
 
