@@ -2,7 +2,7 @@
   "name": "argocd",
   "owner": {
     "name": "The Argo Skills authors",
-    "url": "https://github.com/alimobrem/argo-skills"
+    "url": "https://github.com/alimobrem/skills-for-argo"
   },
   "metadata": {
     "description": "AI skills for Red Hat OpenShift GitOps \u2014 Argo CD and Argo Rollouts on OpenShift",
