@@ -1,0 +1,179 @@
+# argo-cluster-debug eval fixtures — TEMPORARY, torn down after the run.
+# Every object carries argo-skills-eval-fixture=true so teardown is unambiguous.
+#
+# Reproduces the four scenarios whose named resources did not exist on the cluster,
+# which capped evals 1, 5, 8 and 9 at `partial` in BOTH arms.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps
+  labels:
+    argo-skills-eval-fixture: "true"
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: finance
+  labels:
+    argo-skills-eval-fixture: "true"
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: eval-staging
+  labels:
+    argo-skills-eval-fixture: "true"
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: eval-production
+  labels:
+    argo-skills-eval-fixture: "true"
+    pod-security.kubernetes.io/enforce: baseline
+---
+# EVAL 1 — "Application podinfo in the apps namespace is OutOfSync and Degraded"
+# Syncs clean first; a post-sync live image patch then produces BOTH symptoms at once
+# (live drift = OutOfSync, unpullable image = Degraded). selfHeal is off so it persists.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: podinfo
+  namespace: openshift-gitops
+  labels:
+    argo-skills-eval-fixture: "true"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: kustomize-guestbook
+    kustomize:
+      images:
+        - gcr.io/google-samples/gb-frontend=registry.access.redhat.com/ubi8/httpd-24:latest
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: apps
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: false
+---
+# EVAL 8 — "Application billing-service in namespace finance shows as Suspended"
+# A blue-green Rollout; pausing it post-sync makes Argo CD report health=Suspended,
+# which is intentional behaviour the skill must recognise rather than call a fault.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: billing-service
+  namespace: openshift-gitops
+  labels:
+    argo-skills-eval-fixture: "true"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: blue-green
+    helm:
+      parameters:
+        - name: image.repository
+          value: registry.access.redhat.com/ubi8/httpd-24
+        - name: image.tag
+          value: latest
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: finance
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: false
+---
+# EVAL 9 — "Application platform-ui uses multiple sources, one is the problem"
+# Source[0] is a Helm chart whose valueFiles points through $values at a path that does
+# not exist in source[1]. Chart source is fine; the values source is the failing one.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-ui
+  namespace: openshift-gitops
+  labels:
+    argo-skills-eval-fixture: "true"
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/argoproj/argocd-example-apps.git
+      targetRevision: HEAD
+      path: helm-guestbook
+      helm:
+        valueFiles:
+          - $values/envs/production/values.yaml
+    - repoURL: https://github.com/argoproj/argocd-example-apps.git
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: apps
+  syncPolicy: {}
+---
+# EVAL 5 — "ApplicationSet uses RollingSync across staging and production; staging
+#           updated but production apps haven't started syncing"
+# staging is given an unpullable image so it never reaches Healthy, which is precisely
+# what blocks the RollingSync from advancing to the production step.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: eval-rollingsync
+  namespace: openshift-gitops
+  labels:
+    argo-skills-eval-fixture: "true"
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  strategy:
+    type: RollingSync
+    rollingSync:
+      steps:
+        - matchExpressions:
+            - key: envLabel
+              operator: In
+              values: ["staging"]
+        - matchExpressions:
+            - key: envLabel
+              operator: In
+              values: ["production"]
+  generators:
+    - list:
+        elements:
+          - env: staging
+            ns: eval-staging
+            image: registry.access.redhat.com/ubi8/does-not-exist-eval
+          - env: production
+            ns: eval-production
+            image: registry.access.redhat.com/ubi8/httpd-24
+  template:
+    metadata:
+      name: 'eval-{{.env}}'
+      labels:
+        argo-skills-eval-fixture: "true"
+        envLabel: '{{.env}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/argoproj/argocd-example-apps.git
+        targetRevision: HEAD
+        path: kustomize-guestbook
+        kustomize:
+          images:
+            - 'gcr.io/google-samples/gb-frontend={{.image}}:latest'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{.ns}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: false
