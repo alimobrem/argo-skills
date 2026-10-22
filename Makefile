@@ -12,7 +12,7 @@ ROLLOUTS_MANAGER_VERSION := v0.10.0
 IMAGE_UPDATER_VERSION := v1.3.1
 ROLLOUTS_VERSION := v1.8.2
 
-.PHONY: help hooks hooks-uninstall scan-secrets history history-check download-schemas clean-schemas test-discover test-validate test-registration test-expectations score score-json score-compare eval eval-knowledge eval-repo-audit eval-cluster-debug eval-operations eval-performance-tuning eval-team-onboard
+.PHONY: help check-numbers hooks hooks-uninstall scan-secrets history history-check download-schemas clean-schemas test-discover test-validate test-registration test-expectations score score-json score-compare eval eval-knowledge eval-repo-audit eval-cluster-debug eval-operations eval-performance-tuning eval-team-onboard
 
 # Fetch a CRD schema from an arbitrary URL, selecting the STORAGE version rather than
 # versions[0] — the ArgoCD CR serves both v1alpha1 and v1beta1 and we want v1beta1.
@@ -73,6 +73,9 @@ hooks-uninstall: ## Remove the local pre-commit hook
 
 scan-secrets: ## Scan staged changes for secrets (ARGS=--all for the whole tree)
 	@./scripts/scan-secrets.sh $(ARGS)
+
+check-numbers: ## Fail if published scores disagree with benchmarks/results/
+	@./scripts/check-published-numbers.py
 
 history: ## Show the benchmark run history and which suites are stale
 	@./scripts/record-run.py --report

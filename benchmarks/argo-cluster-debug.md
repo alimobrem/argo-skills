@@ -1,49 +1,49 @@
 # argo-cluster-debug
 
-## Run 3 — 2026-10-21, live cluster **with deployed fixtures**, blind A/B
+## Run 4 — 2026-10-22, live cluster + fixtures, correctness-discriminating suite
 
-**92.1% with the skill vs 92.1% baseline (+0.0) over 57 expectations.**
+**94.1% with the skill vs 90.7% baseline (+3.4) over 59 expectations.**
 
-Run 2 scored 87.7% vs 88.6%, but four scenarios named resources that did not exist on the
-cluster, so both arms were capped at `partial` on any expectation requiring a real
-finding. For this run we deployed genuine fixtures — an Application driven both OutOfSync
-and Degraded via live image drift with `selfHeal: false`, a paused blue-green Rollout
-reporting health `Suspended`, and a multi-source Application whose `$values` path does not
-exist (`ComparisonError: failed to generate manifest for source 1 of 2`) — then re-ran
-both arms and tore the fixtures down.
+Run 3 scored 92.1% vs 92.1% (+0.0) on this same skill against the same fixtures. The
+difference is the suite: expectations were rewritten so that a stated root cause must be
+**correct and grounded**, not merely plausible — a cause asserted with no supporting
+output, or contradicted by output elsewhere in the same answer, now fails. See
+[the methodology notes](README.md).
 
-Both arms rose ~4 points, matching the predicted fixture headroom almost exactly. **The
-gap did not move.**
+Fixtures are reproducible: [`tests/argo-cluster-debug/fixtures/`](../tests/argo-cluster-debug/fixtures/)
+(`setup.sh` deploys and arms, `teardown.sh` removes and verifies). They were torn down
+after this run.
 
 | # | Eval | n | with-skill | baseline | delta |
 |---|------|--:|-----------:|---------:|------:|
-| 1 | Application OutOfSync and Degraded | 8 | 100% | 88% | +12 |
-| 2 | Canary Rollout stuck at step 2 | 8 | 56% | 81% | -25 |
-| 3 | Argo CD installation health check | 8 | 94% | 94% | +0 |
+| 1 | Application OutOfSync and Degraded | 8 | 100% | 94% | +6 |
+| 2 | Canary Rollout stuck at step 2 | 8 | 75% | 94% | -19 |
+| 3 | Argo CD installation health check | 9 | 100% | 83% | +17 |
 | 4 | ApplicationSet not generating expected Applications | 6 | 100% | 100% | +0 |
-| 5 | ApplicationSet RollingSync stuck on production step | 6 | 92% | 100% | -8 |
-| 6 | Blue-green rollout stuck at preview, never promotes | 6 | 100% | 75% | +25 |
+| 5 | ApplicationSet RollingSync stuck on production step | 6 | 92% | 92% | +0 |
+| 6 | Blue-green rollout stuck at preview, never promotes | 6 | 100% | 83% | +17 |
 | 7 | Ambiguous debug request with multiple Argo CD instances | 5 | 100% | 100% | +0 |
-| 8 | Suspended Application reported as broken | 5 | 100% | 100% | +0 |
-| 9 | Multi-source Application with one failing source | 5 | 100% | 100% | +0 |
-| | **total** | **57** | **92.1%** | **92.1%** | **+0.0** |
+| 8 | Suspended Application reported as broken | 6 | 92% | 83% | +8 |
+| 9 | Multi-source Application with one failing source | 5 | 90% | 90% | +0 |
+| | **total** | **59** | **94.1%** | **90.7%** | **+3.4** |
 
-### The evals do not discriminate on correctness
+The largest split is eval 3, the expectation added for exactly this purpose: one arm
+named the failing InstallPlan and the zero-length conversion-webhook `caBundle`; the
+other asserted the Subscription and all InstallPlans had been deleted — a false negative
+from a bare `oc get subscription`, which on an ACM cluster resolves to a different API
+group entirely.
 
-On the two scenarios where the arms reached *different* root causes, the skill arm was
-right both times and the baseline wrong both times — yet they scored the same:
+**Known defect in eval 9.** Its final expectation says the report "must not attribute the
+failure to the other" source when the error names one. The live error names source 1 while
+the missing values file is reached through the `ref` source, and both arms correctly
+explained that discrepancy — so the clause penalises the better answer. It is a fixture
+flaw as much as a wording one: both sources point at the same repo, making "which source
+is failing" ill-posed. It cost both arms equally, so the delta is unaffected.
 
-| eval | with-skill | baseline | verified truth |
-|---|---|---|---|
-| 3 | zero-length conversion-webhook `caBundle` | "the operator pod is down" | `caBundle` length **0**; operator pods all **1/1 Running**. InstallPlan `install-fzm4w` Failed on exactly that webhook |
-| 8 | `CrashLoopBackOff`, probe/port mismatch | "pause landed mid-bringup" | pod **CrashLoopBackOff, 13 restarts**; `containerPort: 80` while the image binds **:8443** |
-
-Expectations phrased "identifies the root cause" are satisfied by naming a *plausible*
-cause, not the *correct* one. Until they discriminate, this suite cannot resolve the
-difference it exists to measure. Read `0.0` as "not resolved by this instrument".
-
-Fixture-capped run-2 verdicts kept in
-[`results-run2-fixturecapped/`](results-run2-fixturecapped/).
+Prior runs of this skill, graded against the older and more permissive suite, are in
+[`results-run3-oldsuite/`](results-run3-oldsuite/) and
+[`results-run2-fixturecapped/`](results-run2-fixturecapped/). Use `make history` to see
+which scores are comparable.
 
 ---
 

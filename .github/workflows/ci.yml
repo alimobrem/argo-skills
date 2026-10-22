@@ -70,6 +70,13 @@ jobs:
       - name: Benchmark history is current
         run: python3 scripts/record-run.py --check
 
+      # Scores live in four places (root README, benchmarks/README.md, each
+      # benchmarks/<skill>.md, and the verdict JSON). They have drifted apart
+      # after a re-run more than once; a stale benchmark still looks
+      # authoritative, so this recomputes from the verdicts and compares.
+      - name: Published numbers match the verdict files
+        run: python3 scripts/check-published-numbers.py
+
   secrets:
     name: secret scan
     runs-on: ubuntu-latest
