@@ -41,13 +41,20 @@
   # Scoped deliberately to the audit fixture corpus only — NOT to tests/ as a
   # whole, and never to skills/, docs/ or benchmarks/, so a real credential
   # committed anywhere outside this corpus is still caught.
+  # Deliberately NOT anchored with ^. Gitleaks matches these against the path it
+  # is scanning, which is ABSOLUTE whenever the scan root is not the repo root --
+  # exactly what the pre-commit hook does, since it materialises the git index
+  # into a temp directory. An anchored ^tests/... matches when CI scans from the
+  # repo root and silently fails to match in the hook, so fixtures get flagged
+  # locally but not in CI. InfoSec's guidance is to match "any subset of the
+  # file path".
   paths = [
-    '''^tests/argo-repo-audit/''',
+    '''tests/argo-repo-audit/''',
 
     # Machine-generated grader verdicts. These quote snippets of the skills' own
     # documentation back as evidence, so a doc example containing a PEM header
     # reappears here as a "finding". They are scan output, never a place a real
     # credential would be authored. Regexes are a poor fit for private keys
     # (gitleaks matches a portion of a multiline secret), so this is path-scoped.
-    '''^benchmarks/results''',
+    '''benchmarks/results''',
   ]
