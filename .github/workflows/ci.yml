@@ -64,6 +64,12 @@ jobs:
       - name: Validate eval expectations against CRD schemas
         run: bash scripts/check-eval-expectations.sh
 
+      # Scores are only meaningful next to the expectation suite that produced
+      # them. This fails if a result file was added without being recorded, so
+      # history cannot silently drift out of date.
+      - name: Benchmark history is current
+        run: python3 scripts/record-run.py --check
+
   secrets:
     name: secret scan
     runs-on: ubuntu-latest

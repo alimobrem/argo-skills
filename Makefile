@@ -12,7 +12,7 @@ ROLLOUTS_MANAGER_VERSION := v0.10.0
 IMAGE_UPDATER_VERSION := v1.3.1
 ROLLOUTS_VERSION := v1.8.2
 
-.PHONY: help download-schemas clean-schemas test-discover test-validate test-registration test-expectations score score-json score-compare eval eval-knowledge eval-repo-audit eval-cluster-debug eval-operations eval-performance-tuning eval-team-onboard
+.PHONY: help hooks hooks-uninstall scan-secrets history history-check download-schemas clean-schemas test-discover test-validate test-registration test-expectations score score-json score-compare eval eval-knowledge eval-repo-audit eval-cluster-debug eval-operations eval-performance-tuning eval-team-onboard
 
 # Fetch a CRD schema from an arbitrary URL, selecting the STORAGE version rather than
 # versions[0] — the ArgoCD CR serves both v1alpha1 and v1beta1 and we want v1beta1.
@@ -64,6 +64,21 @@ download-schemas: ## Download Argo CRD schemas for kubeconform validation
 	$(call fetch_schema,argo-rollouts,$(ROLLOUTS_VERSION),experiment-crd.yaml,experiment-argoproj-v1alpha1)
 	@rm -rf $(SCHEMAS_DIR) && mv $(SCHEMAS_TMP) $(SCHEMAS_DIR)
 	@echo "Done — $$(ls -1 $(SCHEMAS_DIR) | wc -l | tr -d ' ') schemas in $(SCHEMAS_DIR)"
+
+hooks: ## Install the local pre-commit secret scan
+	@./scripts/install-git-hooks.sh
+
+hooks-uninstall: ## Remove the local pre-commit hook
+	@./scripts/install-git-hooks.sh --uninstall
+
+scan-secrets: ## Scan staged changes for secrets (ARGS=--all for the whole tree)
+	@./scripts/scan-secrets.sh $(ARGS)
+
+history: ## Show the benchmark run history and which suites are stale
+	@./scripts/record-run.py --report
+
+history-check: ## Fail if benchmarks/results/ holds an unrecorded run
+	@./scripts/record-run.py --check
 
 clean-schemas: ## Remove downloaded schemas
 	@rm -rf $(SCHEMAS_DIR) $(SCHEMAS_TMP)

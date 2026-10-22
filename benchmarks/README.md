@@ -151,6 +151,27 @@ baseline rather than a delta against these.
 5. **Single run, single model, no confidence intervals.** With the measured grader
    variance, treat small deltas as unresolved rather than real.
 
+## Run history
+
+`benchmarks/history.jsonl` is the append-only record of every scored run. Each row
+carries a **`suite_fp`** — a hash of the exact expectation texts that were graded,
+taken from the stored verdicts rather than from the current `evals.json`.
+
+That field answers the question directory names could not: *is this score comparable
+to that one?* Two scores are comparable **only** if their `suite_fp` match. Four of the
+six suites have been reworded at some point, so comparing numbers without checking is
+wrong more often than it is right.
+
+```sh
+make history        # the table, with stale suites flagged
+make history-check  # fails if a result file was never recorded (also runs in CI)
+```
+
+Known wrinkle: the archived `argo-repo-audit` verdicts were mechanically edited when a
+test-fixture credential literal was redacted. No verdict changed, but their `suite_fp`
+now reflects the post-redaction text, so it matches the current suite for a reason
+unrelated to grading.
+
 ## Archived runs
 
 | Directory | What it holds |
