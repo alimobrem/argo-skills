@@ -4,7 +4,7 @@
 
 ```shell
 # Install the plugin
-/plugin marketplace add alimobrem/argo-skills
+/plugin marketplace add alimobrem/skills-for-argo
 /plugin install argo-skills@argocd
 
 # Verify it loaded

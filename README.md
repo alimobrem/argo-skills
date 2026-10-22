@@ -41,7 +41,7 @@
 
 ```shell
 # Claude Code
-/plugin marketplace add alimobrem/argo-skills
+/plugin marketplace add alimobrem/skills-for-argo
 /plugin install argo-skills@argocd
 
 # Then try:
@@ -58,7 +58,7 @@
 <summary><b>Claude Code</b></summary>
 
 ```shell
-/plugin marketplace add alimobrem/argo-skills
+/plugin marketplace add alimobrem/skills-for-argo
 /plugin install argo-skills@argocd
 ```
 
@@ -78,7 +78,7 @@ Add to `$REPO_ROOT/.agents/plugins/marketplace.json` or `~/.agents/plugins/marke
   "category": "Developer Tools",
   "source": {
     "source": "url",
-    "url": "https://github.com/alimobrem/argo-skills.git",
+    "url": "https://github.com/alimobrem/skills-for-argo.git",
     "ref": "main"
   },
   "policy": {
