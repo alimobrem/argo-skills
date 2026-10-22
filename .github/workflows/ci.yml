@@ -106,6 +106,25 @@ jobs:
           fi
           echo "OK: the config detects a planted secret, so rules are active."
 
+          # Second guard: the allowlist must behave the same when the scan root
+          # is NOT the repo root. CI scans from the repo root, where paths are
+          # relative, so an allowlist path anchored with ^ matches here and
+          # silently fails in the pre-commit hook, which scans a temp directory
+          # of the staged index. That asymmetry is invisible to a repo-root-only
+          # check -- it shipped once already.
+          nested="$probe/nested"
+          mkdir -p "$nested/tests/argo-repo-audit/guard"
+          cp .gitleaks.toml "$nested/"
+          printf 'token: ghp_%s\n' "$body" > "$nested/tests/argo-repo-audit/guard/f.yaml"
+          if ! gitleaks detect --source="$nested" --no-git --no-banner \
+                 --config="$nested/.gitleaks.toml" --redact >/dev/null 2>&1; then
+            echo "::error::Allowlist did not apply when scanning from a non-repo-root path."
+            echo "A path entry is probably anchored with ^ -- gitleaks matches the"
+            echo "absolute path there. Remove the anchor (see .gitleaks.toml)."
+            exit 1
+          fi
+          echo "OK: allowlist applies from a non-repo-root scan path too."
+
       - name: Scan repository and full history
         run: |
           gitleaks detect --source=. --no-banner --config=.gitleaks.toml \
