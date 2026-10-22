@@ -102,10 +102,11 @@ spec:
 # — and the expectation that asked for it penalised answers that said so. With distinct
 # repos the faulty one can be named without ambiguity.
 #
-# NOT YET VERIFIED ON A LIVE CLUSTER. The manifests pass `--dry-run=server
-# --validate=strict`, and the values repo is confirmed to lack envs/production/values.yaml
-# (HTTP 404), but the resulting ComparisonError text has not been observed. Check it on
-# the first run that deploys these.
+# VERIFIED on OpenShift GitOps 1.21.3. Observed condition:
+#   ComparisonError: failed to generate manifest for source 1 of 2 ... helm template ...
+#   --values <cached>/envs/production/values.yaml ... Error: open ...: no such file
+# i.e. the error names source 1 (argocd-example-apps, the chart being rendered) while the
+# missing file lives in source 2's checkout (podinfo). Exactly the gap this tests.
 #
 # Note the gap this is designed to expose: Argo CD blames "source 1 of 2" because that is
 # the source being rendered, while the missing file actually lives in source 2's

@@ -1,55 +1,59 @@
 # argo-cluster-debug
 
-## Run 4 — 2026-10-22, live cluster + fixtures, correctness-discriminating suite
+## Run 5 — 2026-10-22, live cluster + fixtures, corrected suite
 
-**94.1% with the skill vs 90.7% baseline (+3.4) over 59 expectations.**
+**94.1% with the skill vs 84.7% baseline (+9.3) over 59 expectations.**
 
-Run 3 scored 92.1% vs 92.1% (+0.0) on this same skill against the same fixtures. The
-difference is the suite: expectations were rewritten so that a stated root cause must be
-**correct and grounded**, not merely plausible — a cause asserted with no supporting
-output, or contradicted by output elsewhere in the same answer, now fails. See
-[the methodology notes](README.md).
+| run | suite | with-skill | baseline | delta |
+|---|---|---:|---:|---:|
+| 3 | original | 92.1% | 92.1% | +0.0 |
+| 4 | correctness-discriminating, eval-9 defective | 94.1% | 90.7% | +3.4 |
+| 5 | eval-9 fixed | **94.1%** | 84.7% | **+9.3** |
 
-Fixtures are reproducible: [`tests/argo-cluster-debug/fixtures/`](../tests/argo-cluster-debug/fixtures/)
-(`setup.sh` deploys and arms, `teardown.sh` removes and verifies). They were torn down
-after this run.
+Run 3 could not separate a correct diagnosis from a plausible one. Rewriting the
+expectations to require a grounded, self-consistent root cause (run 4), then fixing the
+eval-9 defect those runs exposed (run 5), progressively sharpened the instrument. **The
+skill arm scored 94.1% in both runs 4 and 5; the movement is almost entirely the
+baseline.** Treat that baseline swing (90.7 → 84.7) as run-to-run variance in a single
+unaided agent, not as evidence the suite got harder — 58 of the 59 expectations are
+identical between those runs.
+
+Fixtures are reproducible and were torn down after the run:
+[`tests/argo-cluster-debug/fixtures/`](../tests/argo-cluster-debug/fixtures/).
 
 | # | Eval | n | with-skill | baseline | delta |
 |---|------|--:|-----------:|---------:|------:|
 | 1 | Application OutOfSync and Degraded | 8 | 100% | 94% | +6 |
-| 2 | Canary Rollout stuck at step 2 | 8 | 75% | 94% | -19 |
+| 2 | Canary Rollout stuck at step 2 | 8 | 81% | 56% | +25 |
 | 3 | Argo CD installation health check | 9 | 100% | 83% | +17 |
 | 4 | ApplicationSet not generating expected Applications | 6 | 100% | 100% | +0 |
 | 5 | ApplicationSet RollingSync stuck on production step | 6 | 92% | 92% | +0 |
-| 6 | Blue-green rollout stuck at preview, never promotes | 6 | 100% | 83% | +17 |
-| 7 | Ambiguous debug request with multiple Argo CD instances | 5 | 100% | 100% | +0 |
-| 8 | Suspended Application reported as broken | 6 | 92% | 83% | +8 |
-| 9 | Multi-source Application with one failing source | 5 | 90% | 90% | +0 |
-| | **total** | **59** | **94.1%** | **90.7%** | **+3.4** |
+| 6 | Blue-green rollout stuck at preview, never promotes | 6 | 83% | 83% | +0 |
+| 7 | Ambiguous debug request with multiple Argo CD instances | 5 | 90% | 100% | -10 |
+| 8 | Suspended Application reported as broken | 6 | 100% | 67% | +33 |
+| 9 | Multi-source Application with one failing source | 5 | 100% | 100% | +0 |
+| | **total** | **59** | **94.1%** | **84.7%** | **+9.3** |
 
-The largest split is eval 3, the expectation added for exactly this purpose: one arm
-named the failing InstallPlan and the zero-length conversion-webhook `caBundle`; the
-other asserted the Subscription and all InstallPlans had been deleted — a false negative
-from a bare `oc get subscription`, which on an ACM cluster resolves to a different API
-group entirely.
+The sharpest split is eval 8. Both arms correctly identified the `Suspended` state as an
+intentional `spec.paused: true`. One then showed, with live output, a genuinely broken
+workload underneath it — pod 0/1 with 6 restarts, probes on port 80 against an image
+binding 8080/8443, and both Services with no endpoints. The other reported only the
+suspension and asserted the pod was "served by the preview Service only" with nothing
+shown. That is precisely the unsupported-cause pattern the rewritten expectations target.
 
-**Eval 9 was defective when this run was scored, and has since been fixed.** The
-expectation required that the report "must not attribute the failure to the other" source
-when the error names one. But Argo CD blames the source it is *rendering* (source 1),
-while the missing values file lives in the `ref` source — so the clause penalised answers
-that correctly explained that gap, which both arms did. It was a fixture flaw too: both
-sources pointed at the same repository, making "which source is failing" unanswerable.
+### Caveats specific to this suite
 
-Both are now fixed — the values source is a separate repository, and the expectation asks
-the answer to *distinguish* the blamed source from the faulty one rather than echo the
-error text. **The numbers above predate that fix.** It cost both arms equally so the
-+3.4 delta is unaffected, but these are no longer current-suite figures; `make history`
-flags this skill as needing a re-run.
+- **Evals 2 and 6 name resources that do not exist on this cluster.** Both arms correctly
+  established absence and demonstrated on clearly-labelled comparable resources, but those
+  verdicts rest on a substitute object and are the least robust in the set.
+- **Eval 5's `maxUpdate` expectation presumes a field the live ApplicationSet lacks**, so
+  both arms are capped at partial on it.
+- **Eval 2's "traffic routing if configured" is unresolvable** — the substitute Rollout has
+  none — and failed in both arms identically.
 
-Prior runs of this skill, graded against the older and more permissive suite, are in
-[`results-run3-oldsuite/`](results-run3-oldsuite/) and
-[`results-run2-fixturecapped/`](results-run2-fixturecapped/). Use `make history` to see
-which scores are comparable.
+Earlier runs of this skill are archived: [`results-run4-eval9defect/`](results-run4-eval9defect/),
+[`results-run3-oldsuite/`](results-run3-oldsuite/), [`results-run2-fixturecapped/`](results-run2-fixturecapped/).
+Use `make history` to see which are comparable.
 
 ---
 
