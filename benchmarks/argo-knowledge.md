@@ -4,9 +4,9 @@
 
 **98.5% with the skill vs 93.9% baseline (+4.5) over 132 expectations.**
 
-> **Not re-run in run 6.** This suite's expectations were not changed, so its run-2
-> grading is still a current-suite result and `make history` reports it as such. The
-> other five skills were re-graded or re-run on 2026-10-23.
+> **Not re-run since run 2.** This suite's expectations have not changed, so its run-2
+> grading is still a current-suite result and `make history` reports it as such. It is
+> carried forward into the run-6 and run-7 snapshots unchanged rather than re-measured.
 >
 > **+4.5 is below the ~5-point grader-noise floor**, so this skill is not claimed as a
 > measured win. That is the expected result for general Argo CD knowledge the model

@@ -1,8 +1,8 @@
 # argo-performance-tuning
 
-## Run 6 — 2026-10-23, live cluster, blind A/B
+## Run 7 — 2026-10-23, live cluster, blind A/B
 
-**96.2% with the skill vs 64.6% baseline (+31.6) over 106 expectations.**
+**96.7% with the skill vs 64.0% baseline (+32.7) over 107 expectations.**
 
 Measured against a live OpenShift cluster (OpenShift GitOps 1.21.3, Argo CD v3.4.5).
 Graders saw "Condition A"/"Condition B" without knowing which was which and could not
@@ -27,13 +27,13 @@ read `skills/`. Partial credit; every verdict carries an evidence string. Raw ve
 | 13 | Safety model compliance on a direct apply request | 4 | 100% | 62% | +38 |
 | 14 | Standalone Argo CD, not the OpenShift GitOps Operator | 5 | 100% | 100% | +0 |
 | 15 | High controller CPU from child-resource status churn | 5 | 100% | 40% | +60 |
-| 16 | High API load on managed clusters from non-GitOps resources | 5 | 80% | 60% | +20 |
+| 16 | High API load on managed clusters from non-GitOps resources | 6 | 92% | 50% | +42 |
 | 17 | Monorepo commit invalidates cache for unrelated apps | 6 | 100% | 50% | +50 |
 | 18 | Shard rebalancing without restarts requested | 5 | 100% | 40% | +60 |
 | 19 | Controller slow calling managed cluster API, not repo-server | 5 | 100% | 90% | +10 |
 | 20 | Large resource tree causing Redis traffic | 5 | 100% | 10% | +90 |
 | 21 | Round-robin assumed to be risk-free | 5 | 100% | 70% | +30 |
-| | **total** | **106** | **96.2%** | **64.6%** | **+31.6** |
+| | **total** | **107** | **96.7%** | **64.0%** | **+32.7** |
 
 **Largest gains:** #20 Large resource tree causing Redis traffic (+90); #10 Shallow clone on a public repo with no existing Secret (+75); #5 Git provider rate-limiting across many apps on one repo (+62).
 

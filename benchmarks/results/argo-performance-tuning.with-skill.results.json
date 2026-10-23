@@ -491,27 +491,32 @@
     {
      "text": "Recommends resource.exclusions as the fix, not resource.customizations.ignoreResourceUpdates",
      "verdict": "pass",
-     "evidence": "The answer's fix section says \"Use `spec.resourceExclusions` \u2014 the dedicated field (confirmed by `oc explain`)\" and the whole remedy is building out the resource exclusion list; ignoreResourceUpdates is never proposed as the fix."
+     "evidence": "'Use `spec.resourceExclusions` - the dedicated field (confirmed by `oc explain`)' is the prescribed fix throughout; ignoreResourceUpdates is never proposed as the remedy."
     },
     {
      "text": "Explains the distinction: exclusions stop the controller from watching the kind at all, while ignoreResourceUpdates still watches but skips reconciling on specific field changes",
-     "verdict": "fail",
-     "evidence": "The EVAL 16 section never mentions `resource.customizations.ignoreResourceUpdates` at all, so no distinction between not watching a kind and watching-but-skipping-field-updates is drawn (ignoreResourceUpdatesEnabled appears only in the shared cluster baseline as a default value)."
+     "verdict": "partial",
+     "evidence": "Conveys the exclusion half - 'Resources of an excluded kind become invisible to Argo CD - they will no longer appear in the resource tree, no longer be health-assessed' and tells the user to 'check what else is being watched' - but never mentions resource.customizations.ignoreResourceUpdates or contrasts it as still watching while skipping reconcile on specific field changes."
     },
     {
      "text": "Notes that recent Argo CD versions (3.0+) ship default exclusions for exactly these kinds (Endpoints, EndpointSlice, Kyverno report kinds) and recommends checking whether they're already present before adding duplicates",
      "verdict": "pass",
-     "evidence": "It shows the live `oc get argocds ... -o jsonpath='{.spec.resourceExclusions}'` output listing Endpoints/EndpointSlice and all Kyverno report kinds and states \"This is the shipped operator default on GitOps 1.21.3 / Argo CD 3.4.5\", then \"Kyverno reports and Endpoints/EndpointSlice are already excluded on `openshift-gitops`\" and \"check what else is being watched before adding anything\"."
+     "evidence": "'On **two** of the three instances, the kinds you name are **already excluded**. This is the shipped operator default on GitOps 1.21.3 / Argo CD 3.4.5, and it already covers more than you asked for', followed by 'If the kinds are already excluded and you still see load ... check what else is being watched before adding anything'."
     },
     {
      "text": "States the correct placement for each install type: standalone writes `resource.exclusions` into argocd-cm; the Operator has a DEDICATED `spec.resourceExclusions` field on the ArgoCD CR and that is what should be used. `spec.extraConfig` is documented for 'fields not supported by Argo CD CRD' and 'takes precedence over Argo CD CRD', so using it here silently overrides the dedicated field \u2014 naming extraConfig as the Operator placement is wrong.",
      "verdict": "pass",
-     "evidence": "Explicitly: \"Use `spec.resourceExclusions` \u2014 the dedicated field (confirmed by `oc explain`) \u2014 and **not** `spec.extraConfig`\", with the reason that extraConfig \"takes precedence over Argo CD CRD\" and would silently override the dedicated field."
+     "evidence": "'Use `spec.resourceExclusions` - the dedicated field (confirmed by `oc explain`) - and **not** `spec.extraConfig`. Not because `extraConfig` fails, but because it *wins* ... Put `resource.exclusions` there and it silently overrides `spec.resourceExclusions`'; the argocd-cm `resource.exclusions` key is shown as the rendered/standalone location."
     },
     {
      "text": "Follows Generate -> Preview -> Confirm before suggesting the change be applied",
      "verdict": "pass",
-     "evidence": "It generates the full CR YAML, then previews with `oc apply -f argocd-exclusions.yaml --dry-run=server -o yaml` / `oc diff`, and only then `oc apply -f argocd-exclusions.yaml`; the access note states it is read-only and \"every patch below is given as a runnable command with a server-side dry-run preview\"."
+     "evidence": "Generates the full ArgoCD CR YAML, then previews it - `oc apply -f argocd-exclusions.yaml --dry-run=server -o yaml   # or oc diff -f argocd-exclusions.yaml` - before the real `oc apply -f argocd-exclusions.yaml`."
+    },
+    {
+     "text": "Does not propose a command that would silently DISCARD exclusions already in effect. On this cluster `spec.resourceExclusions` is empty while argocd-cm carries the operator's shipped exclusion groups, so a merge-patch or apply that writes a short hand-built list replaces the effective set rather than adding to it. The answer must either read the current effective exclusions first and preserve them, or state plainly that the list it gives is complete and supersedes what is there. Emitting a two- or three-entry list with no such check fails this expectation.",
+     "verdict": "pass",
+     "evidence": "Reads both sources first ('Read BOTH. Never skip the ConfigMap read') and warns explicitly that a naive write on team-b 'write[s] a CR field containing only your two additions ... **wiping the nine shipped exclusion groups**'; the applied YAML reproduces all nine existing groups verbatim under '# --- everything currently present, verbatim ---' before the additions."
     }
    ],
    "regraded": true

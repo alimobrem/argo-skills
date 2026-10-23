@@ -273,8 +273,9 @@ Review the Argo CD configuration for security concerns.
   <img src="assets/screenshots/operations-preview.svg" alt="Operations Preview" width="820"/>
 </p>
 
-Use when you want to make changes. Every write follows a safety model:
-**Generate** YAML → **Preview** with dry-run → **Confirm** before applying.
+Use when you want to make changes. Writes are specified to follow a five-step gate:
+**Generate** → **Preview** with a server-side dry-run → **Blast radius** → **Confirm** →
+**Verify**. The agent stops at Confirm and waits for you.
 
 ```text
 # Setup
@@ -500,8 +501,11 @@ is worth knowing before pointing one at a production cluster.
 Practical consequences:
 
 - Three skills (`repo-audit`, `cluster-debug`, and `performance-tuning` while diagnosing)
-  only ever read. They cannot change anything.
+  specify only read operations — no create, apply, patch or delete anywhere in them.
+  That is a property of the instructions, not an enforced sandbox; see
+  [Safety model](#safety-model).
 - The agent acts with **your** credentials and can do nothing your `kubeconfig` cannot.
+  This is the only hard limit in the list, and it is the one worth configuring.
 - `repo-audit` runs `kubeconform` with `-skip=Secret`, so Secret contents are not sent
   through schema validation.
 - **It does not currently redact credential values it finds.** Auditing a repo with real
@@ -521,32 +525,41 @@ no measured baseline is a guess, and this repo does not publish guesses — incl
 the answer is unflattering.
 
 <details open>
-<summary><b>🔵 GitOps</b> — 6 skills, 583 expectations per condition</summary>
+<summary><b>🔵 GitOps</b> — 6 skills, 584 expectations per condition</summary>
 
-| Skill | with-skill | baseline | delta |
-|-------|-----------:|---------:|------:|
-| [`argo-performance-tuning`](benchmarks/argo-performance-tuning.md) | **96.2%** | 64.6% | **+31.6** |
-| [`argo-operations`](benchmarks/argo-operations.md) | **96.4%** | 81.6% | **+14.8** |
-| [`argo-repo-audit`](benchmarks/argo-repo-audit.md) | **97.0%** | 85.4% | **+11.6** |
-| [`argo-cluster-debug`](benchmarks/argo-cluster-debug.md) | **92.6%** | 86.1% | **+6.6** |
-| [`argo-team-onboard`](benchmarks/argo-team-onboard.md) | 89.4% | 84.6% | +4.8 |
-| [`argo-knowledge`](benchmarks/argo-knowledge.md) | 98.5% | 93.9% | +4.5 |
-| **Weighted overall** | **95.3%** | **82.8%** | **+12.4** |
+| Skill | with-skill | baseline | delta | |
+|-------|-----------:|---------:|------:|---|
+| [`argo-performance-tuning`](benchmarks/argo-performance-tuning.md) | **96.7%** | 64.0% | **+32.7** | |
+| [`argo-operations`](benchmarks/argo-operations.md) | **96.4%** | 81.6% | **+14.8** | |
+| [`argo-repo-audit`](benchmarks/argo-repo-audit.md) | **97.0%** | 85.4% | **+11.6** | |
+| [`argo-cluster-debug`](benchmarks/argo-cluster-debug.md) | 97.5% | 92.6% | +4.9 | *unresolved* |
+| [`argo-team-onboard`](benchmarks/argo-team-onboard.md) | 89.4% | 84.6% | +4.8 | *unresolved* |
+| [`argo-knowledge`](benchmarks/argo-knowledge.md) | 98.5% | 93.9% | +4.5 | *unresolved* |
+| **Weighted overall** | **95.9%** | **83.4%** | **+12.5** | |
 
 **The delta tracks how product-specific a skill is.** Performance tuning — exact setting
 names, defaults the operator silently overrides, which CR field actually wins — gains
 most. General Argo CD knowledge the model already has gains least.
 
-**Two skills land under the noise floor, and we publish that.** Regrading identical text
-with a fresh grader moved scores by up to 7 points, so we treat anything under ~5 points
-as unresolved — which is where `argo-team-onboard` (+4.8) and `argo-knowledge` (+4.5)
-sit. They are not claimed as wins.
+**Half the skills land under the noise floor, and we publish that.** Regrading identical
+text with a fresh grader moved scores by up to 7 points, so anything under ~5 points is
+treated as unresolved rather than as a win. Three of six sit there. A skill can be
+genuinely good and still not be *measurably* better than a competent unaided agent, and
+those two statements are easy to confuse.
 
-**Fixing a bad eval can lower the score, and did.** `argo-repo-audit`'s expectations were
-rewritten after we found they could not tell a correct root cause from a confident wrong
-one. Its delta fell from +16.2 to +11.6, because the corrected rubric gave the baseline
-credit the vague wording had been denying it. Numbers that move only upward when you
-improve your own measurements are a warning sign; these did not.
+**Giving the test cluster the resources the prompts describe moved the baseline more than
+the skill.** `argo-cluster-debug`'s evals used to name objects that did not exist, so both
+arms were capped on anything needing a real finding. After deploying fixtures the skill
+arm rose 92.6% → 97.5% and the baseline rose 86.1% → 92.6% — so the delta *fell* from
++6.6 to +4.9 and dropped below the floor. Read plainly: a good part of what looked like
+skill advantage was really the skill handling *absent* resources more gracefully. When
+the resources are there, an unaided engineer does nearly as well.
+
+**Fixing a bad eval can lower the score, and did — twice.** `argo-repo-audit`'s
+expectations could not tell a correct root cause from a confident wrong one; rewriting
+them cut its delta from +16.2 to +11.6 by crediting baseline work the vague wording had
+denied. Numbers that only ever move upward when you improve your own measuring
+instrument are a warning sign. These moved both ways.
 
 </details>
 
@@ -568,7 +581,16 @@ before quoting any of these numbers.
 
 The first question most platform teams ask is *"will this let an agent break my cluster?"*
 
-**Every write follows the same five steps, and the agent stops at step 4.**
+**The honest answer first: these skills are instructions, not a sandbox.** They tell the
+agent to stop and ask before writing, and in measured runs it does. But a Markdown
+instruction is followed *most* of the time, not *always* — we have a run where a
+documented step was skipped, and the eval caught it. The guarantee you can actually rely
+on is the one outside this repo: **the agent can do nothing your `kubeconfig` cannot.**
+Scope its RBAC to what you are willing to let it change, and treat everything below as
+defence in depth rather than the perimeter.
+
+With that said — **every write is specified to follow the same five steps, stopping at
+step 4.**
 
 **1 · Generate** — produces the manifest or command and shows it in full. Nothing runs.
 
@@ -601,16 +623,17 @@ BLOCKER — Delete Rollout/openshift-gitops/example (no containers; hot-loops th
           it; no workload is affected. Controller restarts once.
 ```
 
-Three skills (`repo-audit`, `cluster-debug`, `performance-tuning` in diagnosis mode) never
-write at all.
+Three skills (`repo-audit`, `cluster-debug`, `performance-tuning` in diagnosis mode)
+contain no write operations at all, so for those the gate never has to fire. If you want
+that enforced rather than specified, run the agent with a read-only `kubeconfig` — the
+skills behave identically and the question stops being a matter of trust.
 
 ## Contributing
 
 New skills — including for a product not listed above — are welcome. Read
 **[docs/adding-a-skill.md](docs/adding-a-skill.md)** first: it covers the eval bar,
 baselines, fixtures, and the guards CI enforces.
-
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+[CONTRIBUTING.md](CONTRIBUTING.md) covers the mechanics — branches, commits, review.
 
 <details>
 <summary><b>Development</b></summary>

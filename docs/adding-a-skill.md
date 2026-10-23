@@ -53,8 +53,14 @@ expectations assert against committed CRD schemas, catching expectations that gr
 a field the API would reject. Schemas are per product: put them in
 `skills/<product>/_schemas/` as JSON (one file per CRD, the `openAPIV3Schema` object).
 Until that directory exists your paths are reported **unvalidated** rather than failed —
-the guard will not block your first PR, but it will not protect you either. See
-`make download-schemas` for how `gitops` fetches and pins its set.
+the guard will not block your first PR, but it will not protect you either.
+
+`gitops` is the exception and not the pattern to copy: its 13 schemas predate the
+convention and live in `skills/gitops/argo-repo-audit/assets/schemas/`, because the
+repo-audit skill ships them as a runtime asset. `schema_dir_for()` falls back to that
+path for `gitops` alone. Use `_schemas/` for a new product. See `make download-schemas`
+for how the Argo set is fetched and pinned to specific upstream versions — pin yours the
+same way, so a schema change upstream cannot silently alter what your evals accept.
 
 `SKILL.md` frontmatter needs at minimum:
 

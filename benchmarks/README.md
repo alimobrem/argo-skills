@@ -1,22 +1,26 @@
 # Benchmarks — methodology and caveats
 
-Measured 2026-10-23 against a live OpenShift cluster (OpenShift GitOps 1.21.3, Argo CD
-v3.4.5). **583 expectations per condition, graded twice — once with the skills, once
-without.** 1,166 verdicts, each carrying an evidence string, in [`results/`](results/).
+Measured 2026-10-23 (run 7) against a live OpenShift cluster (OpenShift GitOps 1.21.3, Argo CD
+v3.4.5). **584 expectations per condition, graded twice — once with the skills, once
+without.** 1,168 verdicts, each carrying an evidence string, in [`results/`](results/).
 
 | Skill | with-skill | baseline | delta | per-eval detail |
 |-------|-----------:|---------:|------:|---|
-| `argo-performance-tuning` | **96.2%** | 64.6% | **+31.6** | [↗](argo-performance-tuning.md) |
+| `argo-performance-tuning` | **96.7%** | 64.0% | **+32.7** | [↗](argo-performance-tuning.md) |
 | `argo-operations` | **96.4%** | 81.6% | **+14.8** | [↗](argo-operations.md) |
 | `argo-repo-audit` | **97.0%** | 85.4% | **+11.6** | [↗](argo-repo-audit.md) |
-| `argo-cluster-debug` | **92.6%** | 86.1% | **+6.6** | [↗](argo-cluster-debug.md) |
+| `argo-cluster-debug` | 97.5% | 92.6% | +4.9 | [↗](argo-cluster-debug.md) |
 | `argo-team-onboard` | 89.4% | 84.6% | +4.8 | [↗](argo-team-onboard.md) |
 | `argo-knowledge` | 98.5% | 93.9% | +4.5 | [↗](argo-knowledge.md) |
-| **Weighted overall** | **95.3%** | **82.8%** | **+12.4** | |
+| **Weighted overall** | **95.9%** | **83.4%** | **+12.5** | |
 
-`argo-knowledge` was not re-run on 2026-10-23. Its expectation suite is unchanged, so its
-run-2 grading is still a current-suite result and is carried forward; every other row was
-graded in this run.
+**What run 7 actually re-measured.** Only `argo-cluster-debug` was re-run end to end
+(new fixtures for evals 2, 4 and 6), and only `argo-performance-tuning` was re-graded
+(eval 16 gained an expectation). The other four rows carry forward unchanged verdicts
+against unchanged expectation suites — they are current-suite results, not stale ones,
+which is why `make history` reports no fingerprint drift. `benchmarks/history.jsonl`
+records a run-7 row for all six so the snapshot is complete; four of those rows are
+identical to run 6 by construction, not by re-measurement.
 
 ## Method
 
@@ -157,8 +161,8 @@ distrusting.
 
 ## Caveats — read these before quoting the numbers
 
-1. **Five of six baselines were generated fresh for run 6.** Only `argo-knowledge`
-   carries a reused baseline, from run 2, because its suite did not change. Reuse is
+1. **Five of six baselines were generated fresh.** Only `argo-knowledge` carries a
+   reused baseline, from run 2, because its suite did not change. Reuse is
    sound — baselines never see `skills/`, and prompts were verified byte-identical — but
    the grader drift quantified above applies to it.
 2. **Run 1's two contaminated baselines are fixed.** To protect a live cluster, the
@@ -171,18 +175,22 @@ distrusting.
    the untouched evals too would have layered fresh grader variance on top of the rubric
    change and made the two indistinguishable. Unchanged evals carry their original
    verdicts byte-for-byte; this is checked mechanically before anything is published.
-4. **Some expectations still cannot discriminate, and some prompts still lack fixtures.**
-   `argo-cluster-debug` evals 2, 4 and 6 name resources that do not exist on the test
-   cluster, so those verdicts rest on substitute objects; eval 5's `maxUpdate`
-   expectation presumes a field our own fixture omits. These compress deltas toward zero
-   and are eval-design debt, not results.
+4. **Fixture coverage changes the answer, so track it.** Run 7 added fixtures for
+   `argo-cluster-debug` evals 2, 4 and 6, and set the `maxUpdate` field eval 5 asks
+   about. Giving both arms real objects raised the baseline more than the skill and cut
+   that delta from +6.6 to +4.9. Any score for this suite is only meaningful alongside
+   which fixtures were deployed; see
+   [`argo-cluster-debug.md`](argo-cluster-debug.md) for the per-run record. One known
+   artefact remains: eval 6's prompt says "for an hour" while the fixture is minutes
+   old.
 5. **Fixes made in response to a run are not reflected in it.** Each skill's files were
    verified unchanged during its own run, but defects the run surfaced — notably two
    `argo-repo-audit` credential/TLS scans that returned zero on their own fixtures — were
    fixed afterward. Those numbers describe the pre-fix skill.
 6. **Single run, single model, no confidence intervals.** With the measured grader
-   variance, treat small deltas as unresolved rather than real. On this page that means
-   `argo-team-onboard` (+4.8) and `argo-knowledge` (+4.5) are **not** claimed as wins.
+   variance, treat small deltas as unresolved rather than real. On this page that is
+   **half the suite**: `argo-cluster-debug` (+4.9), `argo-team-onboard` (+4.8) and
+   `argo-knowledge` (+4.5) are not claimed as wins.
 
 ## Run history
 

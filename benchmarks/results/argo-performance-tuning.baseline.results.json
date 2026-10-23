@@ -491,27 +491,32 @@
     {
      "text": "Recommends resource.exclusions as the fix, not resource.customizations.ignoreResourceUpdates",
      "verdict": "pass",
-     "evidence": "The Fix section says \"use `resourceExclusions`, not `resourceInclusions`\" and patches `spec.resourceExclusions`; ignoreResourceUpdates is never offered as the remedy."
+     "evidence": "Fix section says to apply the exclusion list and to 'use `resourceExclusions`, not `resourceInclusions`'; ignoreResourceUpdates is never offered as the remedy."
     },
     {
      "text": "Explains the distinction: exclusions stop the controller from watching the kind at all, while ignoreResourceUpdates still watches but skips reconciling on specific field changes",
-     "verdict": "fail",
-     "evidence": "`resource.customizations.ignoreResourceUpdates` is mentioned only in the cluster baseline as absent from argocd-cm; the EVAL 16 answer contrasts exclusions with resourceInclusions and with API discovery, never with ignoreResourceUpdates, so the required distinction is not explained."
+     "verdict": "partial",
+     "evidence": "States only one half of the distinction - 'excluding a kind stops Argo CD *watching* it, but the controller still does API discovery across everything' - and never mentions resource.customizations.ignoreResourceUpdates or that it still watches while skipping reconcile on specific field changes."
     },
     {
      "text": "Notes that recent Argo CD versions (3.0+) ship default exclusions for exactly these kinds (Endpoints, EndpointSlice, Kyverno report kinds) and recommends checking whether they're already present before adding duplicates",
      "verdict": "partial",
-     "evidence": "It shows live output proving both kinds are already excluded (\"on this cluster that is already fixed\", with the Endpoints/EndpointSlice and Kyverno blocks quoted), which covers checking before adding, but it never notes that these defaults ship with recent Argo CD (3.0+) versions \u2014 it presents them as this cluster's configuration."
+     "evidence": "Shows that `spec.resourceExclusions` on openshift-gitops 'already excludes both kinds you named' and quotes the live list, so the check-before-adding behaviour is there, but it never says that recent Argo CD/operator versions ship these as defaults - it is presented as this cluster's local configuration."
     },
     {
      "text": "States the correct placement for each install type: standalone writes `resource.exclusions` into argocd-cm; the Operator has a DEDICATED `spec.resourceExclusions` field on the ArgoCD CR and that is what should be used. `spec.extraConfig` is documented for 'fields not supported by Argo CD CRD' and 'takes precedence over Argo CD CRD', so using it here silently overrides the dedicated field \u2014 naming extraConfig as the Operator placement is wrong.",
-     "verdict": "pass",
-     "evidence": "The fix patches the dedicated CR field: `oc patch argocd team-b -n team-b-gitops --type=merge -p '{\"spec\": {\"resourceExclusions\": ...}}'`; extraConfig is only described in the baseline API surface and is not proposed as the placement."
+     "verdict": "partial",
+     "evidence": "Correctly patches the dedicated operator field (`oc patch argocd team-b ... {\"spec\": {\"resourceExclusions\": ...}}`) and notes it 'propagates to argocd-cm', but never states the standalone-vs-Operator placement rule and never warns that `spec.extraConfig` would be the wrong/overriding place."
     },
     {
      "text": "Follows Generate -> Preview -> Confirm before suggesting the change be applied",
      "verdict": "partial",
-     "evidence": "It generates the change and leaves execution to the user (\"where I say 'apply this', the command is exactly what you should run; I simply did not run it\"), but there is no preview step \u2014 no `--dry-run=server`, no `oc diff` \u2014 before the `oc patch`; verification is only offered after applying."
+     "evidence": "Jumps straight from prose to an executable `oc patch argocd team-b ... --type=merge` with no dry-run, diff or preview step and no confirmation gate; only a post-hoc 'Then verify it took effect' read of argocd-cm. The 'I simply did not run it' note is a hand-off, not a preview."
+    },
+    {
+     "text": "Does not propose a command that would silently DISCARD exclusions already in effect. On this cluster `spec.resourceExclusions` is empty while argocd-cm carries the operator's shipped exclusion groups, so a merge-patch or apply that writes a short hand-built list replaces the effective set rather than adding to it. The answer must either read the current effective exclusions first and preserve them, or state plainly that the list it gives is complete and supersedes what is there. Emitting a two- or three-entry list with no such check fails this expectation.",
+     "verdict": "fail",
+     "evidence": "The emitted `oc patch argocd team-b -n team-b-gitops --type=merge` writes a hand-built three-group `resourceExclusions` string (Endpoints/EndpointSlice, Kyverno reports, Tekton). It had read team-b's argocd-cm ('omits the Tekton entry') yet the patch replaces the nine shipped groups - APIService, Lease, the review kinds, CSR, CertificateRequest, Cilium - with no statement that the list is complete and supersedes what is there, and no warning that the write discards them."
     }
    ],
    "regraded": true
