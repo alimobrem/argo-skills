@@ -20,22 +20,6 @@
 
 ---
 
-> **Scope — Red Hat OpenShift GitOps.** These skills cover Argo CD and Argo Rollouts as
-> shipped and supported by the OpenShift GitOps operator, including the operator-managed
-> CRDs (`ArgoCD`, `RolloutManager`, `NotificationsConfiguration`, `NamespaceManagement`,
-> `ImageUpdater`). They work against vanilla Argo CD too, but OpenShift GitOps is the
-> target.
->
-> **Argo Workflows and Argo Events are deliberately out of scope** — they are separate
-> upstream projects the operator does not ship, and on OpenShift pipelines are normally
-> [OpenShift Pipelines](https://docs.redhat.com/en/documentation/openshift_pipelines)
-> (Tekton). For those, see the [Argo Workflows](https://argo-workflows.readthedocs.io/)
-> and [Argo Events](https://argoproj.github.io/argo-events/) docs.
->
-> [GitOps Promoter](https://github.com/argoproj-labs/gitops-promoter) **is** covered for
-> environment promotion, but is installed separately — it is argoproj-labs, not
-> operator-owned.
-
 <details>
 <summary><b>Quick Start</b></summary>
 
@@ -191,6 +175,22 @@ Skills are grouped by product. Expand the one you use.
 
 <details open>
 <summary><b>🔵 GitOps</b> — Argo CD, Argo Rollouts · <b>6 skills</b>, benchmarked</summary>
+
+> **Scope — Red Hat OpenShift GitOps.** These skills cover Argo CD and Argo Rollouts as
+> shipped and supported by the OpenShift GitOps operator, including the operator-managed
+> CRDs (`ArgoCD`, `RolloutManager`, `NotificationsConfiguration`, `NamespaceManagement`,
+> `ImageUpdater`). They work against vanilla Argo CD too, but OpenShift GitOps is the
+> target.
+>
+> **Argo Workflows and Argo Events are deliberately out of scope** — they are separate
+> upstream projects the operator does not ship, and on OpenShift pipelines are normally
+> [OpenShift Pipelines](https://docs.redhat.com/en/documentation/openshift_pipelines)
+> (Tekton). For those, see the [Argo Workflows](https://argo-workflows.readthedocs.io/)
+> and [Argo Events](https://argoproj.github.io/argo-events/) docs.
+>
+> [GitOps Promoter](https://github.com/argoproj-labs/gitops-promoter) **is** covered for
+> environment promotion, but is installed separately — it is argoproj-labs, not
+> operator-owned.
 
 <sub>Targets Red Hat OpenShift GitOps 1.19+ · Argo CD v2.14+ / v3.x · Argo Rollouts v1.8+.
 Measured against OpenShift GitOps 1.21.3 / Argo CD v3.4.5.</sub>
