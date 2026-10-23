@@ -1,8 +1,12 @@
 # argo-cluster-debug eval fixtures — TEMPORARY, torn down after the run.
 # Every object carries argo-skills-eval-fixture=true so teardown is unambiguous.
 #
-# Reproduces the four scenarios whose named resources did not exist on the cluster,
-# which capped evals 1, 5, 8 and 9 at `partial` in BOTH arms.
+# Covers evals 1, 2, 4, 5, 6, 8 and 9 — every scenario whose named resources did not
+# otherwise exist, which previously capped both arms at `partial`.
+#
+# Namespaces `production` and `prod` are created here because that is what the eval
+# prompts name. teardown.sh will only delete a namespace that carries the fixture
+# label, and setup.sh refuses to adopt one that already exists without it.
 ---
 apiVersion: v1
 kind: Namespace
@@ -155,11 +159,17 @@ spec:
     type: RollingSync
     rollingSync:
       steps:
-        - matchExpressions:
+        # maxUpdate is set deliberately. Eval 5 has an expectation asking whether
+        # the staging step's maxUpdate requirement is satisfied; without the field
+        # present that expectation was unsatisfiable and capped BOTH arms. Fix the
+        # fixture, not the expectation.
+        - maxUpdate: 1
+          matchExpressions:
             - key: envLabel
               operator: In
               values: ["staging"]
-        - matchExpressions:
+        - maxUpdate: 1
+          matchExpressions:
             - key: envLabel
               operator: In
               values: ["production"]
@@ -194,3 +204,230 @@ spec:
         automated:
           prune: true
           selfHeal: false
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: production
+  labels:
+    argo-skills-eval-fixture: "true"
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: prod
+  labels:
+    argo-skills-eval-fixture: "true"
+    pod-security.kubernetes.io/enforce: baseline
+---
+# EVAL 2 — "The canary rollout for frontend in production is stuck at step 2"
+#
+# steps[0] setWeight:20, steps[1] analysis. The user's "step 2" is steps[1] — the
+# 0-based index is itself part of what the eval tests, so the fixture makes the
+# off-by-one real rather than hypothetical.
+#
+# The analysis runs a Job that sleeps, so the AnalysisRun sits in Running with a
+# live measurement and never resolves. That is what holds the Rollout at step 2:
+# a genuine analysis-driven pause, distinguishable from a manual `spec.paused`.
+# A failing job would abort the rollout instead of parking it, which is not the
+# scenario the prompt describes.
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: frontend-error-rate
+  namespace: production
+  labels:
+    argo-skills-eval-fixture: "true"
+spec:
+  metrics:
+    - name: error-rate
+      count: 1
+      provider:
+        job:
+          spec:
+            backoffLimit: 0
+            template:
+              metadata:
+                labels:
+                  argo-skills-eval-fixture: "true"
+              spec:
+                restartPolicy: Never
+                containers:
+                  - name: check
+                    image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+                    command: ["sh", "-c", "sleep 3600"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: production
+  labels:
+    argo-skills-eval-fixture: "true"
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    app: frontend
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: frontend
+  namespace: production
+  labels:
+    argo-skills-eval-fixture: "true"
+spec:
+  replicas: 5
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+        argo-skills-eval-fixture: "true"
+    spec:
+      containers:
+        - name: frontend
+          image: registry.access.redhat.com/ubi8/httpd-24:latest
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+  strategy:
+    canary:
+      # No trafficRouting on purpose: without a mesh or ingress controller wired
+      # in, canary weight is approximated by replica count. Eval 2 asks the agent
+      # to check for traffic routing "if configured" — reporting its absence and
+      # what that implies is the correct answer here, and the expectation was
+      # reworded to accept exactly that rather than demanding a config that does
+      # not exist.
+      canaryService: frontend
+      steps:
+        - setWeight: 20
+        - analysis:
+            templates:
+              - templateName: frontend-error-rate
+---
+# EVAL 6 — "blue-green rollout for checkout-api in prod, sitting at preview for an
+#           hour, autoPromotionEnabled is false, team expected it to analyze"
+#
+# autoPromotionEnabled is set EXPLICITLY false (the prompt says so) and there is NO
+# prePromotionAnalysis. That is the whole point: `false` means "wait for a human",
+# not "run analysis". The prompt's expectation that analysis would happen is the
+# user's misconception, and the fixture has to contain the absence for the agent to
+# be able to point at it.
+apiVersion: v1
+kind: Service
+metadata:
+  name: checkout-api-active
+  namespace: prod
+  labels:
+    argo-skills-eval-fixture: "true"
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    app: checkout-api
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: checkout-api-preview
+  namespace: prod
+  labels:
+    argo-skills-eval-fixture: "true"
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    app: checkout-api
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: checkout-api
+  namespace: prod
+  labels:
+    argo-skills-eval-fixture: "true"
+spec:
+  replicas: 2
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: checkout-api
+  template:
+    metadata:
+      labels:
+        app: checkout-api
+        argo-skills-eval-fixture: "true"
+    spec:
+      containers:
+        - name: checkout-api
+          image: registry.access.redhat.com/ubi8/httpd-24:latest
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+  strategy:
+    blueGreen:
+      activeService: checkout-api-active
+      previewService: checkout-api-preview
+      autoPromotionEnabled: false
+---
+# EVAL 4 — "ApplicationSet team-apps uses a git directory generator but isn't
+#           creating Applications for the new service directories I added"
+#
+# The generator points at a path pattern that matches no directory in the repo, so
+# the controller reports success while generating zero Applications — the exact
+# silent-failure shape the eval is about. `status.conditions` says
+# ErrorOccurred=False and the Applications simply never appear.
+#
+# NOTE ON NAMESPACE: the prompt originally said `argocd`. On OpenShift GitOps the
+# applicationset controller runs without --applicationset-namespaces and therefore
+# only reconciles its OWN namespace, so an ApplicationSet in `argocd` would sit
+# inert and the eval would measure nothing. Changing that would mean editing the
+# shared ArgoCD CR. The prompt was changed to openshift-gitops instead.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: team-apps
+  namespace: openshift-gitops
+  labels:
+    argo-skills-eval-fixture: "true"
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: https://github.com/argoproj/argocd-example-apps.git
+        revision: HEAD
+        directories:
+          # argocd-example-apps has no `services/` directory at all, so this
+          # matches nothing and the generator yields an empty element list.
+          - path: services/*
+  template:
+    metadata:
+      name: 'team-{{.path.basename}}'
+      labels:
+        argo-skills-eval-fixture: "true"
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/argoproj/argocd-example-apps.git
+        targetRevision: HEAD
+        path: '{{.path.path}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: apps
+      syncPolicy: {}

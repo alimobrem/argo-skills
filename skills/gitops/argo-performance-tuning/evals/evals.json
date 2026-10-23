@@ -190,7 +190,8 @@
         "Explains the distinction: exclusions stop the controller from watching the kind at all, while ignoreResourceUpdates still watches but skips reconciling on specific field changes",
         "Notes that recent Argo CD versions (3.0+) ship default exclusions for exactly these kinds (Endpoints, EndpointSlice, Kyverno report kinds) and recommends checking whether they're already present before adding duplicates",
         "States the correct placement for each install type: standalone writes `resource.exclusions` into argocd-cm; the Operator has a DEDICATED `spec.resourceExclusions` field on the ArgoCD CR and that is what should be used. `spec.extraConfig` is documented for 'fields not supported by Argo CD CRD' and 'takes precedence over Argo CD CRD', so using it here silently overrides the dedicated field \u2014 naming extraConfig as the Operator placement is wrong.",
-        "Follows Generate -> Preview -> Confirm before suggesting the change be applied"
+        "Follows Generate -> Preview -> Confirm before suggesting the change be applied",
+        "Does not propose a command that would silently DISCARD exclusions already in effect. On this cluster `spec.resourceExclusions` is empty while argocd-cm carries the operator's shipped exclusion groups, so a merge-patch or apply that writes a short hand-built list replaces the effective set rather than adding to it. The answer must either read the current effective exclusions first and preserve them, or state plainly that the list it gives is complete and supersedes what is there. Emitting a two- or three-entry list with no such check fails this expectation."
       ]
     },
     {

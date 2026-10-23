@@ -26,8 +26,8 @@
         "Identifies the current step index and what step 2 is",
         "Checks pause conditions (manual pause vs analysis-driven)",
         "Inspects associated AnalysisRuns if analysis is involved",
-        "Checks metric results and measurements in the AnalysisRun",
-        "Inspects traffic routing configuration if configured",
+        "Checks the AnalysisRun's metric results and measurements, and reports the measurement phase actually observed rather than assuming a failure. An analysis still in Running with an in-flight measurement is a different diagnosis from one that returned Failed, and the answer must show which it is (phase, measurement count, or the underlying job/pod state) before recommending anything.",
+        "Checks spec.strategy.canary.trafficRouting and reports what it finds. If no traffic routing is configured, says so explicitly and explains the consequence \u2014 the canary weight is approximated by replica counts rather than a real traffic split, so setWeight: 20 means pods, not 20% of requests. Reporting the absence with that consequence is a full pass; silently omitting the check is not.",
         "Compares stable vs canary ReplicaSets and pod status",
         "Produces a report with root cause and recommendations. Every root cause asserted is backed by the specific observation that establishes it (a field value, pod phase, restart count, condition, or log line actually shown). A cause asserted with no supporting output, or contradicted by output shown elsewhere in the same answer, fails this expectation even if it is plausible and well written."
       ]
@@ -51,7 +51,7 @@
     {
       "id": 4,
       "name": "ApplicationSet not generating expected Applications",
-      "prompt": "My ApplicationSet team-apps in the argocd namespace uses a git directory generator but isn't creating any Application resources for the new service directories I added. Debug it.",
+      "prompt": "My ApplicationSet team-apps in the openshift-gitops namespace uses a git directory generator but isn't creating any Application resources for the new service directories I added. Debug it.",
       "expectations": [
         "Retrieves the ApplicationSet and checks its status.conditions",
         "Identifies the generator type (git directory) and its configuration (repoURL, directories path pattern)",
