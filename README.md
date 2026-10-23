@@ -165,7 +165,7 @@ Skills are grouped by product. Expand the one you use.
 <sub>Targets Red Hat OpenShift GitOps 1.19+ · Argo CD v2.14+ / v3.x · Argo Rollouts v1.8+.
 Measured against OpenShift GitOps 1.21.3 / Argo CD v3.4.5.</sub>
 
-#### How the Skills Work Together
+### How the Skills Work Together
 
 The agent automatically selects the right skill based on what you ask:
 
@@ -180,7 +180,7 @@ The agent automatically selects the right skill based on what you ask:
 
 You don't need to invoke skills manually — just describe what you need.
 
-#### Knowledge — Ask Questions & Generate YAML
+### Knowledge — Ask Questions & Generate YAML
 
 <p align="center">
   <img src="assets/screenshots/knowledge-preview.svg" alt="Knowledge Preview" width="820"/>
@@ -226,7 +226,7 @@ Generate an ArgoCD CR for the OpenShift GitOps operator with OAuth and Routes.
 
 </details>
 
-#### Repo Audit — Security & Best Practice Review
+### Repo Audit — Security & Best Practice Review
 
 <p align="center">
   <img src="assets/screenshots/audit-preview.svg" alt="Audit Report Preview" width="820"/>
@@ -255,7 +255,7 @@ Just validate YAML syntax and schemas, don't do a full audit.
 | Warning | Missing syncPolicy, `targetRevision: HEAD` in production, no retry/backoff, missing `ignoreDifferences` for controller-managed fields |
 | Info | Missing `ignoreDifferences` for HPA-managed replicas, no progressive sync on multi-cluster ApplicationSets |
 
-#### Cluster Debug — Troubleshoot Live Issues
+### Cluster Debug — Troubleshoot Live Issues
 
 <p align="center">
   <img src="assets/screenshots/debug-preview.svg" alt="Debug Report Preview" width="820"/>
@@ -283,7 +283,7 @@ Inspect all Rollouts on this cluster and give me a health report.
 Review the Argo CD configuration for security concerns.
 ```
 
-#### Operations — Install, Deploy, Promote, Maintain
+### Operations — Install, Deploy, Promote, Maintain
 
 <p align="center">
   <img src="assets/screenshots/operations-preview.svg" alt="Operations Preview" width="820"/>
@@ -316,7 +316,7 @@ Rotate the Git credentials for the infra repo.
 
 See **[Safety model](#safety-model)** for the full protocol.
 
-#### Performance Tuning — Diagnose & Fix Slowness at Scale
+### Performance Tuning — Diagnose & Fix Slowness at Scale
 
 <p align="center">
   <img src="assets/screenshots/performance-preview.svg" alt="Performance Tuning Preview" width="820"/>
@@ -363,7 +363,7 @@ safety model as Operations before changing anything live.
 
 </details>
 
-#### Team Onboarding — Set Up New Teams on Argo CD
+### Team Onboarding — Set Up New Teams on Argo CD
 
 <p align="center">
   <img src="assets/screenshots/onboarding-preview.svg" alt="Onboarding Preview" width="820"/>
@@ -438,7 +438,6 @@ Production should require manual approval.
 
 </details>
 
-
 </details>
 
 <details>
@@ -446,7 +445,9 @@ Production should require manual approval.
 
 No Service Mesh skills have been contributed yet. Likely first candidates:
 
-- sidecar injection, mTLS and PeerAuthentication, VirtualService/DestinationRule precedence, 503s between workloads
+- Sidecar injection — why a pod has no proxy, namespace labels vs the webhook
+- Traffic — VirtualService/DestinationRule precedence, mTLS PeerAuthentication modes
+- Diagnosing 503s between workloads, and telemetry that stops arriving
 
 If you work on Service Mesh, this is an open area — see
 [`skills/servicemesh/`](skills/servicemesh) and **[docs/adding-a-skill.md](docs/adding-a-skill.md)**.
@@ -459,7 +460,8 @@ Evals are required; the guide explains the bar and why it is set there.
 
 No Serverless skills have been contributed yet. Likely first candidates:
 
-- Revisions stuck in NotReady, traffic splitting, scale-to-zero and cold starts, Broker/Trigger wiring
+- Serving — Revisions stuck in NotReady, traffic splitting, scale-to-zero and cold starts
+- Eventing — Broker/Trigger wiring, Channel delivery, dead-letter sinks, source health
 
 If you work on Serverless, this is an open area — see
 [`skills/serverless/`](skills/serverless) and **[docs/adding-a-skill.md](docs/adding-a-skill.md)**.
@@ -472,7 +474,9 @@ Evals are required; the guide explains the bar and why it is set there.
 
 No Pipelines skills have been contributed yet. Likely first candidates:
 
-- PipelineRun/TaskRun failure triage, workspaces and results passing, EventListener triggers not firing
+- PipelineRun/TaskRun failure triage — step exit codes, init-container ordering
+- Workspaces, results passing between tasks, matrix fan-out
+- Triggers — EventListener, TriggerBinding and TriggerTemplate not firing
 
 If you work on Pipelines, this is an open area — see
 [`skills/pipelines/`](skills/pipelines) and **[docs/adding-a-skill.md](docs/adding-a-skill.md)**.
@@ -605,7 +609,6 @@ New skills — including for a product not listed above — are welcome. Read
 **[docs/adding-a-skill.md](docs/adding-a-skill.md)** first: it covers the eval bar,
 baselines, fixtures, and the guards CI enforces.
 
-
 Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 <details>
@@ -646,6 +649,24 @@ Two guards worth knowing about, because they catch the mistakes that actually ha
 See [AGENTS.md](AGENTS.md) for the repo layout, skill conventions, and eval runner instructions.
 
 </details>
+
+## Support
+
+**This is a community project. It is not a Red Hat product and carries no Red Hat
+support.** There is no SLA, no guaranteed response, and no entitlement attached to it.
+
+- Questions, bugs and feature requests: open a [GitHub issue](../../issues).
+- Contributions are welcome — see [docs/adding-a-skill.md](docs/adding-a-skill.md).
+- Fixes land on a best-effort basis, by whoever has time.
+
+Using these skills does **not** affect the support status of your OpenShift or OpenShift
+GitOps subscription. They generate manifests and run read-only commands against your
+cluster; nothing here modifies a supported component's configuration without you
+approving the change first.
+
+For supported OpenShift GitOps guidance, use
+[Red Hat documentation](https://docs.redhat.com/en/documentation/red_hat_openshift_gitops)
+and a support case.
 
 ## Code of Conduct
 
