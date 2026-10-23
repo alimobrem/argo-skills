@@ -17,7 +17,7 @@
     "websiteURL": "https://docs.redhat.com/en/documentation/red_hat_openshift_gitops"
   },
   "license": "MIT",
-  "name": "argo-skills",
+  "name": "openshift-gitops",
   "repository": "https://github.com/alimobrem/skills-for-argo",
   "skills": "./skills/",
   "version": "0.0.1"
