@@ -1,8 +1,8 @@
 # argo-cluster-debug
 
-## Run 7 — 2026-10-23, live cluster + fixtures, corrected suite
+## Run 8 — 2026-10-23
 
-**97.5% with the skill vs 92.6% baseline (+4.9) over 61 expectations.**
+**99.2% with the skill vs 89.3% baseline (+9.8) over 61 expectations.**
 
 | run | suite | with-skill | baseline | delta |
 |---|---|---:|---:|---:|
@@ -10,7 +10,8 @@
 | 4 | correctness-discriminating, eval-9 defective | 94.1% | 90.7% | +3.4 |
 | 5 | eval-9 fixed | 94.1% | 84.7% | +9.3 |
 | 6 | fixtures for evals 1, 5, 8, 9 | 92.6% | 86.1% | +6.6 |
-| 7 | fixtures for evals 2, 4, 6 too | **97.5%** | 92.6% | **+4.9** |
+| 7 | fixtures for evals 2, 4, 6 too | 97.5% | 92.6% | +4.9 |
+| 8 | identical suite, eval-6 premise corrected | **99.2%** | 89.3% | **+9.8** |
 
 Run 3 could not separate a correct diagnosis from a plausible one. Rewriting the
 expectations to require a grounded, self-consistent root cause (run 4), then fixing the
@@ -22,23 +23,34 @@ identical between those runs.
 
 Run 6 was the first with **fixtures actually deployed** (evals 1, 5, 8, 9). Run 7 added
 the rest — a canary parked at step 2 by a live AnalysisRun, an ApplicationSet whose
-directory pattern matches nothing, and a blue-green held at preview — so for the first
-time every eval but 3 and 7 describes something that genuinely exists.
+directory pattern matches nothing, and a blue-green held at preview — so from run 7 on,
+every eval but 3 and 7 describes something that genuinely exists.
 
-**The result is the most useful thing this suite has produced, and it is not flattering.**
-Giving both arms real objects to debug raised the skill arm 92.6% → 97.5% and the baseline
-86.1% → 92.6%. The baseline gained more, so the delta *fell* from +6.6 to +4.9 — below the
-~5-point grader-noise floor. This skill is no longer claimed as a measured win.
+**Runs 7 and 8 are the most informative pair here, and what they show is instability.**
+They share an expectation suite (`suite_fp 21e0bc90372b`), a cluster, and a fixture
+deployment. The only difference is six words removed from eval 6's prompt — a false
+"for an hour" claim that the fixture could not satisfy, touching 6 of 61 expectations.
+The delta went **+4.9 → +9.8**. One prompt tweak cannot move an aggregate over 61
+expectations by five points; what moved was the agents and the grader, mostly the
+baseline, which scored 92.6% then 89.3% because the second one simply ran fewer checks.
 
-The honest reading: a substantial part of what looked like skill advantage in run 6 was the
-skill handling *absent* resources more gracefully — checking before asserting, refusing to
-invent a cause, naming the right namespace. Those are real behaviours and they still show
-up in the per-eval table. But when the resource is actually there, a competent unaided
-agent reaches the same diagnosis most of the time, and the gap narrows to noise.
+So the fixture conclusion drawn from run 7 alone — "the baseline gained more, the skill
+is no longer a measured win" — did not survive one more run. Both statements below are
+supported; neither single run was:
 
-Reading the sequence +0.0 → +3.4 → +9.3 → +6.6 → +4.9 as a trend would be a mistake.
-Four different suites and three different cluster states are represented; only runs 6 and
-7 had fixtures at all, and only run 7 has most of them.
+- **Direction is consistent.** Every run against a correctness-discriminating suite is
+  positive: +9.4, +6.6, +4.9, +9.8.
+- **Magnitude is not resolved.** Somewhere around +5 to +10. Across four runs the
+  baseline alone spans 84.7%–92.6%.
+
+The fixture work still mattered, just not for the reason run 7 suggested. It removed
+four evals that both arms could only answer in the abstract, which is what made the
+remaining differences legible per-eval — the trafficRouting check, the InstallPlan, the
+Service endpoints. A suite where both arms are capped cannot show you any of that.
+
+Reading +0.0 → +3.4 → +9.3 → +6.6 → +4.9 → +9.8 as a trend would be a mistake. Four
+different suites and three different cluster states are represented, and the last two
+points differ by more than most of the earlier steps.
 
 Fixtures are reproducible and are torn down after each run:
 [`tests/argo-cluster-debug/fixtures/`](../tests/argo-cluster-debug/fixtures/).
@@ -46,15 +58,15 @@ Fixtures are reproducible and are torn down after each run:
 | # | Eval | n | with-skill | baseline | delta |
 |---|------|--:|-----------:|---------:|------:|
 | 1 | Application OutOfSync and Degraded | 9 | 100% | 89% | +11 |
-| 2 | Canary Rollout stuck at step 2 | 8 | 100% | 81% | +19 |
-| 3 | Argo CD installation health check | 9 | 100% | 94% | +6 |
+| 2 | Canary Rollout stuck at step 2 | 8 | 100% | 75% | +25 |
+| 3 | Argo CD installation health check | 9 | 94% | 78% | +17 |
 | 4 | ApplicationSet not generating expected Applications | 6 | 100% | 100% | +0 |
-| 5 | ApplicationSet RollingSync stuck on production step | 7 | 93% | 93% | +0 |
+| 5 | ApplicationSet RollingSync stuck on production step | 7 | 100% | 100% | +0 |
 | 6 | Blue-green rollout stuck at preview, never promotes | 6 | 100% | 92% | +8 |
 | 7 | Ambiguous debug request with multiple Argo CD instances | 5 | 100% | 100% | +0 |
-| 8 | Suspended Application reported as broken | 6 | 92% | 92% | +0 |
-| 9 | Multi-source Application with one failing source | 5 | 90% | 100% | -10 **←** |
-| | **total** | **61** | **97.5%** | **92.6%** | **+4.9** |
+| 8 | Suspended Application reported as broken | 6 | 100% | 83% | +17 |
+| 9 | Multi-source Application with one failing source | 5 | 100% | 100% | +0 |
+| | **total** | **61** | **99.2%** | **89.3%** | **+9.8** |
 
 Eval 2 is the widest gap (+19) and it is the new fixture earning its keep. Both arms saw
 the canary held at step index 1. Only one checked

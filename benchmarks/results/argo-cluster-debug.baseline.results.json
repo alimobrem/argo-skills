@@ -1,7 +1,7 @@
 {
  "skill": "argo-cluster-debug",
  "model": "claude-opus-5",
- "run": "2026-10-23 run 7, fixtures for evals 1/2/4/5/6/8/9",
+ "run": "2026-10-23 run 8, eval-6 premise corrected",
  "condition": "baseline",
  "evals": [
   {
@@ -11,47 +11,47 @@
     {
      "text": "Retrieves the Application resource and shows its sync and health status",
      "verdict": "pass",
-     "evidence": "Shows `oc get applications.argoproj.io podinfo -n openshift-gitops -o yaml` plus the P2 cluster-wide table listing podinfo with SYNC STATUS OutOfSync / HEALTH STATUS Degraded."
+     "evidence": "Quotes `oc get applications.argoproj.io podinfo -n openshift-gitops -o yaml` with spec/status, and preamble P2 lists `openshift-gitops podinfo OutOfSync Degraded`."
     },
     {
      "text": "Identifies the sync status as OutOfSync and health as Degraded",
      "verdict": "pass",
-     "evidence": "States 'it is genuinely OutOfSync + Degraded' and the P2 table shows both values for openshift-gitops/podinfo."
+     "evidence": "States explicitly 'it is genuinely OutOfSync / Degraded' and the P2 table shows both values."
     },
     {
      "text": "Checks status conditions for errors (ComparisonError, SyncError)",
      "verdict": "fail",
-     "evidence": "No `.status.conditions` check anywhere in EVAL 1 - ComparisonError/SyncError are never mentioned, nor shown as absent for podinfo."
+     "evidence": "EVAL 1 never inspects the Application's `.status.conditions`; ComparisonError/SyncError are never mentioned. Only the Deployment's ProgressDeadlineExceeded condition is shown, which is a different object."
     },
     {
      "text": "Checks operation state for last sync result and error messages",
      "verdict": "pass",
-     "evidence": "Quotes status.operationState: phase Succeeded, message 'successfully synced (all tasks run)', finishedAt 2026-10-23T18:14:05Z, and syncResult.resources[1].images."
+     "evidence": "Quotes `operationState: message: successfully synced (all tasks run) / phase: Succeeded` and uses it to argue this is post-sync drift."
     },
     {
      "text": "Identifies which resources are out of sync or unhealthy",
      "verdict": "pass",
-     "evidence": "Per-resource rollup shown: Service/kustomize-guestbook-ui Synced/Healthy vs Deployment/kustomize-guestbook-ui OutOfSync/Degraded with 'exceeded its progress deadline'."
+     "evidence": "Quotes the status.resources entry: Deployment kustomize-guestbook-ui, health Degraded, status OutOfSync."
     },
     {
      "text": "Inspects the unhealthy managed resources (Deployments, Pods)",
      "verdict": "pass",
-     "evidence": "Shows `oc get pods -n apps` (one Running, one ImagePullBackOff) and the Deployment's Available=True / Progressing=False ProgressDeadlineExceeded conditions."
+     "evidence": "Shows the live Deployment YAML (image nonexistent-eval:9.9.9), the ReplicaSet comparison with images and ready counts, and `oc describe pod`."
     },
     {
      "text": "Checks pod logs or events for failing containers",
      "verdict": "pass",
-     "evidence": "Quotes `oc get events -n apps` with the exact pull failure: 'reading manifest 9.9.9 ... name unknown: Repo not found' and 'Error: ImagePullBackOff'."
+     "evidence": "`oc describe pod ...-2lpxs` events quoted: 'Failed to pull image ... name unknown: Repo not found' and 'Error: ImagePullBackOff'."
     },
     {
      "text": "Produces a report with root cause and recommendations. Every root cause asserted is backed by the specific observation that establishes it (a field value, pod phase, restart count, condition, or log line actually shown). A cause asserted with no supporting output, or contradicted by output shown elsewhere in the same answer, fails this expectation even if it is plausible and well written.",
      "verdict": "pass",
-     "evidence": "Root cause (out-of-band image edit plus selfHeal:false) is backed by live image vs kustomize override, status.summary.images carrying both tags, deployment.kubernetes.io/revision: 2, and the syncPolicy snippet; it explicitly declines to name a culprit because managedFields came back empty."
+     "evidence": "Root cause (out-of-band `kubectl set image` + selfHeal:false) is backed by summary.images showing both images, managedFields naming `kubectl-set` owning f:template at 19:02:59, ProgressDeadlineExceeded, and the pull-failure events."
     },
     {
      "text": "Every recommended action states its IMPACT \u2014 what else is affected if someone acts on it (components that restart, other Applications or tenants affected, whether anything is deleted, and any ordering dependency on another recommendation) \u2014 not only its priority. 'Impact: nothing else is affected' counts; omitting the impact entirely does not. An impact reasoned from manifests rather than verified against a cluster must say so.",
      "verdict": "pass",
-     "evidence": "All three recommendations carry an explicit IMPACT paragraph (what rolls, what prune would delete, the tracking-id showing no other Application shares the objects, and ordering 'do this before step 1')."
+     "evidence": "Both recommendations carry an IMPACT paragraph: bad RS scaled to 0, healthy pod keeps serving, only two Argo-owned resources in `apps`, ordering ('apply after the sync, otherwise the two actions race'), and discloses the 'no other tenant' part was reasoned from the spec, not a cluster-wide diff."
     }
    ]
   },
@@ -62,42 +62,42 @@
     {
      "text": "Retrieves the Rollout and identifies its current phase",
      "verdict": "pass",
-     "evidence": "Shows the Rollout yaml with status.phase: Progressing, plus readyReplicas/stableRS/currentPodHash."
+     "evidence": "`oc get rollout frontend -n production -o yaml` excerpt shows `phase: Progressing` and `message: more replicas need to be updated`."
     },
     {
      "text": "Identifies the current step index and what step 2 is",
      "verdict": "pass",
-     "evidence": "'currentStepIndex: 1 is the zero-based index of the second step', with the steps list annotated step 1 (index 0) setWeight: 20 / step 2 (index 1) analysis."
+     "evidence": "'status.currentStepIndex: 1 is the second of two steps (0-based), and that step is the analysis step', with the steps list shown."
     },
     {
      "text": "Checks pause conditions (manual pause vs analysis-driven)",
      "verdict": "partial",
-     "evidence": "Establishes the block is analysis-driven via canary.currentStepAnalysisRunStatus status: Running, but never checks or reports the pauseConditions field itself; manual pause is ruled out only implicitly."
+     "evidence": "Establishes the hold is analysis-driven via `currentStepAnalysisRunStatus: Running`, but never shows or mentions `status.pauseConditions` and never rules out a manual pause for this Rollout."
     },
     {
      "text": "Inspects associated AnalysisRuns if analysis is involved",
      "verdict": "pass",
-     "evidence": "`oc get analysisruns.argoproj.io -A` plus the full AnalysisRun yaml for frontend-788c759669-3-1."
+     "evidence": "Full `oc get analysisrun frontend-5744967698-2-1 -n production -o yaml` including the job provider spec."
     },
     {
      "text": "Checks the AnalysisRun's metric results and measurements, and reports the measurement phase actually observed rather than assuming a failure. An analysis still in Running with an in-flight measurement is a different diagnosis from one that returned Failed, and the answer must show which it is (phase, measurement count, or the underlying job/pod state) before recommending anything.",
      "verdict": "pass",
-     "evidence": "Reports metricResults[0].phase Running and the measurement phase Running with startedAt, plus the backing Job (Running 0/1) and its pod 1/1 Running - explicitly not a failure."
+     "evidence": "Shows metricResults with `phase: Running` at both metric and run level, plus the Job status `{\"active\":1,\"ready\":1}` and the running measurement pod; explicitly says 'the job is genuinely still going, not wedged on scheduling'."
     },
     {
      "text": "Checks spec.strategy.canary.trafficRouting and reports what it finds. If no traffic routing is configured, says so explicitly and explains the consequence \u2014 the canary weight is approximated by replica counts rather than a real traffic split, so setWeight: 20 means pods, not 20% of requests. Reporting the absence with that consequence is a full pass; silently omitting the check is not.",
      "verdict": "fail",
-     "evidence": "spec.strategy.canary.trafficRouting is never checked or mentioned; the answer notes 1-of-5 updatedReplicas but never states that no traffic routing is configured, nor the consequence for setWeight: 20."
+     "evidence": "`spec.strategy.canary.trafficRouting` is never checked or mentioned; the consequence that setWeight:20 is approximated by replica counts is not stated (the 20% remark is only about updatedReplicas matching step 1)."
     },
     {
      "text": "Compares stable vs canary ReplicaSets and pod status",
-     "verdict": "pass",
-     "evidence": "Lists stable (frontend-66fd84d448 x4) and canary (frontend-788c759669 x1) pods all Running, with stableRS/currentPodHash from status."
+     "verdict": "partial",
+     "evidence": "Cites `stableRS: 66fd84d448` and the canary pod `frontend-5744967698-49lpx 1/1 Running`, and mentions stable holding '4/5 ready replicas' inside the abort impact, but shows no ReplicaSet listing actually comparing the two."
     },
     {
      "text": "Produces a report with root cause and recommendations. Every root cause asserted is backed by the specific observation that establishes it (a field value, pod phase, restart count, condition, or log line actually shown). A cause asserted with no supporting output, or contradicted by output shown elsewhere in the same answer, fails this expectation even if it is plausible and well written.",
      "verdict": "pass",
-     "evidence": "Root cause (AnalysisTemplate metric is a Job running `sleep 3600` with no successCondition/failureCondition/deadline) is shown from the AnalysisTemplate yaml plus the still-Running Job and pod; the controller log confirms it is merely re-reconciling."
+     "evidence": "Root cause (analysis step blocked on a `sleep 3600` job metric) is backed by the AnalysisRun spec, metricResults phase Running, the live Job and its pod, and the matching AnalysisTemplate."
     }
    ]
   },
@@ -107,48 +107,48 @@
    "expectations": [
     {
      "text": "Checks for argoproj.io CRDs on the cluster",
-     "verdict": "pass",
-     "evidence": "Lists the argoproj.io CRDs found (applications, applicationsets, appprojects, argocds, rollouts, analysisruns, ...) citing `oc get crd | grep -iE 'argo|rollout'`."
+     "verdict": "partial",
+     "evidence": "Only `oc api-resources | grep -i argoproj` is cited, summarised as confirming two Application kinds; no argoproj.io CRD inventory (applications/appprojects/applicationsets/argocds/rollouts) is produced."
     },
     {
      "text": "Identifies the Argo CD namespace (argocd or openshift-gitops)",
      "verdict": "pass",
-     "evidence": "`oc get argocds.argoproj.io -A` identifies openshift-gitops, openshift-gitops-operator and team-b-gitops."
+     "evidence": "`oc get argocds.argoproj.io -A` lists openshift-gitops, team-b-gitops and openshift-gitops-operator namespaces."
     },
     {
      "text": "Lists pods and their status in the Argo CD namespace",
-     "verdict": "pass",
-     "evidence": "P4 gives full `oc get pods` output with STATUS/RESTARTS/AGE for all three namespaces."
+     "verdict": "partial",
+     "evidence": "`oc get pods -n openshift-gitops` output is elided with '...' showing only 2 of the pods; the claim 'All pods are Running and Ready in all three namespaces' is not backed by a shown listing."
     },
     {
      "text": "Checks core component health (server, repo-server, application-controller)",
      "verdict": "pass",
-     "evidence": "ArgoCD CR custom-columns show SERVER/REPO/APPCTRL/REDIS/SSO all Running, and the pod listing covers server, repo-server and application-controller individually."
+     "evidence": "ArgoCD CR status jsonpath quoted: applicationController/repo/server/redis/sso all 'Running', phase Available, Reconciled Success."
     },
     {
      "text": "Reports the Argo CD version",
      "verdict": "partial",
-     "evidence": "Reports the operator CSV versions (v1.21.3 Replacing / v1.21.4 Pending) and the OpenShift version, but never reports the Argo CD version itself nor states that it could not be determined."
+     "evidence": "Reports only the operator CSV versions (v1.21.3 Replacing / v1.21.4 Pending) and the running OPERATOR_CONDITION_NAME; no Argo CD version is reported and the gap is not acknowledged."
     },
     {
      "text": "Inspects configuration (argocd-cm or ArgoCD CR)",
      "verdict": "pass",
-     "evidence": "Reads the ArgoCD CRs (spec.sourceNamespaces, Reconciled/Success condition) and argocd-cmd-params-cm in P8; also checks gitopsservice, RolloutManager and Routes."
+     "evidence": "Preamble P4 shows `oc get cm argocd-cmd-params-cm -n openshift-gitops -o yaml` data plus a grep over the namespace's ConfigMaps, and the ArgoCD CR status is inspected."
     },
     {
      "text": "Reports any unhealthy components with diagnostic details, citing for each one the observation that establishes it (pod phase and restart count, a CSV/InstallPlan condition, or a CRD field value). Claiming a component is down while output in the same answer shows it Running is a fail.",
      "verdict": "pass",
-     "evidence": "Each unhealthy component is cited with its observation: argocd-server restarts=11 with lastState exitCode 137 OOMKilled against a 256Mi limit; argo-rollouts 652 restarts with the lease-renewal log; operator-manager 703 restarts with exit code 1."
+     "evidence": "Each defect cites output: restart counts 703/652 with `--previous` leader-election logs, OOMKilled exit 137 with Restart Count 11, and the 256Mi limit from the Deployment resources."
     },
     {
      "text": "Produces a structured status report",
      "verdict": "pass",
-     "evidence": "Organised as a healthy baseline, Findings 1-6, then ordered recommendations."
+     "evidence": "Structured report: overall status, Defect 1/2/3, bonus finding, verdict and priority order."
     },
     {
      "text": "If an operator upgrade or reconcile is reported as blocked, names the specific blocking object and field rather than asserting it generally \u2014 for example the failing InstallPlan and the CRD conversion-webhook setting it failed on, not merely 'the operator is unhealthy'.",
-     "verdict": "pass",
-     "evidence": "Names specific blocking objects and field values with output: CSV v1.21.4 Pending/RequirementsNotMet, requirementStatus entries 'CustomResourceDefinition applications.argoproj.io -> PresentNotSatisfied: CRD installed alongside other CSV(s): v1.21.3' and the ServiceAccount ownership entry, plus the olm.owner label on the live Deployment. It never inspects InstallPlans or the conversion webhook, so the specific failing InstallPlan is not named."
+     "verdict": "partial",
+     "evidence": "Names the Pending CSV and `RequirementsNotMet`, but shows the InstallPlan only as 'install-fzm4w ... Automatic true' (not its Failed phase) and attributes the block generally to kube-apiserver latency; no blocking object/field such as the conversion webhook or caBundle is identified."
     }
    ]
   },
@@ -159,32 +159,32 @@
     {
      "text": "Retrieves the ApplicationSet and checks its status.conditions",
      "verdict": "pass",
-     "evidence": "Shows the ApplicationSet yaml and its status.conditions (ErrorOccurred=False/ApplicationSetUpToDate, ParametersGenerated=True, ResourcesUpToDate=True) plus health Healthy."
+     "evidence": "Full ApplicationSet YAML with status.conditions: ErrorOccurred False / ParametersGenerated True quoted."
     },
     {
      "text": "Identifies the generator type (git directory) and its configuration (repoURL, directories path pattern)",
      "verdict": "pass",
-     "evidence": "Quotes generators[0].git.directories[0].path: services/*, repoURL https://github.com/argoproj/argocd-example-apps.git, revision HEAD."
+     "evidence": "Shows the git directories generator with `path: services/*`, repoURL argoproj/argocd-example-apps, revision HEAD."
     },
     {
      "text": "Lists currently generated Applications and cross-references against what's expected",
      "verdict": "pass",
-     "evidence": "`oc get applications.argoproj.io -A | grep -i 'team-'` returns only the unrelated team-b-guestbook; notes no team-<service> Application exists and that status.resources is absent (vs resourcesCount: 2 on eval-rollingsync)."
+     "evidence": "Notes the absence of status.resources/resourcesCount versus eval-rollingsync's resourcesCount: 2, and that no `team-*` Application exists in the cluster-wide Application listing."
     },
     {
      "text": "Checks the applicationset-controller logs for generator errors",
      "verdict": "pass",
-     "evidence": "Greps the applicationset-controller log: five consecutive 'generated 0 applications' lines three minutes apart with no clone/auth/template error, contrasted with the sibling ApplicationSet that generated 2."
+     "evidence": "`oc logs ... applicationset-controller | grep team-apps` quoted repeatedly: 'generated 0 applications' with clean requeues."
     },
     {
      "text": "Identifies a likely cause (path pattern mismatch, repo access, or an exclude rule)",
      "verdict": "pass",
-     "evidence": "Identifies the repoURL as the public upstream argoproj sample repo (so the user's directories cannot be there) and separately flags the one-level glob in recommendation 3; rules out credentials and missingkey=error with shown output."
+     "evidence": "Identifies the `services/*` glob matching nothing and the repoURL being the public upstream example repo, and rules out template error, repo auth, RBAC and orphan cases with cited condition values/log lines."
     },
     {
      "text": "Produces a report with root cause and recommendations. Every root cause asserted is backed by the specific observation that establishes it (a field value, pod phase, restart count, condition, or log line actually shown). A cause asserted with no supporting output, or contradicted by output shown elsewhere in the same answer, fails this expectation even if it is plausible and well written.",
      "verdict": "pass",
-     "evidence": "The asserted cause is scoped to what is shown ('at HEAD of argocd-example-apps.git nothing matches services/*', from the 0-parameter reconciles) and the answer explicitly says it cannot enumerate the repo contents from the cluster rather than inventing a listing."
+     "evidence": "Root cause (zero parameters from the directory generator) rests on the quoted 'generated 0 applications' lines and the absent resources list; alternatives are excluded with cited evidence, and the one unverifiable part (actual repo contents) is explicitly disclosed as unverified."
     }
    ]
   },
@@ -195,37 +195,37 @@
     {
      "text": "Retrieves the ApplicationSet and inspects spec.strategy.rollingSync.steps",
      "verdict": "pass",
-     "evidence": "Shows `oc get applicationsets.argoproj.io eval-rollingsync -o yaml` with both rollingSync steps and their matchExpressions/maxUpdate."
+     "evidence": "`oc get applicationsets.argoproj.io eval-rollingsync ... -o yaml` excerpt shows spec.strategy.rollingSync.steps with both matchExpressions and maxUpdate."
     },
     {
      "text": "Identifies which step/matchExpressions group production falls into",
      "verdict": "pass",
-     "evidence": "Step 2 is matchExpressions envLabel In [production]; eval-production's labels {envLabel: production} are shown, placing it in step 2."
+     "evidence": "Shows the production step's matchExpressions (envLabel In [production]) and confirms `envLabel: production` is present on the Application's metadata.labels."
     },
     {
      "text": "Checks whether the staging step's maxUpdate requirement and health gate have been satisfied",
-     "verdict": "partial",
-     "evidence": "Quotes maxUpdate: 1 and establishes the health gate would not be met (staging Degraded), but never evaluates whether the maxUpdate requirement itself was satisfied."
+     "verdict": "pass",
+     "evidence": "Shows maxUpdate: 1 per step and evaluates the health gate: staging is permanently Progressing so step 1 could never satisfy the Synced+Healthy requirement."
     },
     {
      "text": "Debugs the staging Applications' health status, since an unhealthy staging app blocks progression to the next step",
      "verdict": "pass",
-     "evidence": "Shows eval-staging sync=Synced health=Degraded with its operation state, and traces the Degraded state to the generator element image registry.access.redhat.com/ubi8/does-not-exist-eval."
+     "evidence": "Quotes eval-staging's health Progressing, the Deployment resource message 'Waiting for rollout to finish: 0 of 1 updated replicas are available', and the ErrImagePull pod in eval-staging."
     },
     {
      "text": "Explains how RollingSync blocks progression on unhealthy or unsynced apps in the current step",
      "verdict": "pass",
-     "evidence": "'With progressive syncs enabled, step 1 (envLabel In [staging]) would never reach Healthy, and production would have been correctly held back.'"
+     "evidence": "'RollingSync advances only when every Application in the current step is both Synced and Healthy, a permanently Progressing staging app would hold step 2 forever.'"
     },
     {
      "text": "Produces a report with root cause and recommendations. Every root cause asserted is backed by the specific observation that establishes it (a field value, pod phase, restart count, condition, or log line actually shown). A cause asserted with no supporting output, or contradicted by output shown elsewhere in the same answer, fails this expectation even if it is plausible and well written.",
      "verdict": "pass",
-     "evidence": "Correctly reports the premise is contradicted (production already Synced at the same second as staging, controller log shows both created in one reconcile) and grounds the real cause - ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS absent from the container env, pod spec and argocd-cmd-params-cm, plus no status.applicationStatus block."
+     "evidence": "Root cause (progressive syncs gate off, strategy silently ignored) is backed by P4's controller command/env and cmd-params-cm grep, the missing status.applicationStatus, and the controller log showing both apps created in the same reconcile at 19:02:55."
     },
     {
      "text": "Every recommended action states its IMPACT \u2014 what else is affected if someone acts on it (components that restart, other Applications or tenants affected, whether anything is deleted, and any ordering dependency on another recommendation) \u2014 not only its priority. 'Impact: nothing else is affected' counts; omitting the impact entirely does not. An impact reasoned from manifests rather than verified against a cluster must say so.",
      "verdict": "pass",
-     "evidence": "Each of the three recommendations has an IMPACT: controller roll affecting every ApplicationSet in the instance (with the agentit-managed-apps warning flagged as reasoned from manifests), eval-staging re-render with eval-production untouched, and explicit ordering."
+     "evidence": "Both recommendations carry IMPACT: appset controller roll, behaviour change for all ApplicationSets in the namespace, what the generator patch re-syncs, and an explicit 'Ordering: do (2) before (1)' with the reason; reasoning-not-verified is disclosed for agentit-managed-apps."
     }
    ]
   },
@@ -236,32 +236,32 @@
     {
      "text": "Retrieves the Rollout and identifies strategy.blueGreen configuration",
      "verdict": "pass",
-     "evidence": "Shows the Rollout yaml with strategy.blueGreen activeService/previewService/autoPromotionEnabled."
+     "evidence": "`oc get rollout checkout-api -n prod -o yaml` shows strategy.blueGreen with activeService, previewService, autoPromotionEnabled: false."
     },
     {
      "text": "Checks autoPromotionEnabled and explains that false requires manual promotion, not automatic analysis",
      "verdict": "pass",
-     "evidence": "autoPromotionEnabled: false is quoted and explained: Argo Rollouts 'sets BlueGreenPause, and waits for a human to promote. It will wait forever. That is what autoPromotionEnabled: false means.'"
+     "evidence": "States that autoPromotionEnabled:false means the controller pauses indefinitely waiting for a human promote, and that pauseConditions reason BlueGreenPause + controllerPause:true is the signature of that gate."
     },
     {
      "text": "Checks for prePromotionAnalysis templates and their status if configured",
      "verdict": "pass",
-     "evidence": "States there is no prePromotionAnalysis/postPromotionAnalysis and corroborates with `oc get analysisruns -A` (none in prod) and the analysistemplates/clusteranalysistemplates listings (none in prod)."
+     "evidence": "Notes no prePromotionAnalysis/postPromotionAnalysis in the spec and backs it with `oc get analysisruns -A`, `analysistemplates -A` and `clusteranalysistemplates` showing nothing in `prod`."
     },
     {
      "text": "Inspects previewService and activeService configuration for correctness",
      "verdict": "pass",
-     "evidence": "Shows both Service selectors - preview -> 87997585f (new hash), active -> 5d747d9746 (stable) - and calls them correctly wired."
+     "evidence": "`oc get all -n prod` shows both checkout-api-active and checkout-api-preview Services with ClusterIPs, and activeSelector/previewSelector are quoted from status."
     },
     {
      "text": "Distinguishes blue-green behavior from canary (no step-based automatic progression)",
      "verdict": "partial",
-     "evidence": "Describes blue-green's single manual trigger but never contrasts it with canary, nor states that blue-green has no steps[]/currentStepIndex-based progression."
+     "evidence": "Distinguishes this pause from a manual `spec.paused` pause and from EVAL 2's analysis-bearing Rollout, but never states the blue-green/canary distinction itself (no step-based automatic progression)."
     },
     {
      "text": "Produces a report with root cause and recommendations. Every root cause asserted is backed by the specific observation that establishes it (a field value, pod phase, restart count, condition, or log line actually shown). A cause asserted with no supporting output, or contradicted by output shown elsewhere in the same answer, fails this expectation even if it is plausible and well written.",
      "verdict": "pass",
-     "evidence": "Correctly rejects the 'an hour' premise with pauseConditions.startTime 18:20:03Z vs date -u 18:25:37Z and creationTimestamp 18:14:06Z, and the 'expected it to analyze' premise with the empty strategy plus zero AnalysisRuns in prod; pods/RS output backs 'healthy pause, not a stall'."
+     "evidence": "Root cause (configured manual gate, no analysis defined) is backed by the strategy block, pauseConditions/controllerPause, the four Ready pods and the empty analysis inventories."
     }
    ]
   },
@@ -272,27 +272,27 @@
     {
      "text": "Detects multiple Argo CD instances (multiple namespaces with argocd-labeled pods or multiple ArgoCD CRs)",
      "verdict": "pass",
-     "evidence": "`oc get argocds.argoproj.io -A` returns three CRs across three namespaces, shown in P1 and restated at the top of EVAL 7."
+     "evidence": "`oc get argocds.argoproj.io -A` in preamble P1 returns three CRs across three namespaces."
     },
     {
      "text": "Lists all detected instances with their namespaces",
      "verdict": "pass",
-     "evidence": "Lists openshift-gitops-operator/argocd, openshift-gitops/openshift-gitops and team-b-gitops/team-b with their namespaces."
+     "evidence": "P1 table plus the EVAL 7 inventory table list all three instances with namespace, sourceNamespaces and route."
     },
     {
      "text": "Asks the user which instance to investigate, or investigates all and clearly separates findings per instance",
      "verdict": "pass",
-     "evidence": "Investigates all three with a separate subsection per instance, then an 'above all three instances' section for the operator."
+     "evidence": "Investigates all three and gives each a verdict: openshift-gitops (all application-level faults), argocd (OOM only, 0 Applications), team-b (clean, with its Application's Synced/Healthy output shown)."
     },
     {
      "text": "Does not silently pick one instance without disclosing the ambiguity",
      "verdict": "pass",
-     "evidence": "Opens with 'There are three Argo CD instances (P1). I went through each one' and says which one carries the problems rather than silently picking."
+     "evidence": "Opens with a three-instance inventory and explicitly rules team-b in/out rather than silently picking one."
     },
     {
      "text": "Produces a report structured per instance, naming each Argo CD instance found and stating that instance's own findings under it. A single flat report that merges findings across instances, or that names only one instance when several exist, fails this expectation.",
      "verdict": "pass",
-     "evidence": "Per-instance headings (team-b-gitops/team-b CLEAN, openshift-gitops-operator/argocd ONE FAULT, openshift-gitops THE PROBLEM INSTANCE) each carry that instance's own evidence and findings."
+     "evidence": "Instance table and the 'Answer to which instance' section name each instance and state its own findings; the shared layer-1 fault is explicitly attributed to 'two instances, not one'."
     }
    ]
   },
@@ -303,32 +303,32 @@
     {
      "text": "Retrieves the Application and identifies health.status as Suspended",
      "verdict": "pass",
-     "evidence": "Shows the Application yaml and `sync=Synced health=Suspended` from jsonpath."
+     "evidence": "Quotes the Application YAML with `health: {status: Suspended}` and sync Synced."
     },
     {
      "text": "Explains that Suspended reflects an intentionally paused resource (e.g. a paused CronJob or Rollout), not a failure",
      "verdict": "pass",
-     "evidence": "'Suspended is Argo CD's rollup of one child resource', 'The Suspended status itself is normal, not a fault', and \"'it's broken' is not supported by the Suspended status.\""
+     "evidence": "'Suspended is intentional ... That is a normal Argo CD state, not an error.'"
     },
     {
      "text": "Inspects the underlying managed resource and states what is suspended, citing the field that shows it (for example a Rollout's spec.paused or a CronJob's spec.suspend) rather than inferring it from the Application's aggregate health.",
      "verdict": "pass",
-     "evidence": "Cites the Rollout's spec.paused=true (with phase=Paused, message 'manually paused') and distinguishes a user pause from a controller pause via the empty pauseConditions/controllerPause."
+     "evidence": "Shows the Rollout's `spec.paused: true`, status message 'manually paused', and managedFields showing `kubectl-patch` owning `f:paused` four seconds after Argo created the object."
     },
     {
      "text": "Does not treat Suspended as an error requiring remediation unless the user confirms it's unintended",
-     "verdict": "pass",
-     "evidence": "Recommends telling the team Suspended is correct behaviour and 'Find out who paused it and why before unpausing'; no remediation of the suspension is proposed unprompted."
+     "verdict": "partial",
+     "evidence": "Correctly calls the suspension normal, but recommendation 2 instructs unpausing as an action to take after the port fix without conditioning it on the user confirming the pause was unintended; the intent question is only raised afterwards in recommendation 3."
     },
     {
      "text": "Produces a report that separates the intentional suspension from any genuine problem found alongside it, saying explicitly which is which. Reporting only the suspension when live output shows a real failure, or treating the suspension itself as the failure, fails this expectation.",
      "verdict": "pass",
-     "evidence": "Explicitly separates the benign expected suspension from the real breakage (the probe/port liveness-kill loop) and notes the pause is hiding it."
+     "evidence": "Explicitly splits '(a) The Suspended health is correct and deliberate' from '(b) Underneath the pause there is a real failure ... CrashLoopBackOff', and says the Suspended badge is a red herring."
     },
     {
      "text": "Reports the suspended workload's ACTUAL readiness from live output \u2014 pod phase and restart count, and whether the Services have endpoints \u2014 instead of assuming the pause is the only thing happening. Suspended health can mask an unrelated failure, so an explanation of why the workload is not Available that is not backed by shown output is a fail.",
      "verdict": "partial",
-     "evidence": "Pod phase and restart count are from live output (0/1 CrashLoopBackOff, RESTARTS 7, describe Restart Count: 7) and the not-Available explanation is grounded in events plus the container log showing SIGTERM 26s after startup; but Service endpoints are only asserted ('currently has no healthy endpoints') with no endpoint output shown."
+     "evidence": "Reports pod phase and restarts from live output (0/1 Running, Restart Count 5, CrashLoopBackOff, probe events, httpd log) and the Rollout's missing readyReplicas, but never checks whether the two Services have endpoints - they are only quoted as Healthy from Argo CD's roll-up."
     }
    ]
   },
@@ -339,27 +339,27 @@
     {
      "text": "Detects the Application uses spec.sources[] (multi-source), not spec.source",
      "verdict": "pass",
-     "evidence": "Shows spec.sources with two entries and states it is 'genuinely multi-source'."
+     "evidence": "Shows `spec.sources:` as a two-entry list and the premise check confirms 'uses multiple sources - a Helm chart and a separate values repo - true'."
     },
     {
      "text": "Iterates every entry in spec.sources[] individually, checking repoURL, targetRevision, path, and Helm valueFiles for each",
      "verdict": "pass",
-     "evidence": "Both entries shown with repoURL, targetRevision: HEAD, path, ref and helm.valueFiles, then each analysed separately (source 1 proven loadable, source 2 analysed for the missing file)."
+     "evidence": "The spec block annotates both entries with repoURL, path, targetRevision, helm.valueFiles (source 1) and ref: values (source 2), and each is analysed separately."
     },
     {
      "text": "Identifies which specific source is failing (e.g. wrong values file path, inaccessible repo, or bad targetRevision)",
      "verdict": "pass",
-     "evidence": "Identifies source 2 (ref: values -> stefanprodan/podinfo.git) as lacking envs/production/values.yaml, quoting the ComparisonError message."
+     "evidence": "Identifies source 2 (stefanprodan/podinfo, ref: values) as lacking `envs/production/values.yaml`, quoting the helm 'no such file or directory' error, and shows source 1 rendering fine via repo-server cache hits."
     },
     {
      "text": "Does not treat a multi-source Application as if it were single-source",
      "verdict": "pass",
-     "evidence": "Treats it throughout as a two-source Application, including the note that a merge patch on spec.sources must supply both entries."
+     "evidence": "Treats the two sources distinctly throughout, including the $values resolution semantics."
     },
     {
      "text": "Produces a report naming WHICH source is at fault \u2014 by index AND repoURL, not just 'a source' \u2014 and the concrete fix. Must distinguish the source Argo CD's error blames (the one being rendered) from the source that actually lacks the file, rather than only repeating 'source N of 2' from the error text.",
      "verdict": "pass",
-     "evidence": "Names the fault by index and repoURL ('source 2 - the values repo (ref: values -> https://github.com/stefanprodan/podinfo.git)') and explicitly unpicks the misleading 'source 1 of 2' blame using the fact that `helm template .` actually executed; gives the concrete repoint plus hard-refresh fix."
+     "evidence": "'The error says source 1 of 2, which is the chart source ... But the failing input belongs to source 2: $values expands to the checkout of the ref: values source', naming both indexes and repoURLs plus the concrete fix."
     }
    ]
   }

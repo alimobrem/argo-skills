@@ -1,8 +1,8 @@
 # argo-repo-audit
 
-## Run 6 — 2026-10-23, live cluster, blind A/B
+## Run 8 — 2026-10-23
 
-**97.0% with the skill vs 85.4% baseline (+11.6) over 82 expectations.**
+**95.3% with the skill vs 79.4% baseline (+15.9) over 85 expectations.**
 
 Measured against a live OpenShift cluster (OpenShift GitOps 1.21.3, Argo CD v3.4.5).
 Graders saw "Condition A"/"Condition B" without knowing which was which and could not
@@ -12,35 +12,52 @@ read `skills/`. Partial credit; every verdict carries an evidence string. Raw ve
 
 | # | Eval | n | with-skill | baseline | delta |
 |---|------|--:|-----------:|---------:|------:|
-| 1 | app-of-apps-audit | 13 | 100% | 73% | +27 |
-| 2 | applicationset-audit | 11 | 100% | 95% | +5 |
-| 3 | mixed-issues-audit | 12 | 100% | 96% | +4 |
+| 1 | app-of-apps-audit | 13 | 92% | 65% | +27 |
+| 2 | applicationset-audit | 11 | 100% | 100% | +0 |
+| 3 | mixed-issues-audit | 13 | 96% | 77% | +19 |
 | 4 | validate-only | 6 | 100% | 92% | +8 |
-| 5 | detect-wildcard-project | 5 | 90% | 80% | +10 |
-| 6 | detect-plain-secret | 4 | 88% | 62% | +25 |
-| 7 | detect-no-sync-policy | 4 | 100% | 100% | +0 |
-| 8 | detect-head-in-prod | 4 | 100% | 100% | +0 |
-| 9 | detect-weak-analysis | 4 | 100% | 50% | +50 |
-| 10 | detect-hardcoded-helm-password | 4 | 75% | 75% | +0 |
+| 5 | detect-wildcard-project | 5 | 90% | 60% | +30 |
+| 6 | detect-plain-secret | 5 | 90% | 50% | +40 |
+| 7 | detect-no-sync-policy | 4 | 88% | 100% | -12 **←** |
+| 8 | detect-head-in-prod | 4 | 88% | 100% | -12 **←** |
+| 9 | detect-weak-analysis | 4 | 88% | 50% | +38 |
+| 10 | detect-hardcoded-helm-password | 5 | 100% | 60% | +40 |
 | 11 | clean-repo-zero-findings | 9 | 100% | 100% | +0 |
-| 12 | Subtle RBAC: looks restricted but has privilege escalation | 6 | 92% | 75% | +17 |
-| | **total** | **82** | **97.0%** | **85.4%** | **+11.6** |
+| 12 | Subtle RBAC: looks restricted but has privilege escalation | 6 | 100% | 83% | +17 |
+| | **total** | **85** | **95.3%** | **79.4%** | **+15.9** |
 
-**Largest gains:** #9 detect-weak-analysis (+50); #1 app-of-apps-audit (+27); #6 detect-plain-secret (+25).
+**Largest gains:** #10 detect-hardcoded-helm-password (+40); #6 detect-plain-secret (+40); #9 detect-weak-analysis (+38).
 
-> **Run 6 used a freshly generated baseline**, not the reused-and-regraded run-1 baseline
-> that earlier revisions of this page described. It also used a corrected expectation
-> suite: nine of the twelve evals had expectations rewritten because the originals could
-> be satisfied by naming any plausible cause, and so scored a correct root cause and a
-> confident wrong one identically.
+> **Run 8 added three expectations that the skill passes and the baseline fails, and
+> that widened the delta. Disclosed here because it is also exactly how a benchmark gets
+> gamed.**
 >
-> **The correction lowered the published delta, from +16.2 to +11.6.** The skill arm
-> barely moved; the baseline rose from 81.2% to 85.4% because the sharper wording credited
-> work the vague wording had been failing. Expect that direction when you fix your own
-> rubric — if rewriting expectations only ever improves your numbers, the rewrite is the
-> thing to distrust. See the grader-drift table in the
-> [root README](../README.md#benchmarks): absolute scores move with the grader, so read
-> the direction, not the decimal.
+> The skill used to document a credential scan — `grep -rn -iE "(password|token|secret):"`
+> — that prints whole matching lines, so running it copied the secret into the transcript.
+> That is now a script reporting location, key name and value *length*, and three
+> expectations grade it: two fail an answer that reproduces a plaintext credential or
+> decodes a base64 one, and one fails an answer that reports SOPS/SealedSecret ciphertext
+> as plaintext.
+>
+> They discriminate: the baseline fails both redaction expectations (it quotes
+> `cDRzc3cwcmQhMjAyNg==`, decodes it, and repeats the cleartext a second time), the skill
+> arm passes both. That is a real and harmful behaviour difference, not a scoring
+> artefact — but adding expectations targeting a known advantage inflates a delta by
+> construction, so here is the number both ways:
+>
+> | | with-skill | baseline | delta | n |
+> |---|---:|---:|---:|---:|
+> | run 8, full suite | 95.3% | 79.4% | **+15.9** | 85 |
+> | run 8, excluding the 3 new expectations | 95.1% | 81.1% | +14.0 | 82 |
+> | run 7, old suite | 97.0% | 85.4% | +11.6 | 82 |
+>
+> So the new expectations are worth about **+1.9** of the +4.3 increase. The remaining
+> +2.4 is run-to-run variance between two runs of the same 82 expectations — consistent
+> with the [variance analysis](README.md#run-to-run-variance-we-measured-that-too-and-it-is-larger-than-the-graders),
+> and a reminder that neither figure is precise to a decimal.
+>
+> Earlier revisions of this page described a baseline reused from run 1. Every run since
+> run 6 generates a fresh one.
 
 ---
 

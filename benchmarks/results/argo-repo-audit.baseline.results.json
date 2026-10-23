@@ -1,7 +1,7 @@
 {
  "skill": "argo-repo-audit",
  "model": "claude-opus-5",
- "run": "2026-10-23 rerun6, corrected expectation suite",
+ "run": "2026-10-23 run 8, redaction expectations added",
  "condition": "baseline",
  "evals": [
   {
@@ -11,70 +11,69 @@
     {
      "text": "Identifies the app-of-apps pattern",
      "verdict": "pass",
-     "evidence": "'BLOCKER 3 \u2014 Root Application cannot see its children: recurse is not set' and 'The app-of-apps looks healthy and synced while delivering nothing', citing apps/root-app.yaml:13 path: apps."
+     "evidence": "Opens EVAL 1 with 'This is an app-of-apps layout with a structural defect at the root' and analyses the root Application -> children relationship."
     },
     {
      "text": "Detects two environments: staging and production",
      "verdict": "pass",
-     "evidence": "Findings 5 and 6 contrast clusters/staging/root-app.yaml:12 (main) with clusters/production/root-app.yaml:12 (v1.2.0), and staging vs production destinations are analysed throughout."
+     "evidence": "F4/F5 work through 'clusters/staging/' and 'clusters/production/' explicitly, and F5 is headed 'both environments land in the same namespace'."
     },
     {
      "text": "Counts Application resources (should find approximately 9)",
-     "verdict": "pass",
-     "evidence": "Header: '12 files, 16 resources: 9 Applications, 2 AppProjects, 1 Namespace, 2 Deployments, 2 Services'."
+     "verdict": "partial",
+     "evidence": "Header states '16 resources: 8 Applications, 2 AppProjects', but EVAL 4 of the same answer says 'All 9 Applications' and F2 enumerates nine; the count of 8 is contradicted internally."
     },
     {
      "text": "Counts AppProject resources (should find 2)",
      "verdict": "pass",
-     "evidence": "Same header count (2 AppProjects); both projects/platform.yaml and projects/team-platform.yaml are analysed in BLOCKER 1."
+     "evidence": "Header states '2 AppProjects', and F1 analyses both projects/platform.yaml and projects/team-platform.yaml."
     },
     {
      "text": "Identifies sync policy configuration per Application (which have automated sync, which don't)",
      "verdict": "partial",
-     "evidence": "LOW 9 maps prune (apps/podinfo/podinfo-app.yaml:53), retry presence/absence and syncOptions per file, and findings 5-7 cite prune/selfHeal per Application \u2014 but there is no per-Application statement of which have automated sync and which do not; several of the nine are never covered."
+     "evidence": "Sync policy is discussed for specific apps (F6 'automated: {prune: true, selfHeal: true}', F7 root apps with prune/selfHeal) but there is no per-Application accounting of which have automated sync and which do not."
     },
     {
      "text": "Checks AppProject sourceRepos \u2014 identifies whether wildcards are used",
-     "verdict": "partial",
-     "evidence": "sourceRepos values are tabulated per project (L9-10 vs L9) and used in BLOCKER 2, but the answer never states the outcome of a wildcard check on sourceRepos (no statement that wildcards are or are not present)."
+     "verdict": "pass",
+     "evidence": "F1 table enumerates sourceRepos for both projects as named repos (acme-corp/gitops-apps.git, charts.bitnami.com/bitnami vs example/gitops-repo.git), and F3 checks each Application's repoURL against them; no wildcards present."
     },
     {
      "text": "Checks AppProject destinations \u2014 identifies whether wildcards are used",
      "verdict": "pass",
-     "evidence": "BLOCKER 2 explicitly analyses destination glob semantics \u2014 'Argo CD matches destination.namespace with glob semantics; platform-* does not match the literal string platform' \u2014 citing projects/platform.yaml:13,15 and team-platform.yaml:12,14."
+     "evidence": "F1 table enumerates destinations for both projects (apps-*, platform vs platform-*, staging.example.com platform-*) and F3 tests each Application's destination against them."
     },
     {
      "text": "Checks for ignoreDifferences configuration on Applications that need it",
      "verdict": "pass",
-     "evidence": "LOW 10: apps/podinfo/application.yaml:30-34 ignores /spec/replicas, with the observation that no HorizontalPodAutoscaler exists in the repo."
+     "evidence": "'Good practice observed' cites ignoreDifferences on /spec/replicas (apps/podinfo/application.yaml:30-34) as 'the correct way to coexist with an HPA under selfHeal: true'."
     },
     {
      "text": "Checks for retry configuration on sync policies",
      "verdict": "pass",
-     "evidence": "LOW 9: retry present at apps/root-app.yaml:21-26, apps/podinfo/application.yaml:24-29, podinfo-app.yaml:25-30,56-61, clusters/*/root-app.yaml; absent from apps/nginx/application.yaml and apps/nginx/nginx-app.yaml."
+     "evidence": "'Good practice observed' opens with 'Retry/backoff on most Applications'."
     },
     {
      "text": "Identifies sync wave ordering via annotations",
      "verdict": "fail",
-     "evidence": "No sync-wave annotations are identified. The only mention is the phrase 'block any sync-wave ordering behind them' in BLOCKER 4; no argocd.argoproj.io/sync-wave values, files or line numbers are given, and the Namespace/Application ordering is not assessed."
+     "evidence": "No mention of sync waves or argocd.argoproj.io/sync-wave anywhere in EVAL 1."
     },
     {
      "text": "Produces a structured report with Summary, Best Practices, Security, and Recommendations",
      "verdict": "partial",
-     "evidence": "Has a Verdict line, severity-ranked findings each with an Impact paragraph, and a 'Validation status' block \u2014 but no distinct Summary / Best Practices / Security / Recommendations sections; security items (sync windows, project grants) are interleaved with best-practice items and fixes are inline rather than collected."
+     "evidence": "Has a Summary and findings F1-F11 plus 'Good practice observed', with fixes embedded in findings, but no distinct Best Practices, Security or Recommendations sections."
     },
     {
      "text": "Assigns an overall status (PASS, WARN, or FAIL) based on findings",
-     "verdict": "partial",
-     "evidence": "'Verdict: not deployable as committed' is an overall judgement with severity-tiered findings, but no PASS/WARN/FAIL status is assigned."
+     "verdict": "fail",
+     "evidence": "EVAL 1 ends with 'Three findings are High' and a good-practice list; no PASS/WARN/FAIL status is assigned."
     },
     {
      "text": "Every recommended action states its IMPACT \u2014 what else is affected if someone acts on it (components that restart, other Applications or tenants affected, whether anything is deleted, and any ordering dependency on another recommendation) \u2014 not only its priority. 'Impact: nothing else is affected' counts; omitting the impact entirely does not. An impact reasoned from manifests rather than verified against a cluster must say so.",
-     "verdict": "partial",
-     "evidence": "Every finding carries an Impact paragraph and the file header states nothing was verified against a running controller, but these mostly describe the impact of the defect rather than of acting on the fix. Only BLOCKER 3 states a consequence of acting ('secondary effect once recurse is enabled'); BLOCKER 1's rename/delete fix, BLOCKER 4's relocation, HIGH 5's re-point and MEDIUM 7's 'pin an exact version' give no statement of what else is affected if someone acts."
+     "verdict": "fail",
+     "evidence": "Findings end with bare fixes ('Fix: one AppProject per name', 'apply the same discipline to the others') with no statement of what else is affected if the fix is applied."
     }
-   ],
-   "regraded": false
+   ]
   },
   {
    "id": 2,
@@ -83,60 +82,59 @@
     {
      "text": "Identifies the ApplicationSet pattern",
      "verdict": "pass",
-     "evidence": "Header counts '3 ApplicationSets' and the verdict and all findings treat the repo as ApplicationSet-driven ('the primary ApplicationSet is structurally wrong')."
+     "evidence": "Header: 'tests/argo-repo-audit/applicationset/ (14 files; 3 ApplicationSets...)' and the summary analyses them as the orchestration mechanism."
     },
     {
      "text": "Identifies generator types used (git directory, cluster, matrix)",
      "verdict": "pass",
-     "evidence": "git directories generator (platform-appset.yaml:9-13), list generator (:14-19), matrix generator used correctly at apps/appset-cluster.yaml:9-24, and the clusters generator values block at :15-16."
+     "evidence": "Identifies the git directories generator and list generator (F1), the clusters generator (F2, 'The clusters generator (L11-14) selects every registered cluster'), and matrix (F3 'both matrix elements'; F1 fix 'wrap the two generators in a matrix generator')."
     },
     {
      "text": "Checks whether goTemplate is enabled vs fasttemplate",
-     "verdict": "partial",
-     "evidence": "goTemplate: true is noted only for platform-appset.yaml:7 as part of BLOCKER 1; the other two ApplicationSets are never checked for goTemplate vs fasttemplate."
+     "verdict": "pass",
+     "evidence": "F1: 'goTemplate: true is set (L7)'."
     },
     {
      "text": "Checks for progressive sync (rollingSync) configuration",
      "verdict": "pass",
-     "evidence": "HIGH 3 analyses strategy.type: RollingSync at apps/appset-git-dirs.yaml:37-51 including maxUpdate: 25% at :51 and the ApplicationSetProgressiveSyncs alpha gate; MEDIUM 7 notes apps/appset-cluster.yaml has no strategy block at all."
+     "evidence": "F4 is entirely about the RollingSync progressive-sync strategy at apps/appset-git-dirs.yaml:37-51."
     },
     {
      "text": "Checks for preserveResourcesOnDeletion setting",
      "verdict": "pass",
-     "evidence": "LOW 11: 'No syncPolicy.preserveResourcesOnDeletion ... on any of platform-appset.yaml, apps/appset-cluster.yaml, apps/appset-git-dirs.yaml', with the cascade-to-workloads impact."
+     "evidence": "F6: 'None of the three ApplicationSets sets spec.syncPolicy.preserveResourcesOnDeletion: true'."
     },
     {
      "text": "Evaluates template completeness (destination, source, syncPolicy)",
      "verdict": "pass",
-     "evidence": "Template fields checked: platform-appset.yaml:22,29,31,32 (name/path/server/namespace), missing labels in template.metadata at apps/appset-git-dirs.yaml:18-21, syncPolicy automated/prune/selfHeal at apps/appset-cluster.yaml:38-40 and the prune: true siblings."
+     "evidence": "F1 evaluates template name/source.path/destination.server completeness; F5 covers template project; F6/F10 cover template syncPolicy prune/selfHeal."
     },
     {
      "text": "Checks for goTemplateOptions (missingkey=error)",
      "verdict": "pass",
-     "evidence": "'no goTemplateOptions: [missingkey=error]' on platform-appset, contrasted with apps/appset-git-dirs.yaml:8-9 which does set it and 'would have turned this silent <no value> into a loud error'."
+     "evidence": "F1: 'there is no goTemplateOptions: [missingkey=error] (contrast apps/appset-git-dirs.yaml:8-9, which does set it)'."
     },
     {
      "text": "Identifies that ApplicationSets deploy to the default project \u2014 flags if concerning",
      "verdict": "pass",
-     "evidence": "HIGH 6: 'two ApplicationSets write into project: default' (platform-appset.yaml:25, apps/appset-git-dirs.yaml:23) with the unrestricted-privilege impact and a fix."
+     "evidence": "F5: 'platform-appset.yaml:25 and apps/appset-git-dirs.yaml:23 both set project: default' and explains the default project permits '*' everywhere."
     },
     {
      "text": "Checks whether prune is enabled in generated Applications' sync policy",
      "verdict": "pass",
-     "evidence": "MEDIUM 8: 'selfHeal without prune on the infrastructure ApplicationSet' (apps/appset-cluster.yaml:38-40), contrasted with prune: true at apps/appset-git-dirs.yaml:32-34 and platform-appset.yaml:34-36."
+     "evidence": "F6 cites prune: true at platform-appset.yaml:36 and apps/appset-git-dirs.yaml:33; F10 flags that apps/appset-cluster.yaml:38-40 omits prune."
     },
     {
      "text": "Produces a structured report with ApplicationSet-specific findings",
      "verdict": "pass",
-     "evidence": "Severity-ranked, ApplicationSet-specific findings (generator union vs matrix, RollingSync labels, chart repo mismatch, dangling project), plus a verified kustomize build/diff of both overlays."
+     "evidence": "Twelve findings all concern ApplicationSet-specific mechanics (generators, goTemplate, RollingSync, preserveResourcesOnDeletion) plus a good-practice section."
     },
     {
      "text": "Includes ApplicationSet-specific recommendations",
      "verdict": "pass",
-     "evidence": "Each finding ends in an ApplicationSet-specific fix: wrap in a matrix generator, add envLabel labels to template.metadata, carry the repo URL as a list element, assign a scoped AppProject per ApplicationSet, pin exact chart versions."
+     "evidence": "Each finding closes with an ApplicationSet-specific fix, e.g. 'wrap the two generators in a matrix generator, and add goTemplateOptions: [missingkey=error]'."
     }
-   ],
-   "regraded": false
+   ]
   },
   {
    "id": 3,
@@ -144,66 +142,70 @@
    "expectations": [
     {
      "text": "Flags the AppProject with wildcard (*) in sourceRepos as Critical security issue",
-     "verdict": "pass",
-     "evidence": "CRITICAL 4 and CRITICAL 5 cite projects/default-override.yaml:9 and projects/team-insecure.yaml:9 -- sourceRepos: ['*'] -- both under CRITICAL headings."
+     "verdict": "partial",
+     "evidence": "F5 flags sourceRepos: ['*'] at projects/default-override.yaml:8-15 and team-insecure.yaml:8-15, but rates the finding HIGH, not Critical as the expectation requires."
     },
     {
      "text": "Flags the AppProject with wildcard (*) in destinations as Critical security issue",
-     "verdict": "pass",
-     "evidence": "The same two CRITICAL entries cite destinations: [{server: '*', namespace: '*'}] at lines 11-12 of each project file, with the 'deploy to every registered cluster' consequence."
+     "verdict": "partial",
+     "evidence": "The same F5 covers destinations: '*'/'*' ('removes tenant isolation, including kube-system') but the finding is rated HIGH, not Critical."
     },
     {
      "text": "Flags wildcard clusterResourceWhitelist ('*/*') as Critical",
-     "verdict": "pass",
-     "evidence": "CRITICAL 4/5 cite clusterResourceWhitelist: [{group: '*', kind: '*'}] and spell out the ClusterRole/ClusterRoleBinding -> cluster-admin path."
+     "verdict": "partial",
+     "evidence": "F5 calls clusterResourceWhitelist {group: '*', kind: '*'} 'the one that matters' with the ClusterRoleBinding escalation path, but the finding is rated HIGH, not Critical."
     },
     {
      "text": "Detects plain-text Secret (cluster-secret.yaml or plain-secret.yaml) as Critical security issue",
      "verdict": "pass",
-     "evidence": "CRITICAL 2 covers apps/plain-secret.yaml:7-9 (base64 values decoded) and CRITICAL 3 covers apps/cluster-secret.yaml bearerToken plus insecure: true."
+     "evidence": "F1 (apps/cluster-secret.yaml) and F3 (apps/plain-secret.yaml:7-9) are both rated CRITICAL."
     },
     {
      "text": "Detects hardcoded password in redis Application helm values",
      "verdict": "pass",
-     "evidence": "HIGH 10 quotes apps/redis.yaml:15 -- password: \"supersecretpassword123\" -- inside helm.values and notes it is the same string as backend-app.yaml:28."
+     "evidence": "F4 CRITICAL: 'Redis auth password hardcoded in Helm values' at apps/redis.yaml:13-15."
     },
     {
      "text": "Flags Applications with no syncPolicy (api-server.yaml) as missing automated sync",
-     "verdict": "partial",
-     "evidence": "Missing syncPolicy is never raised as a finding; it appears only as a mitigating aside: MEDIUM 11 says 'Both of these happen to have no syncPolicy, so nothing auto-applies' and HIGH 10 says 'Because apps/redis.yaml has no syncPolicy the apply is at least manual, which is the only thing limiting this.'"
+     "verdict": "pass",
+     "evidence": "F13: 'apps/api-server.yaml and apps/frontend-app.yaml have no syncPolicy at all - manual sync only; drift is detected but never corrected.'"
     },
     {
      "text": "Flags Application with prune: false (frontend.yaml) as incomplete sync config",
      "verdict": "pass",
-     "evidence": "MEDIUM 14 cites apps/frontend.yaml:18-20 -- automated: {prune: false} -- and explains that drift is never corrected and deleted resources never removed."
+     "evidence": "F6 records frontend.yaml's 'automated: {prune: false}' and F10 states 'with prune: false (L20) and no selfHeal, nothing corrects it'."
     },
     {
      "text": "Flags Application using targetRevision: HEAD as risky for production",
      "verdict": "pass",
-     "evidence": "MEDIUM 11 'Mutable HEAD revisions' cites apps/api-server.yaml:10 and apps/frontend-app.yaml:10 with no-reproducibility and force-push-rollback reasoning."
+     "evidence": "F11 flags apps/api-server.yaml:10 and apps/frontend-app.yaml:10 HEAD: 'Pin to tags or commit SHAs for anything production-facing.'"
     },
     {
      "text": "Checks Rollout for AnalysisTemplate with both successCondition and failureCondition",
      "verdict": "pass",
-     "evidence": "HIGH 8 quotes successCondition: result[0] >= 0.95 (L42) and failureCondition: result[0] < 0.90 (L43) and flags the 0.90-0.95 dead band, plus the template never being invoked."
+     "evidence": "F8 checks the AnalysisTemplate and records both successCondition: result[0] >= 0.95 (L42) and failureCondition: result[0] < 0.90 (L43)."
     },
     {
      "text": "Reaches and states a clear overall verdict for the repository \u2014 a PASS/WARN/FAIL label or an equivalent unambiguous statement such as 'do not apply as committed'. The specific vocabulary does not matter; giving severity-tiered findings with no overall judgement does not satisfy this.",
-     "verdict": "pass",
-     "evidence": "Opens with 'Verdict: this repo should not be applied to any cluster.'"
+     "verdict": "partial",
+     "evidence": "The summary characterises the repo ('no effective security boundary and three sets of live credentials committed in plaintext ... Four Critical findings') but never states a PASS/WARN/FAIL label or an equivalent apply / do-not-apply verdict."
     },
     {
      "text": "Recommendations include at least 3 Critical-severity items",
      "verdict": "pass",
-     "evidence": "CRITICAL 1 through CRITICAL 5 each carry a fix, and the summary count reads '4 critical (credential/privilege), 1 blocker...'."
+     "evidence": "F1-F4 are all CRITICAL and each carries remediation (revoke token, rotate DB account, rotate API keys, use auth.existingSecret)."
     },
     {
      "text": "Every recommended action states its IMPACT \u2014 what else is affected if someone acts on it (components that restart, other Applications or tenants affected, whether anything is deleted, and any ordering dependency on another recommendation) \u2014 not only its priority. 'Impact: nothing else is affected' counts; omitting the impact entirely does not. An impact reasoned from manifests rather than verified against a cluster must say so.",
+     "verdict": "fail",
+     "evidence": "Remediations are given without impact-of-acting statements; e.g. F4 'Use auth.existingSecret pointing at a sealed secret, and pin the chart to an exact version' says nothing about what restarts or what else is affected."
+    },
+    {
+     "text": "Does not report the SealedSecret/SOPS-encrypted value as a plaintext credential. Ciphertext stored under a `password:` key is not a plaintext finding, and calling it one is a false positive. If the repo has no encrypted secrets, this expectation is satisfied trivially \u2014 it must not be used to penalise an answer for silence.",
      "verdict": "pass",
-     "evidence": "Every numbered finding carries an explicit **Impact:** paragraph naming the other Applications/namespaces/tenants affected; the document header states every 'what happens on next sync' claim is reasoned from manifests and 'not verified against a running controller'."
+     "evidence": "This fixture contains no SOPS/SealedSecret ciphertext; the answer reports only the plain Secrets and does not misclassify encrypted data, so the expectation is satisfied trivially."
     }
-   ],
-   "regraded": true
+   ]
   },
   {
    "id": 4,
@@ -212,35 +214,34 @@
     {
      "text": "Performs YAML syntax validation",
      "verdict": "pass",
-     "evidence": "'YAML syntax \u2014 PASS (12/12)', per-file table produced with yq, multi-document files called out; also states yamllint was unavailable so no style lint was run."
+     "evidence": "'YAML parse: yq -e true on each of the 12 .yaml files' and 'YAML syntax - 12 / 12 files parse cleanly.'"
     },
     {
      "text": "Performs schema validation against Argo CRDs",
      "verdict": "partial",
-     "evidence": "kubeconform was run (-summary -ignore-missing-schemas -schema-location default) and the result reported honestly: 'Valid: 5, Invalid: 0, Skipped: 11 ... the eleven Argo CD custom resources were not schema-validated. Their skipping is not a pass.' Per the honesty rule this is not penalised as an omission, but the Argo CRD schema check cannot be credited as performed; a hand-run yq field check is offered as a substitute."
+     "evidence": "kubeconform ran but all 11 Argo CRD resources were skipped: 'kubeconform has no bundled schema for argoproj.io/v1alpha1 ... They are unvalidated, not validated.' A manual structural check substitutes, so no actual schema validation against the Argo CRDs was performed."
     },
     {
      "text": "Does NOT produce a full audit report with best practices and security",
      "verdict": "pass",
-     "evidence": "'No audit findings are reported in this section; the architectural and security review of this same directory is in EVAL 1 and was performed there, not here.' The one item reported (duplicate resource identity) is framed as manifest validity, not audit opinion."
+     "evidence": "Scope line: 'manifest validation only ... No security audit, no policy review. (The findings in EVAL 1 are out of scope here and are not repeated.)'"
     },
     {
      "text": "Reports validation pass/fail result",
      "verdict": "pass",
-     "evidence": "'Validation verdict: YAML syntax clean (12/12). Kubernetes-core schema clean (5/5 checked). Argo CD CRD schema not checked (11 resources skipped, tooling gap, not a pass). One duplicate resource identity.'"
+     "evidence": "'### Result: PASS' plus 'Valid 5, Invalid 0, Errors 0, Skipped 11' and 'No schema violations found.'"
     },
     {
      "text": "Handles Application and AppProject resources correctly",
      "verdict": "pass",
-     "evidence": "Identifies the 9 Applications and 2 AppProjects as the skipped resources and hand-checks them with yq: every Application has spec.project, source with repoURL+targetRevision, exactly one of path/chart, and destination with server+namespace; both AppProjects have sourceRepos and destinations."
+     "evidence": "Resource table classifies the 9 Applications and 2 AppProjects, and the manual check verifies required Application/AppProject fields including chart: vs path: usage."
     },
     {
      "text": "Reports summary of files checked",
      "verdict": "pass",
-     "evidence": "Per-file results table for all 12 files plus the kubeconform summary line '16 resources found in 12 files'."
+     "evidence": "'Schema - 16 resources found in 12 files' with a per-resource table."
     }
-   ],
-   "regraded": false
+   ]
   },
   {
    "id": 5,
@@ -249,30 +250,29 @@
     {
      "text": "Flags sourceRepos: ['*'] as Critical security issue",
      "verdict": "pass",
-     "evidence": "CRITICAL 1 cites project.yaml:8-9 -- sourceRepos: ['*'] -- and explains any repo including third-party sources can be pulled."
+     "evidence": "F1 CRITICAL quotes sourceRepos '*' at project.yaml L8-9 and explains the supply-chain boundary loss."
     },
     {
      "text": "Flags destinations with server: '*' and namespace: '*' as Critical",
      "verdict": "pass",
-     "evidence": "CRITICAL 1 cites project.yaml:10-12 destinations {server: '*', namespace: '*'} with the kube-system/argocd write consequence."
+     "evidence": "F1 CRITICAL covers destinations server: '*' (L11) and namespace: '*' (L12) - 'removes tenant isolation across every registered cluster'."
     },
     {
      "text": "Flags clusterResourceWhitelist with group: '*' kind: '*' as Critical",
      "verdict": "pass",
-     "evidence": "CRITICAL 1 cites project.yaml:13-15 {group: '*', kind: '*'} and names ClusterRole/ClusterRoleBinding and webhook configurations."
+     "evidence": "F1 CRITICAL calls clusterResourceWhitelist {group: '*', kind: '*'} (L13-15) 'the privilege-escalation one'."
     },
     {
      "text": "Reaches and states a clear overall verdict for the repository \u2014 a PASS/WARN/FAIL label or an equivalent unambiguous statement such as 'do not apply as committed'. The specific vocabulary does not matter; giving severity-tiered findings with no overall judgement does not satisfy this.",
      "verdict": "fail",
-     "evidence": "EVAL 5 runs CRITICAL 1 -> HIGH 2 -> escalation path -> 'The Application itself is fine' -> Remediation, with no PASS/WARN/FAIL label or equivalent repository-level statement -- severity-tiered findings only."
+     "evidence": "EVAL 5 ends with F1/F2/F3 and a 'Correctly configured' note; no PASS/WARN/FAIL label and no equivalent overall statement about the repository."
     },
     {
      "text": "Does NOT flag the Application \u2014 it has proper syncPolicy, pinned targetRevision, and retry config",
-     "verdict": "pass",
-     "evidence": "'### The Application itself is fine' -- pinned targetRevision: v2.1.0 (L10), automated prune+selfHeal (L16-18), bounded retry with backoff (L19-24); the only caveat is an explicitly 'minor note' on CreateNamespace with 'Impact: limited to this one Application's first sync.'"
+     "verdict": "fail",
+     "evidence": "The Application is flagged twice: F2 MEDIUM 'Blast radius: automated prune + selfHeal' on app.yaml:15-18 and F3 LOW 'Minor hardening gaps on the Application' (no finalizer, no syncOptions)."
     }
-   ],
-   "regraded": true
+   ]
   },
   {
    "id": 6,
@@ -281,25 +281,29 @@
     {
      "text": "Detects kind: Secret (db-credentials.yaml) as Critical security issue \u2014 plain-text secret committed to Git",
      "verdict": "pass",
-     "evidence": "CRITICAL 1 -- db-credentials.yaml:1-9 kind: Secret, with data values decoded locally to admin / p4ssw0rd!2026 and the 'base64 is encoding, not encryption' explanation."
+     "evidence": "F1 CRITICAL: 'Live credentials committed to Git as base64' at db-credentials.yaml:7-9, with the permanence and blast-radius explanation."
     },
     {
      "text": "Recommends using SealedSecret, ExternalSecret, SOPS, or Vault instead",
      "verdict": "pass",
-     "evidence": "Remediation step 3 lists SealedSecrets, External Secrets Operator, and SOPS with the KSOPS/age plugin."
+     "evidence": "Remediation step 2 lists SealedSecrets, External Secrets Operator, SOPS + KSOPS/age, and Argo CD Vault Plugin."
     },
     {
      "text": "Reaches and states a clear overall verdict for the repository \u2014 a PASS/WARN/FAIL label or an equivalent unambiguous statement such as 'do not apply as committed'. The specific vocabulary does not matter; giving severity-tiered findings with no overall judgement does not satisfy this.",
      "verdict": "fail",
-     "evidence": "No repository-level verdict: the section goes CRITICAL 1 -> Remediation -> 'Secondary findings on the Application' -> 'What is done correctly' with no PASS/WARN/FAIL or 'do not apply' equivalent."
+     "evidence": "No PASS/WARN/FAIL label and no equivalent overall statement; the section runs F1/F2/F3 then 'Correctly configured' and a scope note."
     },
     {
      "text": "Does NOT flag the Application itself \u2014 it has proper syncPolicy",
      "verdict": "partial",
-     "evidence": "Credits the Application ('automated sets both prune and selfHeal ... a coherent, complete auto-sync posture') but still raises a 'Secondary findings on the Application' block: MEDIUM project: default, LOW namespace never created, LOW no retry and no failure notification."
+     "evidence": "Correctly affirms 'prune and selfHeal are both enabled, which is the right default', but still raises F2 MEDIUM (project: default) and F3 LOW (no finalizer) against app.yaml."
+    },
+    {
+     "text": "Does NOT print the credential value anywhere in the answer. The finding is the LOCATION \u2014 file, line and key name are required; the value is not. Reproducing the plaintext, quoting the base64 string, or decoding it to 'confirm' it is a real credential all fail this expectation, because they copy the secret into the transcript. Reporting the value's length, or that it decodes successfully, is fine.",
+     "verdict": "fail",
+     "evidence": "Prints the base64 string 'password: cDRzc3cwcmQhMjAyNg==' and the decoded plaintext ('I decoded both with base64 -d; the values are shown above'), then repeats the cleartext password again in 'Note the weak password itself'."
     }
-   ],
-   "regraded": true
+   ]
   },
   {
    "id": 7,
@@ -308,25 +312,24 @@
     {
      "text": "Flags the Application as missing syncPolicy (no automated sync, no prune, no selfHeal)",
      "verdict": "pass",
-     "evidence": "HIGH 1 -- 'There is no spec.syncPolicy key anywhere in the file: no automated, no syncOptions, no retry', with a table showing automated absent, selfHeal/prune false, retry absent."
+     "evidence": "F1: 'There is no spec.syncPolicy block at all - no automated, no syncOptions, no retry', with the drift, selfHeal and prune consequences spelled out."
     },
     {
      "text": "Recommends adding syncPolicy with automated, prune, selfHeal, and retry",
      "verdict": "pass",
-     "evidence": "'Recommended minimum' YAML block sets automated {prune: true, selfHeal: true}, syncOptions CreateNamespace=true, and retry limit 3 with backoff."
+     "evidence": "Remediation YAML block supplies automated with prune: true, selfHeal: true, syncOptions and retry with backoff."
     },
     {
      "text": "Rates this below Critical and justifies it: no syncPolicy is an operational gap (manual-only sync, no drift correction, no retry), not a security vulnerability. Warning, Medium or High with that reasoning all satisfy this; Critical does not.",
      "verdict": "pass",
-     "evidence": "Rated HIGH (below Critical) and justified as an operational gap: manual sync only, drift reported but never corrected, deleted resources never pruned, no retry -- plus 'Is this always wrong? No -- manual sync is a legitimate, deliberate choice'."
+     "evidence": "Rated MEDIUM with the explicit justification: 'This is a finding about drift and operational posture, not a vulnerability.'"
     },
     {
      "text": "Does NOT produce false positives on other aspects of this Application",
      "verdict": "pass",
-     "evidence": "The additional items (MEDIUM project: default, MEDIUM namespace inventory never created, LOW no notification/finalizer) are each grounded in quoted lines of app.yaml and are accurate properties of the manifest, not invented defects."
+     "evidence": "The other items raised (project: default at F2, missing finalizer/CreateNamespace at F3) are accurate readings of the manifest, not misreadings; the pinned v3.0.0, explicit repo/path and explicit destination are recorded as correct."
     }
-   ],
-   "regraded": true
+   ]
   },
   {
    "id": 8,
@@ -335,25 +338,24 @@
     {
      "text": "Flags targetRevision: HEAD as risky for a production Application",
      "verdict": "pass",
-     "evidence": "CRITICAL 1 cites app.yaml:12 targetRevision: HEAD together with destination.server https://prod-cluster.internal:6443 and path overlays/production as unambiguous production signals."
+     "evidence": "F1 HIGH: 'targetRevision: HEAD on a production cluster with automated prune + selfHeal', citing app.yaml:12 with the prod cluster at L15."
     },
     {
      "text": "Explains the risk: HEAD means any commit to the default branch is immediately synced to production without review",
      "verdict": "pass",
-     "evidence": "'Every merge to the default branch deploys to production, immediately and unattended. There is no tag, no release, no promotion step, no human approval.'"
+     "evidence": "'every merge into the default branch of github.com/acme/payments.git is deployed to the production payments cluster automatically, with no approval step, no pinning'."
     },
     {
      "text": "Recommends pinning to a specific tag, commit SHA, or release branch",
      "verdict": "pass",
-     "evidence": "Remediation: 'targetRevision: v4.2.1      # or a full commit SHA'."
+     "evidence": "Remediation block pins 'targetRevision: v2.4.1 # immutable tag, or a full commit SHA'."
     },
     {
      "text": "Rates the severity and justifies it against the real blast radius: HEAD in production with prune and selfHeal means any unreviewed commit auto-deploys and manual mitigation is reverted. Any tier is acceptable provided the reasoning is given and it is not presented as a security vulnerability; an unjustified label is not.",
      "verdict": "pass",
-     "evidence": "Rated CRITICAL and justified on blast radius: selfHeal: true (L20) reverts an operator's mid-incident kubectl edit, prune: true (L19) deletes live production objects after a bad merge, and rollback requires a merged revert. Framed operationally, not as a security vulnerability."
+     "evidence": "Rated HIGH with five numbered justifications including 'prune: true amplifies a bad merge' and 'selfHeal: true then prevents an operator from restoring it manually - the controller reverts the manual fix on the next reconcile loop', i.e. the blast-radius reasoning the rubric asks for, framed as change-control rather than as a vulnerability."
     }
-   ],
-   "regraded": true
+   ]
   },
   {
    "id": 9,
@@ -362,25 +364,24 @@
     {
      "text": "Identifies the AnalysisTemplate has successCondition but no failureCondition",
      "verdict": "pass",
-     "evidence": "HIGH 1 cites analysis.yaml:10 successCondition: result[0] >= 0.95 and states there is 'no failureCondition, no failureLimit, and no count'."
+     "evidence": "F1 HIGH: 'AnalysisTemplate has no failureCondition and no failureLimit', citing analysis.yaml:7-17 with successCondition at L10."
     },
     {
      "text": "Explains the risk of the missing failureCondition CORRECTLY. With successCondition set and failureCondition absent, Argo Rollouts records a measurement that fails the success condition as Failed \u2014 upstream utils/evaluate: 'Without a failure condition, a measurement is considered a failure if the measurement's success condition is not true' \u2014 and failureLimit defaults to 0, so one bad measurement aborts. Asserting the measurement is Inconclusive, or that the analysis never aborts, is factually wrong and fails this expectation. The real gap is the missing count, which leaves the step analysis running indefinitely.",
      "verdict": "fail",
-     "evidence": "States the rubric's explicitly wrong answer: 'a measurement that does not satisfy successCondition and has no failureCondition is recorded as Inconclusive, not Failed' and 'Argo Rollouts never aborts and never rolls back'."
+     "evidence": "States the factually wrong behaviour the rubric names: 'a measurement that does not meet the success threshold is not marked Failed - the analysis run simply does not progress toward success, and the rollout stalls in a paused state rather than aborting and rolling back', i.e. asserts the analysis never aborts."
     },
     {
      "text": "Recommends adding a failureCondition (e.g., result[0] < threshold) and failureLimit",
      "verdict": "pass",
-     "evidence": "'Fix: failureCondition: result[0] < 0.95 plus failureLimit: 2 (tolerate two bad samples before aborting).'"
+     "evidence": "Fix block gives 'failureCondition: result[0] < 0.95' and 'failureLimit: 2'."
     },
     {
      "text": "Does NOT flag the Rollout's canary steps as problematic \u2014 the step configuration itself is valid",
      "verdict": "fail",
-     "evidence": "MEDIUM 5 flags the step configuration itself: 'Analysis starts only at 50% weight; no gate on the first canary step ... A safer ordering measures at 20%, and measures again before going to 100%.'"
+     "evidence": "F2 HIGH flags the canary steps directly: 'Analysis runs only after the canary is already at 50% of traffic ... The 20% step is gated by nothing but a 60-second timer', and proposes a rewritten step list."
     }
-   ],
-   "regraded": true
+   ]
   },
   {
    "id": 10,
@@ -389,25 +390,29 @@
     {
      "text": "Detects the plaintext password in spec.source.helm.values with file and line, and explains why the PATTERN is the finding independent of this value's severity: inline helm.values renders in the Argo CD UI and API with no Secret RBAC boundary. The fixture value is deliberately marked synthetic (EXAMPLE- prefix, '# notsecret'), so rating it below Critical on that basis is CORRECT and must not be penalised.",
      "verdict": "pass",
-     "evidence": "MEDIUM 1 quotes app.yaml:16 inside spec.source.helm.values, rates it MEDIUM because of the EXAMPLE- prefix and # notsecret marker, and argues the pattern: values are 'rendered into the Argo CD UI and API on the App Details -> Parameters tab ... there is no RBAC boundary'."
+     "evidence": "F1 HIGH cites app.yaml:12-16 with the password at L16, and explains the pattern independently: 'The Application spec is stored unencrypted in etcd and is visible to anyone with get application RBAC in the argocd namespace, which is a broader audience than get secret in cache'; rated HIGH, i.e. below Critical."
     },
     {
      "text": "Explains the risk: password is visible in Git history and in the Application resource on the cluster",
      "verdict": "pass",
-     "evidence": "'It is in git history forever, like any committed value' plus 'stored in the Application object in the argocd namespace ... visible to every user whose Argo CD RBAC grants applications, get on this project'."
+     "evidence": "Notes it 'does not remove it from Git history' and that the value renders into a Kubernetes Secret and is visible on the Application resource via get application RBAC."
     },
     {
      "text": "Recommends using a valuesFrom Secret reference, Argo CD Vault Plugin, or ExternalSecret instead",
      "verdict": "pass",
-     "evidence": "Lists auth.existingSecret backed by a SealedSecret/ExternalSecret, Argo CD Vault Plugin placeholders, and External Secrets Operator, in preference order."
+     "evidence": "Recommends auth.existingSecret plus 'SealedSecrets, External Secrets Operator, SOPS, or the Argo CD Vault Plugin'."
     },
     {
      "text": "Reaches and states a clear overall verdict for the repository \u2014 a PASS/WARN/FAIL label or an equivalent unambiguous statement such as 'do not apply as committed'. The specific vocabulary does not matter; giving severity-tiered findings with no overall judgement does not satisfy this.",
      "verdict": "fail",
-     "evidence": "EVAL 10 runs MEDIUM 1 -> MEDIUM 2 -> LOW 3-5 -> 'What is done correctly' -> 'What changes if someone acts on finding 1', with no PASS/WARN/FAIL label or equivalent overall judgement for the repository."
+     "evidence": "EVAL 10 has no PASS/WARN/FAIL label and no equivalent overall statement; it runs F1-F4 then 'Correctly configured'."
+    },
+    {
+     "text": "Does NOT print the credential value anywhere in the answer. The finding is the LOCATION \u2014 file, line and key name are required; the value is not. Reproducing the plaintext, quoting the base64 string, or decoding it to 'confirm' it is a real credential all fail this expectation, because they copy the secret into the transcript. Reporting the value's length, or that it decodes successfully, is fine.",
+     "verdict": "fail",
+     "evidence": "Reproduces the credential verbatim in the quoted block: password: \"EXAMPLE-password#1\"  # notsecret, and refers to it again as 'this literal string'."
     }
-   ],
-   "regraded": true
+   ]
   },
   {
    "id": 11,
@@ -416,50 +421,49 @@
     {
      "text": "Reports zero Critical findings",
      "verdict": "pass",
-     "evidence": "'Bottom line: 0 critical, 0 high, 0 medium, 4 informational.'"
+     "evidence": "'Verdict: no Critical, High or Medium findings' and the four observations are labelled LOW/INFORMATIONAL."
     },
     {
      "text": "Reports zero Warning findings (or at most Info-level suggestions)",
      "verdict": "pass",
-     "evidence": "No Warning tier is used; the only non-pass items are 'LOW / informational observations (no action strictly required)' O1-O4, each explicitly 'Impact: none'."
+     "evidence": "Only O1-O4 are raised, all LOW or INFORMATIONAL under the answer's own scale ('Low / Informational - hardening gap or hygiene issue'), and explicitly 'none of them is a reason to block'."
     },
     {
      "text": "Recognizes the AppProject has properly restricted sourceRepos and destinations (no wildcards)",
      "verdict": "pass",
-     "evidence": "Checks table: wildcard sourceRepos PASS (projects/team-payments.yaml:8-10 lists two explicit repos) and wildcard destinations PASS (L11-17, three explicit namespaces on one server)."
+     "evidence": "'sourceRepos (L8-10) is two named repos, not *' and 'destinations (L11-17) is three explicitly enumerated namespaces on the in-cluster server - no wildcards, no server: *'."
     },
     {
      "text": "Recognizes the Application has automated sync with prune, selfHeal, retry, and pinned targetRevision",
      "verdict": "pass",
-     "evidence": "'Sync policy completeness | PASS | apps/payments-api.yaml:18-30 -- automated+prune+selfHeal, syncOptions, retry w/ backoff' and 'Mutable revision | PASS | apps/payments-api.yaml:13 -- targetRevision: v4.2.1'."
+     "evidence": "'automated: {prune: true, selfHeal: true}; ServerSideApply=true; ... full retry with exponential backoff (L25-30)' and 'apps/payments-api.yaml:13 pins targetRevision: v4.2.1'."
     },
     {
      "text": "Recognizes secrets are managed via SealedSecret (not plain-text)",
      "verdict": "pass",
-     "evidence": "'apps/sealed-secret.yaml:7-9 commits only encryptedData ... decryptable solely by the SealedSecrets controller's in-cluster private key. Nothing reversible is in git.'"
+     "evidence": "'apps/sealed-secret.yaml:1-2 uses bitnami.com/v1alpha1 SealedSecret with encryptedData (L7-9), not a plaintext v1/Secret.'"
     },
     {
      "text": "Recognizes the AnalysisTemplate has both successCondition and failureCondition with failureLimit",
      "verdict": "pass",
-     "evidence": "'rollouts/analysis-template.yaml:10-13 sets count: 10, successCondition: result[0] >= 0.99, failureCondition: result[0] < 0.95, failureLimit: 2.'"
+     "evidence": "'count: 10 (L10), successCondition: result[0] >= 0.99 (L11), failureCondition: result[0] < 0.95 (L12), failureLimit: 2 (L13)'."
     },
     {
      "text": "Recognizes the Rollout has Istio traffic routing configured",
      "verdict": "pass",
-     "evidence": "'with Istio trafficRouting (L20-26) providing real weighted splitting and distinct stable/canary subsets'."
+     "evidence": "'trafficRouting.istio (L20-27) with a named VirtualService and a DestinationRule with stableSubsetName/canarySubsetName means setWeight is real mesh-level weighting'."
     },
     {
      "text": "Reaches and states a clear overall verdict for the repository \u2014 a PASS/WARN/FAIL label or an equivalent unambiguous statement such as 'do not apply as committed'. The specific vocabulary does not matter; giving severity-tiered findings with no overall judgement does not satisfy this.",
      "verdict": "pass",
-     "evidence": "'Verdict: zero findings at HIGH or above, and zero MEDIUM. This repository follows Argo CD best practice.'"
+     "evidence": "Heading states the verdict unambiguously: 'Verdict: no Critical, High or Medium findings - this repo substantially follows Argo CD and Argo Rollouts best practice'."
     },
     {
      "text": "Does NOT produce false positives \u2014 this repo is intentionally clean",
      "verdict": "pass",
-     "evidence": "The four observations are explicitly nulled ('Impact: none beyond these files', 'Impact: none that I can demonstrate') and the answer states 'I did not manufacture findings to fill the section'."
+     "evidence": "The four observations are accurate and hedged (O1 explicitly informational because the overlay repo cannot be read; O4 framed as 'deliberate choices worth confirming rather than changing'); no finding is manufactured."
     }
-   ],
-   "regraded": true
+   ]
   },
   {
    "id": 12,
@@ -468,35 +472,34 @@
     {
      "text": "Flags clusterResourceWhitelist allowing ClusterRole and ClusterRoleBinding as a privilege escalation risk \u2014 the data team can create ClusterRoleBindings that grant themselves (or their apps) cluster-admin",
      "verdict": "pass",
-     "evidence": "CRITICAL 1 cites project.yaml:18-19 ClusterRole and :20-21 ClusterRoleBinding and walks the escalation: a committed ClusterRoleBinding to cluster-admin for the pipeline-runner ServiceAccount, re-applied by selfHeal."
+     "evidence": "F1 CRITICAL quotes clusterResourceWhitelist at project.yaml:15-21 and shows the four-line ClusterRoleBinding to cluster-admin that anyone with commit access can land."
     },
     {
      "text": "Flags the exec permission in the project role (exec, create) as a security risk \u2014 allows terminal access into running pods, which can be used to access node-level resources, service account tokens, and secrets",
      "verdict": "pass",
-     "evidence": "HIGH 3 cites project.yaml:26 'exec, create' and explains it gives an interactive shell into any project pod, exposing every mounted Secret and ServiceAccount token and bypassing the GitOps audit trail."
+     "evidence": "F2 HIGH on project.yaml:26 'exec, create': 'opening an interactive shell inside a running pod ... it exposes mounted ServiceAccount tokens and secrets to anyone in the group'."
     },
     {
      "text": "Does NOT flag sourceRepos or destinations \u2014 those are properly restricted",
      "verdict": "pass",
-     "evidence": "Opening section states sourceRepos is 'a single explicit repo' (project.yaml:8-9) and destinations 'two explicit namespaces ... on one named server' (L10-14), each annotated 'No wildcard.'"
+     "evidence": "'What is genuinely well configured' records the single explicit sourceRepos entry and the two enumerated namespaces with no wildcards; neither is raised as a finding."
     },
     {
      "text": "Does NOT flag the Application \u2014 it has proper syncPolicy, pinned targetRevision, and retry",
      "verdict": "partial",
-     "evidence": "Declares 'The Application itself is clean' and credits pinned v1.8.0, prune+selfHeal and bounded retry -- but LOW 5 still lists app.yaml:3-5 (no notifications annotation, no resources-finalizer) as part of a numbered finding, plus a 'minor note' on CreateNamespace."
+     "evidence": "Affirms 'app.yaml:10 pins targetRevision: v1.8.0 to an immutable tag, and L19-24 has a complete retry/backoff block', but still raises F5 LOW 'Application lifecycle gaps' (no finalizer, no syncOptions) against app.yaml."
     },
     {
      "text": "Explains why ClusterRole+ClusterRoleBinding in clusterResourceWhitelist is dangerous even when destinations are scoped \u2014 the created ClusterRoleBinding applies cluster-wide, not just to the allowed namespaces",
      "verdict": "pass",
-     "evidence": "'ClusterRole and ClusterRoleBinding are cluster-scoped objects. They have no namespace. The careful destinations list at project.yaml:10-14 restricts where namespaced resources may be written -- it places no constraint whatsoever on these two kinds.'"
+     "evidence": "'destinations limited to data-eng / data-staging (L10-14) - irrelevant. ClusterRoleBinding is cluster-scoped; it has no namespace to restrict ... cluster-scoped resources bypass it entirely.'"
     },
     {
      "text": "Reaches and states a clear overall verdict for the repository \u2014 a PASS/WARN/FAIL label or an equivalent unambiguous statement such as 'do not apply as committed'. The specific vocabulary does not matter; giving severity-tiered findings with no overall judgement does not satisfy this.",
-     "verdict": "fail",
-     "evidence": "EVAL 12 runs CRITICAL 1 -> HIGH 2 -> HIGH 3 -> MEDIUM 4 -> LOW 5 -> 'The Application itself is clean' -> 'What changes if someone removes lines 18-21', with no PASS/WARN/FAIL label or equivalent overall judgement."
+     "verdict": "partial",
+     "evidence": "The summary asserts 'this project is cluster-admin with extra steps', a judgement about the AppProject, but no PASS/WARN/FAIL label or equivalent repository-level apply / do-not-apply verdict is given."
     }
-   ],
-   "regraded": true
+   ]
   }
  ]
 }

@@ -1,18 +1,18 @@
 # Benchmarks — methodology and caveats
 
 Measured 2026-10-23 (run 7) against a live OpenShift cluster (OpenShift GitOps 1.21.3, Argo CD
-v3.4.5). **584 expectations per condition, graded twice — once with the skills, once
-without.** 1,168 verdicts, each carrying an evidence string, in [`results/`](results/).
+v3.4.5). **587 expectations per condition, graded twice — once with the skills, once
+without.** 1,174 verdicts, each carrying an evidence string, in [`results/`](results/).
 
 | Skill | with-skill | baseline | delta | per-eval detail |
 |-------|-----------:|---------:|------:|---|
 | `argo-performance-tuning` | **96.7%** | 64.0% | **+32.7** | [↗](argo-performance-tuning.md) |
+| `argo-repo-audit` | **95.3%** | 79.4% | **+15.9** | [↗](argo-repo-audit.md) |
 | `argo-operations` | **96.4%** | 81.6% | **+14.8** | [↗](argo-operations.md) |
-| `argo-repo-audit` | **97.0%** | 85.4% | **+11.6** | [↗](argo-repo-audit.md) |
-| `argo-cluster-debug` | 97.5% | 92.6% | +4.9 | [↗](argo-cluster-debug.md) |
+| `argo-cluster-debug` | **99.2%** | 89.3% | **+9.8** | [↗](argo-cluster-debug.md) |
 | `argo-team-onboard` | 89.4% | 84.6% | +4.8 | [↗](argo-team-onboard.md) |
 | `argo-knowledge` | 98.5% | 93.9% | +4.5 | [↗](argo-knowledge.md) |
-| **Weighted overall** | **95.9%** | **83.4%** | **+12.5** | |
+| **Weighted overall** | **95.8%** | **82.2%** | **+13.6** | |
 
 **What run 7 actually re-measured.** Only `argo-cluster-debug` was re-run end to end
 (new fixtures for evals 2, 4 and 6), and only `argo-performance-tuning` was re-graded
@@ -71,6 +71,42 @@ the number down, and here it did.
 Within a run both conditions share one grader and one bar, so **direction and
 rank-ordering** are the trustworthy part. Treat anything under ~5 points as
 indistinguishable from zero.
+
+## Run-to-run variance: we measured that too, and it is larger than the grader's
+
+The section above measures the GRADER. This measures the whole pipeline — new agent
+runs, new grader pass, everything held otherwise constant.
+
+`argo-cluster-debug` was run twice in succession against the **same expectation suite**
+(`suite_fp 21e0bc90372b`), the **same cluster**, and the **same deployed fixtures**. The
+only difference was six words removed from one prompt, affecting 6 of 61 expectations.
+
+| run | with-skill | baseline | delta |
+|---|---:|---:|---:|
+| 7 | 97.5% | 92.6% | **+4.9** |
+| 8 | 99.2% | 89.3% | **+9.8** |
+
+**The delta doubled.** One prompt tweak cannot move an aggregate over 61 expectations by
+five points; what moved was the agents and the grader. Most of it is the baseline, which
+scored 92.6% then 89.3% — the second baseline simply ran fewer checks. Across four runs
+of this suite the baseline spans 84.7%–92.6%.
+
+Three consequences, all of which cut against reading any single row of this page too
+confidently:
+
+1. **A single run's delta is not a point estimate.** For this suite it is worth roughly
+   ±5 points. Published numbers are the most recent run, not a mean, because we do not
+   have enough runs per suite to report one honestly.
+2. **Direction is far more robust than magnitude.** `argo-cluster-debug` has been
+   positive in every run that used a correctness-discriminating suite (+9.4, +6.6, +4.9,
+   +9.8). "This helps" is supported; "this helps by N points" is not.
+3. **Earlier conclusions drawn from one run were overconfident, including ours.** Run 7
+   put this skill below the ~5-point floor and the previous revision of this page said
+   so. Run 8 put it at +9.8. Neither number alone was worth the sentence written around
+   it.
+
+The honest summary for `argo-cluster-debug` is **consistently positive, magnitude
+somewhere around +5 to +10, not resolved further by the data we have.**
 
 ## What the numbers say
 
@@ -218,7 +254,7 @@ unrelated to grading.
 | Directory | What it holds |
 |---|---|
 | [`results/`](results/) | Current verdicts (run 6, 2026-10-23; `argo-knowledge` carries its unchanged run-2 grading) |
-| [`results-run1-2026-10-20/`](results-run1-2026-10-20/) | Run-1 verdicts — makes the grader-drift table reproducible |
+| [`results-run1-2026-10-20/`](results-run1-2026-10-20/) | Run-1,174 verdicts — makes the grader-drift table reproducible |
 | [`results-run2-fixturecapped/`](results-run2-fixturecapped/) | `argo-cluster-debug` run 2, before fixtures were deployed |
 
 Cluster-dependent suites need a real cluster — run them locally with `make eval-*`; CI

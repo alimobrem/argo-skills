@@ -499,41 +499,28 @@ no measured baseline is a guess, and this repo does not publish guesses — incl
 the answer is unflattering.
 
 <details open>
-<summary><b>🔵 GitOps</b> — 6 skills, 584 expectations per condition</summary>
+<summary><b>🔵 GitOps</b> — 6 skills, 587 expectations per condition</summary>
 
 | Skill | with-skill | baseline | delta | |
 |-------|-----------:|---------:|------:|---|
-| [`argo-performance-tuning`](benchmarks/argo-performance-tuning.md) | **96.7%** | 64.0% | **+32.7** | |
-| [`argo-operations`](benchmarks/argo-operations.md) | **96.4%** | 81.6% | **+14.8** | |
-| [`argo-repo-audit`](benchmarks/argo-repo-audit.md) | **97.0%** | 85.4% | **+11.6** | |
-| [`argo-cluster-debug`](benchmarks/argo-cluster-debug.md) | 97.5% | 92.6% | +4.9 | *unresolved* |
+| [`argo-performance-tuning`](benchmarks/argo-performance-tuning.md) | **96.7%** | 64.0% | **+32.7** |  |
+| [`argo-repo-audit`](benchmarks/argo-repo-audit.md) | **95.3%** | 79.4% | **+15.9** |  |
+| [`argo-operations`](benchmarks/argo-operations.md) | **96.4%** | 81.6% | **+14.8** |  |
+| [`argo-cluster-debug`](benchmarks/argo-cluster-debug.md) | **99.2%** | 89.3% | **+9.8** |  |
 | [`argo-team-onboard`](benchmarks/argo-team-onboard.md) | 89.4% | 84.6% | +4.8 | *unresolved* |
 | [`argo-knowledge`](benchmarks/argo-knowledge.md) | 98.5% | 93.9% | +4.5 | *unresolved* |
-| **Weighted overall** | **95.9%** | **83.4%** | **+12.5** | |
+| **Weighted overall** | **95.8%** | **82.2%** | **+13.6** | |
 
 **The delta tracks how product-specific a skill is.** Performance tuning — exact setting
 names, defaults the operator silently overrides, which CR field actually wins — gains
 most. General Argo CD knowledge the model already has gains least.
 
-**Half the skills land under the noise floor, and we publish that.** Regrading identical
-text with a fresh grader moved scores by up to 7 points, so anything under ~5 points is
-treated as unresolved rather than as a win. Three of six sit there. A skill can be
-genuinely good and still not be *measurably* better than a competent unaided agent, and
-those two statements are easy to confuse.
-
-**Giving the test cluster the resources the prompts describe moved the baseline more than
-the skill.** `argo-cluster-debug`'s evals used to name objects that did not exist, so both
-arms were capped on anything needing a real finding. After deploying fixtures the skill
-arm rose 92.6% → 97.5% and the baseline rose 86.1% → 92.6% — so the delta *fell* from
-+6.6 to +4.9 and dropped below the floor. Read plainly: a good part of what looked like
-skill advantage was really the skill handling *absent* resources more gracefully. When
-the resources are there, an unaided engineer does nearly as well.
-
-**Fixing a bad eval can lower the score, and did — twice.** `argo-repo-audit`'s
-expectations could not tell a correct root cause from a confident wrong one; rewriting
-them cut its delta from +16.2 to +11.6 by crediting baseline work the vague wording had
-denied. Numbers that only ever move upward when you improve your own measuring
-instrument are a warning sign. These moved both ways.
+**Treat direction as reliable and magnitude as not.** Re-running one suite unchanged, on
+the same cluster, moved its delta from +4.9 to +9.8 — so anything under ~5 points is
+marked *unresolved* above rather than claimed as a win, and even the large numbers are
+worth reading as "clearly helps", not as a measurement. The
+[methodology page](benchmarks/README.md) has the variance data, and the cases where
+fixing our own evals *lowered* a published score.
 
 </details>
 
