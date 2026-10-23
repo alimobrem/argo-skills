@@ -178,6 +178,23 @@ is the false positive that teaches people to ignore the scanner.
 If you must inspect a value to judge severity, say so and ask first — do not print it
 unprompted.
 
+**Known limits of the scanner — read the Secret yourself as well.**
+
+- It keys off credential-ish *key names*, so it does not flag `username:`, `user:` or
+  `host:` even when they sit in the same committed Secret as a password it did flag.
+  Those are part of the same exposure. When a hit lands inside a `kind: Secret`, treat
+  every key in that object's `data`/`stringData` as exposed and say so — by key name,
+  not by value.
+- A value marked `EXAMPLE-` or `# notsecret` is classified synthetic and excluded from
+  the plaintext count. That is right for severity and wrong for the *pattern*: a marker
+  inside a `values: |` block scalar is passed to Helm verbatim, so a placeholder still
+  becomes the live credential. Report the anti-pattern even when the value is synthetic.
+- It reads YAML and JSON only. Credentials in a `.env`, a shell script or a Dockerfile
+  committed alongside the manifests are not scanned.
+
+A clean scan means "no credential-shaped key matched", not "this repo holds no
+secrets". Say which of those you are reporting.
+
 ### Scanning: Find cluster secrets
 
 ```bash
