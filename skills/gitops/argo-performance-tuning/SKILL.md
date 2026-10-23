@@ -175,7 +175,7 @@ on that instance stops reconciling until it is back — a one-field diff hides t
 entirely. Compute the affected set and show it before asking to confirm:
 
 ```bash
-scripts/blast-radius.sh ArgoCD <name> <namespace>
+<repo-root>/scripts/blast-radius.sh ArgoCD <name> <namespace>
 ```
 
 `spec.resourceExclusions` and `resourceTrackingMethod` are the widest of these: they
@@ -197,7 +197,10 @@ Every change that touches the live cluster follows the same 3-step protocol as
    **Common mistakes** list in `references/tuning-settings.md` before presenting the patch.
 2. **Preview**:
    ```bash
-   kubectl patch argocd <name> -n <ns> --type merge -p '<patch>' --dry-run=server --validate=strict -o yaml
+   # NOTE: --validate is an `apply`-only flag. `kubectl/oc patch` rejects it with
+   # "error: unknown flag: --validate", so the preview fails outright. Server dry-run
+   # on a patch still validates against the CRD schema; it just does not take that flag.
+   kubectl patch argocd <name> -n <ns> --type merge -p '<patch>' --dry-run=server -o yaml
    # or, for standalone ConfigMap/env changes:
    kubectl diff -f <file>.yaml
    ```

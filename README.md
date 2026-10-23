@@ -20,22 +20,6 @@
 
 ---
 
-> **Scope — Red Hat OpenShift GitOps.** These skills cover Argo CD and Argo Rollouts as
-> shipped and supported by the OpenShift GitOps operator, including the operator-managed
-> CRDs (`ArgoCD`, `RolloutManager`, `NotificationsConfiguration`, `NamespaceManagement`,
-> `ImageUpdater`). They work against vanilla Argo CD too, but OpenShift GitOps is the
-> target.
->
-> **Argo Workflows and Argo Events are deliberately out of scope** — they are separate
-> upstream projects the operator does not ship, and on OpenShift pipelines are normally
-> [OpenShift Pipelines](https://docs.redhat.com/en/documentation/openshift_pipelines)
-> (Tekton). For those, see the [Argo Workflows](https://argo-workflows.readthedocs.io/)
-> and [Argo Events](https://argoproj.github.io/argo-events/) docs.
->
-> [GitOps Promoter](https://github.com/argoproj-labs/gitops-promoter) **is** covered for
-> environment promotion, but is installed separately — it is argoproj-labs, not
-> operator-owned.
-
 <details>
 <summary><b>Quick Start</b></summary>
 
@@ -191,6 +175,22 @@ Skills are grouped by product. Expand the one you use.
 
 <details open>
 <summary><b>🔵 GitOps</b> — Argo CD, Argo Rollouts · <b>6 skills</b>, benchmarked</summary>
+
+> **Scope — Red Hat OpenShift GitOps.** These skills cover Argo CD and Argo Rollouts as
+> shipped and supported by the OpenShift GitOps operator, including the operator-managed
+> CRDs (`ArgoCD`, `RolloutManager`, `NotificationsConfiguration`, `NamespaceManagement`,
+> `ImageUpdater`). They work against vanilla Argo CD too, but OpenShift GitOps is the
+> target.
+>
+> **Argo Workflows and Argo Events are deliberately out of scope** — they are separate
+> upstream projects the operator does not ship, and on OpenShift pipelines are normally
+> [OpenShift Pipelines](https://docs.redhat.com/en/documentation/openshift_pipelines)
+> (Tekton). For those, see the [Argo Workflows](https://argo-workflows.readthedocs.io/)
+> and [Argo Events](https://argoproj.github.io/argo-events/) docs.
+>
+> [GitOps Promoter](https://github.com/argoproj-labs/gitops-promoter) **is** covered for
+> environment promotion, but is installed separately — it is argoproj-labs, not
+> operator-owned.
 
 <sub>Targets Red Hat OpenShift GitOps 1.19+ · Argo CD v2.14+ / v3.x · Argo Rollouts v1.8+.
 Measured against OpenShift GitOps 1.21.3 / Argo CD v3.4.5.</sub>
@@ -512,18 +512,25 @@ Evals are required; the guide explains the bar and why it is set there.
 
 ## Benchmarks
 
-Every skill is measured against an unaided baseline — the same model, same prompts, same
-live OpenShift cluster, no access to `skills/`. 572 expectations per condition, graded
-blind.
+**Every skill in this repo is measured against an unaided baseline** — same model, same
+prompts, same live cluster, no access to `skills/`. Graded blind: the grader sees
+"Condition A" and "Condition B" and is not told which is which.
+
+That bar applies to every product, not just the one that has skills today. A skill with
+no measured baseline is a guess, and this repo does not publish guesses — including when
+the answer is unflattering.
+
+<details open>
+<summary><b>🔵 GitOps</b> — 6 skills, 583 expectations per condition</summary>
 
 | Skill | with-skill | baseline | delta |
 |-------|-----------:|---------:|------:|
 | [`argo-performance-tuning`](benchmarks/argo-performance-tuning.md) | **94.2%** | 66.8% | **+27.4** |
 | [`argo-repo-audit`](benchmarks/argo-repo-audit.md) | **97.5%** | 81.2% | **+16.2** |
 | [`argo-operations`](benchmarks/argo-operations.md) | **93.8%** | 84.4% | **+9.4** |
+| [`argo-cluster-debug`](benchmarks/argo-cluster-debug.md) | **94.1%** | 84.7% | **+9.3** |
 | [`argo-knowledge`](benchmarks/argo-knowledge.md) | **98.5%** | 93.9% | +4.5 |
 | [`argo-team-onboard`](benchmarks/argo-team-onboard.md) | 84.5% | 84.5% | **0.0** |
-| [`argo-cluster-debug`](benchmarks/argo-cluster-debug.md) | **94.1%** | 84.7% | **+9.3** |
 | **Weighted overall** | **93.8%** | **83.0%** | **+10.8** |
 
 **The delta tracks how product-specific a skill is.** Performance tuning — exact setting
@@ -533,6 +540,19 @@ most. General Argo CD knowledge the model already has gains least.
 **One skill shows no measurable benefit, and we publish that** — `argo-team-onboard`
 ties its baseline exactly. We also measured the grader: regrading identical text moved
 scores up to 7 points, so treat anything under ~5 points as unresolved.
+
+</details>
+
+<details>
+<summary><b>🟣 Service Mesh</b> · <b>🟢 Serverless</b> · <b>🟡 Pipelines</b> — not yet measured</summary>
+
+No skills yet, so nothing to measure. When they land they are held to the same bar:
+a strong unaided baseline on the same prompts, blind grading, per-expectation scoring
+with evidence, and the numbers published whichever way they come out.
+
+See **[docs/adding-a-skill.md](docs/adding-a-skill.md)** for what that involves.
+
+</details>
 
 → **[Methodology, grader-variance analysis, and caveats](benchmarks/README.md)** — read
 before quoting any of these numbers.
