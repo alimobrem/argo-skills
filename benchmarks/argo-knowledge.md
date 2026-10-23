@@ -4,6 +4,15 @@
 
 **98.5% with the skill vs 93.9% baseline (+4.5) over 132 expectations.**
 
+> **Not re-run in run 6.** This suite's expectations were not changed, so its run-2
+> grading is still a current-suite result and `make history` reports it as such. The
+> other five skills were re-graded or re-run on 2026-10-23.
+>
+> **+4.5 is below the ~5-point grader-noise floor**, so this skill is not claimed as a
+> measured win. That is the expected result for general Argo CD knowledge the model
+> largely already has — see the delta discussion in the
+> [root README](../README.md#benchmarks).
+
 Measured against a live OpenShift cluster (OpenShift GitOps 1.21.3, Argo CD v3.4.5).
 Graders saw "Condition A"/"Condition B" without knowing which was which and could not
 read `skills/`. Partial credit; every verdict carries an evidence string. Raw verdicts:

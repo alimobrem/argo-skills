@@ -1,18 +1,22 @@
 # Benchmarks — methodology and caveats
 
-Measured 2026-10-21 against a live OpenShift cluster (OpenShift GitOps 1.21.3, Argo CD
-v3.4.5). **572 expectations per condition, graded twice — once with the skills, once
-without.** 1,144 verdicts, each carrying an evidence string, in [`results/`](results/).
+Measured 2026-10-23 against a live OpenShift cluster (OpenShift GitOps 1.21.3, Argo CD
+v3.4.5). **583 expectations per condition, graded twice — once with the skills, once
+without.** 1,166 verdicts, each carrying an evidence string, in [`results/`](results/).
 
 | Skill | with-skill | baseline | delta | per-eval detail |
 |-------|-----------:|---------:|------:|---|
-| `argo-performance-tuning` | **94.2%** | 66.8% | **+27.4** | [↗](argo-performance-tuning.md) |
-| `argo-repo-audit` | **97.5%** | 81.2% | **+16.2** | [↗](argo-repo-audit.md) |
-| `argo-operations` | **93.8%** | 84.4% | **+9.4** | [↗](argo-operations.md) |
-| `argo-knowledge` | **98.5%** | 93.9% | +4.5 | [↗](argo-knowledge.md) |
-| `argo-team-onboard` | 84.5% | 84.5% | **0.0** | [↗](argo-team-onboard.md) |
-| `argo-cluster-debug` | **94.1%** | 84.7% | **+9.3** | [↗](argo-cluster-debug.md) |
-| **Weighted overall** | **93.6%** | **83.7%** | **+9.9** | |
+| `argo-performance-tuning` | **96.2%** | 64.6% | **+31.6** | [↗](argo-performance-tuning.md) |
+| `argo-operations` | **96.4%** | 81.6% | **+14.8** | [↗](argo-operations.md) |
+| `argo-repo-audit` | **97.0%** | 85.4% | **+11.6** | [↗](argo-repo-audit.md) |
+| `argo-cluster-debug` | **92.6%** | 86.1% | **+6.6** | [↗](argo-cluster-debug.md) |
+| `argo-team-onboard` | 89.4% | 84.6% | +4.8 | [↗](argo-team-onboard.md) |
+| `argo-knowledge` | 98.5% | 93.9% | +4.5 | [↗](argo-knowledge.md) |
+| **Weighted overall** | **95.3%** | **82.8%** | **+12.4** | |
+
+`argo-knowledge` was not re-run on 2026-10-23. Its expectation suite is unchanged, so its
+run-2 grading is still a current-suite result and is carried forward; every other row was
+graded in this run.
 
 ## Method
 
@@ -49,9 +53,16 @@ against the headline numbers:
 1. **Absolute scores are not comparable across grading passes.** A score can move ~7
    points with no change to the skill at all.
 2. **A stricter grader *widens* deltas when the with-skill arm is near ceiling.**
-   `argo-repo-audit` is the clean case: its with-skill score was 97.5% in both runs, but
-   the regraded baseline fell 88.1% → 81.2%, so the delta grew +9.4 → +16.2 without the
-   skill improving. Read that one as "somewhere in +9 to +16".
+   `argo-repo-audit` was the clean case: its with-skill score was 97.5% in two successive
+   runs, but the regraded baseline fell 88.1% → 81.2%, so the delta grew +9.4 → +16.2
+   without the skill improving.
+
+That skill is also the clearest case of the opposite effect. Its expectations were later
+rewritten because they could not distinguish a correct root cause from a confident wrong
+one, and under the corrected rubric the baseline recovered to 85.4% and the delta settled
+at **+11.6** — inside the +9 to +16 band predicted above, and *lower* than the figure the
+vaguer suite had produced. Improving your own measuring instrument should be free to move
+the number down, and here it did.
 
 Within a run both conditions share one grader and one bar, so **direction and
 rank-ordering** are the trustworthy part. Treat anything under ~5 points as
@@ -125,36 +136,53 @@ supports. The baseline lost exactly where it should: it explained `Available=Fal
 asserting a Service-selector problem with no output shown, while the other answer showed
 the pod in `CrashLoopBackOff` with zero Service endpoints.
 
-**Re-run against the corrected suite (run 5, 2026-10-22):** `argo-cluster-debug` scores
-**94.1% vs 84.7% (+9.3)** over 59 expectations, where the old suite showed 92.1% vs
-92.1% (+0.0) on the same skill. The instrument now resolves a difference it previously
-could not. The other five skills were not re-run; their rows predate the change.
+**That caveat has since been discharged.** As of run 6 (2026-10-23) every row on this
+page is graded against the suite currently on disk — `make history` reports no stale
+fingerprints — so the numbers in the table above are internally comparable.
 
-Consequence: **the other numbers on this page predate that change.** They were measured
-against the older, more permissive suite (572 expectations; the suite is now 574), so
-a future run is not directly comparable to them and should be reported as a new
-baseline rather than a delta against these.
+Getting there required the same correction on three more suites, found the same way: by
+reading what the graded runs actually rewarded rather than re-reading the expectations
+on their own.
+
+| Suite | Defect | Effect on the published delta |
+|---|---|---|
+| `argo-repo-audit` (9 of 12 evals) | Generic expectations satisfied by any plausible cause; one asserted the wrong Argo Rollouts `failureCondition` semantics | +16.2 → **+11.6** |
+| `argo-performance-tuning` (eval 16) | Required `resource.exclusions` in `spec.extraConfig`, but the CRD has a dedicated `spec.resourceExclusions` and `extraConfig` *overrides* it — both arms used the correct field and both were capped | +27.4 → **+31.6** |
+| `argo-team-onboard` (eval 13) | Prompt asserts Argo CD is absent; it is installed, and both arms proved it. Three of five expectations were unsatisfiable by a truthful answer | +0.0 → **+4.8** |
+
+Note the directions. Two deltas went up and one went down — `argo-repo-audit` fell
+because the sharper wording credited baseline work the vague wording had been failing.
+A rubric correction that only ever flatters the skill is a rubric correction worth
+distrusting.
 
 ## Caveats — read these before quoting the numbers
 
-1. **Four of the six baselines are run-1 answers, reused.** Only `argo-operations` and
-   `argo-team-onboard` baselines were re-run. Reuse is sound — baselines never see
-   `skills/`, and the eval prompts were verified byte-identical between runs — but those
-   four were regraded, with the drift quantified above.
+1. **Five of six baselines were generated fresh for run 6.** Only `argo-knowledge`
+   carries a reused baseline, from run 2, because its suite did not change. Reuse is
+   sound — baselines never see `skills/`, and prompts were verified byte-identical — but
+   the grader drift quantified above applies to it.
 2. **Run 1's two contaminated baselines are fixed.** To protect a live cluster, the
    `argo-operations` and `argo-team-onboard` baselines had been told to stop before
-   writing — which is part of what those evals measure. Both were re-run with the write
-   ban stated purely as an environment constraint. That is why `team-onboard` dropped
-   from an apparent +4.4 to 0.0: the earlier gap was largely the contamination.
-3. **Expectations that cannot discriminate.** The correctness problem above, plus
-   `argo-team-onboard` eval 13, which asks the agent to detect that Argo CD is absent
-   when it is installed. Both compress deltas toward zero — eval-design bugs, not results.
-4. **Fixes made in response to a run are not reflected in it.** Each skill's files were
+   writing — which is part of what those evals measure. Every run since states the write
+   ban purely as an environment constraint.
+3. **Three suites were re-graded, not re-run, after their expectations were corrected.**
+   The agent answers were unchanged, so only the 11 affected evals were re-graded from
+   the stored transcripts, with the A/B letters re-randomised independently. Re-grading
+   the untouched evals too would have layered fresh grader variance on top of the rubric
+   change and made the two indistinguishable. Unchanged evals carry their original
+   verdicts byte-for-byte; this is checked mechanically before anything is published.
+4. **Some expectations still cannot discriminate, and some prompts still lack fixtures.**
+   `argo-cluster-debug` evals 2, 4 and 6 name resources that do not exist on the test
+   cluster, so those verdicts rest on substitute objects; eval 5's `maxUpdate`
+   expectation presumes a field our own fixture omits. These compress deltas toward zero
+   and are eval-design debt, not results.
+5. **Fixes made in response to a run are not reflected in it.** Each skill's files were
    verified unchanged during its own run, but defects the run surfaced — notably two
    `argo-repo-audit` credential/TLS scans that returned zero on their own fixtures — were
    fixed afterward. Those numbers describe the pre-fix skill.
-5. **Single run, single model, no confidence intervals.** With the measured grader
-   variance, treat small deltas as unresolved rather than real.
+6. **Single run, single model, no confidence intervals.** With the measured grader
+   variance, treat small deltas as unresolved rather than real. On this page that means
+   `argo-team-onboard` (+4.8) and `argo-knowledge` (+4.5) are **not** claimed as wins.
 
 ## Run history
 
@@ -163,7 +191,7 @@ carries a **`suite_fp`** — a hash of the exact expectation texts that were gra
 taken from the stored verdicts rather than from the current `evals.json`.
 
 That field answers the question directory names could not: *is this score comparable
-to that one?* Two scores are comparable **only** if their `suite_fp` match. Four of the
+to that one?* Two scores are comparable **only** if their `suite_fp` match. Five of the
 six suites have been reworded at some point, so comparing numbers without checking is
 wrong more often than it is right.
 
@@ -181,7 +209,7 @@ unrelated to grading.
 
 | Directory | What it holds |
 |---|---|
-| [`results/`](results/) | Current verdicts (run 2; `argo-cluster-debug` is run 3) |
+| [`results/`](results/) | Current verdicts (run 6, 2026-10-23; `argo-knowledge` carries its unchanged run-2 grading) |
 | [`results-run1-2026-10-20/`](results-run1-2026-10-20/) | Run-1 verdicts — makes the grader-drift table reproducible |
 | [`results-run2-fixturecapped/`](results-run2-fixturecapped/) | `argo-cluster-debug` run 2, before fixtures were deployed |
 

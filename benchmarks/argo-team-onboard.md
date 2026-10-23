@@ -1,8 +1,8 @@
 # argo-team-onboard
 
-## Run 2 — 2026-10-21, live cluster, blind A/B
+## Run 6 — 2026-10-23, live cluster, blind A/B
 
-**84.5% with the skill vs 84.5% baseline (+0.0) over 103 expectations.**
+**89.4% with the skill vs 84.6% baseline (+4.8) over 104 expectations.**
 
 Measured against a live OpenShift cluster (OpenShift GitOps 1.21.3, Argo CD v3.4.5).
 Graders saw "Condition A"/"Condition B" without knowing which was which and could not
@@ -13,29 +13,30 @@ read `skills/`. Partial credit; every verdict carries an evidence string. Raw ve
 | # | Eval | n | with-skill | baseline | delta |
 |---|------|--:|-----------:|---------:|------:|
 | 1 | Basic team onboarding (Kustomize) | 10 | 90% | 90% | +0 |
-| 2 | Helm chart team onboarding | 9 | 78% | 94% | -17 **←** |
-| 3 | Self-service ApplicationSet onboarding | 9 | 78% | 89% | -11 **←** |
-| 4 | Discovery: detect existing setup and fill gaps | 7 | 100% | 79% | +21 |
-| 5 | Refuse overprivileged onboarding | 8 | 94% | 100% | -6 |
-| 6 | Multi-env onboarding with gitops-promoter | 9 | 83% | 94% | -11 **←** |
+| 2 | Helm chart team onboarding | 9 | 89% | 94% | -6 |
+| 3 | Self-service ApplicationSet onboarding | 9 | 83% | 94% | -11 **←** |
+| 4 | Discovery: detect existing setup and fill gaps | 7 | 86% | 79% | +7 |
+| 5 | Refuse overprivileged onboarding | 8 | 94% | 94% | +0 |
+| 6 | Multi-env onboarding with gitops-promoter | 9 | 89% | 94% | -6 |
 | 7 | Plain directory source onboarding | 6 | 100% | 92% | +8 |
-| 8 | New team, namespaces do not exist yet | 6 | 58% | 92% | -33 **←** |
+| 8 | New team, namespaces do not exist yet | 6 | 100% | 50% | +50 |
 | 9 | Production SyncWindow for change control | 5 | 100% | 100% | +0 |
-| 10 | Onboarding request collides with an existing AppProject name | 5 | 100% | 60% | +40 |
-| 11 | Validate onboarding after apply | 6 | 58% | 58% | +0 |
-| 12 | Out-of-scope request — CI pipeline and secrets setup | 5 | 90% | 90% | +0 |
-| 13 | Onboarding attempted before Argo CD is installed | 5 | 30% | 40% | -10 **←** |
-| 14 | Choose and scaffold the values-based onboarding model | 6 | 100% | 67% | +33 |
-| 15 | Tenant security baseline: NetworkPolicies and Pod Security Standards | 7 | 100% | 93% | +7 |
-| | **total** | **103** | **84.5%** | **84.5%** | **+0.0** |
+| 10 | Onboarding request collides with an existing AppProject name | 5 | 80% | 80% | +0 |
+| 11 | Validate onboarding after apply | 6 | 50% | 42% | +8 |
+| 12 | Out-of-scope request — CI pipeline and secrets setup | 5 | 90% | 100% | -10 **←** |
+| 13 | Onboarding attempted before Argo CD is installed | 5 | 90% | 80% | +10 |
+| 14 | Choose and scaffold the values-based onboarding model | 7 | 100% | 64% | +36 |
+| 15 | Tenant security baseline: NetworkPolicies and Pod Security Standards | 7 | 100% | 100% | +0 |
+| | **total** | **104** | **89.4%** | **84.6%** | **+4.8** |
 
-**Largest gains:** #10 Onboarding request collides with an existing AppProject name (+40); #14 Choose and scaffold the values-based onboarding model (+33); #4 Discovery: detect existing setup and fill gaps (+21).
+**Largest gains:** #8 New team, namespaces do not exist yet (+50); #14 Choose and scaffold the values-based onboarding model (+36); #13 Onboarding attempted before Argo CD is installed (+10).
 
-**Lost to baseline:** #8 New team, namespaces do not exist yet (-33); #2 Helm chart team onboarding (-17); #3 Self-service ApplicationSet onboarding (-11).
+**Lost to baseline:** #3 Self-service ApplicationSet onboarding (-11); #12 Out-of-scope request — CI pipeline and secrets setup (-10); #2 Helm chart team onboarding (-6).
 
-> **Baseline re-run for run 2.** The run-1 baseline for this skill was contaminated
+> **Baseline history.** The run-1 baseline for this skill was contaminated
 > by the prompt author (told to stop before writing, which is part of what these evals
-> measure). This run states the write ban as an environment constraint only.
+> measure). Every run since states the write ban as an environment constraint only,
+> including run 6, whose baseline was generated fresh.
 
 ---
 

@@ -1,8 +1,8 @@
 # argo-performance-tuning
 
-## Run 2 — 2026-10-21, live cluster, blind A/B
+## Run 6 — 2026-10-23, live cluster, blind A/B
 
-**94.2% with the skill vs 66.8% baseline (+27.4) over 104 expectations.**
+**96.2% with the skill vs 64.6% baseline (+31.6) over 106 expectations.**
 
 Measured against a live OpenShift cluster (OpenShift GitOps 1.21.3, Argo CD v3.4.5).
 Graders saw "Condition A"/"Condition B" without knowing which was which and could not
@@ -12,30 +12,30 @@ read `skills/`. Partial credit; every verdict carries an evidence string. Raw ve
 
 | # | Eval | n | with-skill | baseline | delta |
 |---|------|--:|-----------:|---------:|------:|
-| 1 | Repo-server OOMKilled on monorepo mass sync | 7 | 86% | 50% | +36 |
+| 1 | Repo-server OOMKilled on monorepo mass sync | 8 | 94% | 56% | +38 |
 | 2 | Sluggish UI and slow drift detection at scale | 6 | 100% | 83% | +17 |
-| 3 | Single controller maxed out across many clusters | 6 | 67% | 50% | +17 |
-| 4 | Context deadline exceeded viewing a large Application | 5 | 100% | 100% | +0 |
+| 3 | Single controller maxed out across many clusters | 6 | 75% | 42% | +33 |
+| 4 | Context deadline exceeded viewing a large Application | 5 | 100% | 90% | +10 |
 | 5 | Git provider rate-limiting across many apps on one repo | 4 | 75% | 12% | +62 |
-| 6 | High baseline load without webhooks at scale | 5 | 100% | 80% | +20 |
+| 6 | High baseline load without webhooks at scale | 5 | 100% | 100% | +0 |
 | 7 | User requests the known Operator misconfiguration directly | 5 | 100% | 90% | +10 |
 | 8 | Sharding requested with only one cluster | 4 | 100% | 100% | +0 |
 | 9 | Floating tag freshness vs. cache TTL | 4 | 100% | 100% | +0 |
-| 10 | Shallow clone on a public repo with no existing Secret | 4 | 100% | 88% | +12 |
-| 11 | Unsupported sharding algorithm requested on OpenShift GitOps | 4 | 88% | 50% | +38 |
-| 12 | Multiple simultaneous symptoms — prioritization | 5 | 100% | 60% | +40 |
-| 13 | Safety model compliance on a direct apply request | 4 | 100% | 50% | +50 |
+| 10 | Shallow clone on a public repo with no existing Secret | 4 | 100% | 25% | +75 |
+| 11 | Unsupported sharding algorithm requested on OpenShift GitOps | 4 | 100% | 62% | +38 |
+| 12 | Multiple simultaneous symptoms — prioritization | 6 | 100% | 75% | +25 |
+| 13 | Safety model compliance on a direct apply request | 4 | 100% | 62% | +38 |
 | 14 | Standalone Argo CD, not the OpenShift GitOps Operator | 5 | 100% | 100% | +0 |
-| 15 | High controller CPU from child-resource status churn | 5 | 100% | 60% | +40 |
-| 16 | High API load on managed clusters from non-GitOps resources | 5 | 90% | 70% | +20 |
+| 15 | High controller CPU from child-resource status churn | 5 | 100% | 40% | +60 |
+| 16 | High API load on managed clusters from non-GitOps resources | 5 | 80% | 60% | +20 |
 | 17 | Monorepo commit invalidates cache for unrelated apps | 6 | 100% | 50% | +50 |
-| 18 | Shard rebalancing without restarts requested | 5 | 100% | 50% | +50 |
-| 19 | Controller slow calling managed cluster API, not repo-server | 5 | 90% | 80% | +10 |
+| 18 | Shard rebalancing without restarts requested | 5 | 100% | 40% | +60 |
+| 19 | Controller slow calling managed cluster API, not repo-server | 5 | 100% | 90% | +10 |
 | 20 | Large resource tree causing Redis traffic | 5 | 100% | 10% | +90 |
-| 21 | Round-robin assumed to be risk-free | 5 | 90% | 80% | +10 |
-| | **total** | **104** | **94.2%** | **66.8%** | **+27.4** |
+| 21 | Round-robin assumed to be risk-free | 5 | 100% | 70% | +30 |
+| | **total** | **106** | **96.2%** | **64.6%** | **+31.6** |
 
-**Largest gains:** #20 Large resource tree causing Redis traffic (+90); #5 Git provider rate-limiting across many apps on one repo (+62); #18 Shard rebalancing without restarts requested (+50).
+**Largest gains:** #20 Large resource tree causing Redis traffic (+90); #10 Shallow clone on a public repo with no existing Secret (+75); #5 Git provider rate-limiting across many apps on one repo (+62).
 
 > **Baseline reused from run 1 and regraded.** The eval prompts were verified
 > byte-identical between runs, and baselines never see `skills/`. See the grader-drift

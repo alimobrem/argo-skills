@@ -1,14 +1,15 @@
 # argo-cluster-debug
 
-## Run 5 — 2026-10-22, live cluster + fixtures, corrected suite
+## Run 6 — 2026-10-23, live cluster + fixtures, corrected suite
 
-**94.1% with the skill vs 84.7% baseline (+9.3) over 59 expectations.**
+**92.6% with the skill vs 86.1% baseline (+6.6) over 61 expectations.**
 
 | run | suite | with-skill | baseline | delta |
 |---|---|---:|---:|---:|
 | 3 | original | 92.1% | 92.1% | +0.0 |
 | 4 | correctness-discriminating, eval-9 defective | 94.1% | 90.7% | +3.4 |
-| 5 | eval-9 fixed | **94.1%** | 84.7% | **+9.3** |
+| 5 | eval-9 fixed | 94.1% | 84.7% | +9.3 |
+| 6 | fixtures deployed, prompts unchanged | **92.6%** | 86.1% | **+6.6** |
 
 Run 3 could not separate a correct diagnosis from a plausible one. Rewriting the
 expectations to require a grounded, self-consistent root cause (run 4), then fixing the
@@ -18,38 +19,64 @@ baseline.** Treat that baseline swing (90.7 → 84.7) as run-to-run variance in 
 unaided agent, not as evidence the suite got harder — 58 of the 59 expectations are
 identical between those runs.
 
-Fixtures are reproducible and were torn down after the run:
+Run 6 is the first with **fixtures actually deployed**, so the four evals that previously
+named resources the cluster did not have could finally be answered rather than capped at
+`partial` for both arms. The delta settles at +6.6 — above the ~5-point noise floor, and
+lower than run 5's +9.3. Reading the sequence +0.0 → +3.4 → +9.3 → +6.6 as a trend would
+be a mistake: three of those four runs scored different suites, and only run 6 had the
+cluster state the prompts assume.
+
+Fixtures are reproducible and are torn down after each run:
 [`tests/argo-cluster-debug/fixtures/`](../tests/argo-cluster-debug/fixtures/).
 
 | # | Eval | n | with-skill | baseline | delta |
 |---|------|--:|-----------:|---------:|------:|
-| 1 | Application OutOfSync and Degraded | 8 | 100% | 94% | +6 |
-| 2 | Canary Rollout stuck at step 2 | 8 | 81% | 56% | +25 |
-| 3 | Argo CD installation health check | 9 | 100% | 83% | +17 |
-| 4 | ApplicationSet not generating expected Applications | 6 | 100% | 100% | +0 |
-| 5 | ApplicationSet RollingSync stuck on production step | 6 | 92% | 92% | +0 |
-| 6 | Blue-green rollout stuck at preview, never promotes | 6 | 83% | 83% | +0 |
-| 7 | Ambiguous debug request with multiple Argo CD instances | 5 | 90% | 100% | -10 |
-| 8 | Suspended Application reported as broken | 6 | 100% | 67% | +33 |
+| 1 | Application OutOfSync and Degraded | 9 | 100% | 89% | +11 |
+| 2 | Canary Rollout stuck at step 2 | 8 | 56% | 44% | +12 |
+| 3 | Argo CD installation health check | 9 | 94% | 83% | +11 |
+| 4 | ApplicationSet not generating expected Applications | 6 | 100% | 92% | +8 |
+| 5 | ApplicationSet RollingSync stuck on production step | 7 | 100% | 93% | +7 |
+| 6 | Blue-green rollout stuck at preview, never promotes | 6 | 92% | 92% | +0 |
+| 7 | Ambiguous debug request with multiple Argo CD instances | 5 | 100% | 100% | +0 |
+| 8 | Suspended Application reported as broken | 6 | 100% | 100% | +0 |
 | 9 | Multi-source Application with one failing source | 5 | 100% | 100% | +0 |
-| | **total** | **59** | **94.1%** | **84.7%** | **+9.3** |
+| | **total** | **61** | **92.6%** | **86.1%** | **+6.6** |
 
-The sharpest split is eval 8. Both arms correctly identified the `Suspended` state as an
-intentional `spec.paused: true`. One then showed, with live output, a genuinely broken
-workload underneath it — pod 0/1 with 6 restarts, probes on port 80 against an image
-binding 8080/8443, and both Services with no endpoints. The other reported only the
-suspension and asserted the pod was "served by the preview Service only" with nothing
-shown. That is precisely the unsupported-cause pattern the rewritten expectations target.
+The sharpest split is eval 3, and it is a depth-of-diagnosis split rather than a
+right-versus-wrong one. Both arms found the operator upgrade stalled. One stopped at the
+CSV reporting `RequirementsNotMet` and olm-operator logging `no owned roles found`; the
+other produced the object that actually failed — `InstallPlan install-fzm4w`, whose
+condition names the `argocds.argoproj.io` conversion webhook, a zero-length `caBundle`,
+and a serving certificate whose SANs do not cover the Service the CRD dials. The first is
+a true statement about a downstream symptom; the second is the cause, and only the second
+tells you what to fix. The expectation asks for "the specific blocking object and field",
+which is what separates them.
+
+Eval 8 is worth noting as a *non*-split. In earlier runs it was the clearest divergence;
+here both arms identified the `Suspended` state as an intentional `spec.paused: true` and
+both then found the genuinely broken workload underneath — pod not ready, probes on port
+80 against an image binding 8080, both Services with no endpoints. An expectation that
+discriminated once does not necessarily discriminate again.
 
 ### Caveats specific to this suite
 
-- **Evals 2 and 6 name resources that do not exist on this cluster.** Both arms correctly
-  established absence and demonstrated on clearly-labelled comparable resources, but those
-  verdicts rest on a substitute object and are the least robust in the set.
-- **Eval 5's `maxUpdate` expectation presumes a field the live ApplicationSet lacks**, so
-  both arms are capped at partial on it.
+- **Evals 2, 4 and 6 still name resources that do not exist on this cluster** —
+  `frontend`/`production`, `team-apps`/`argocd`, and `checkout-api`/`prod` were all
+  verified absent at run time. The fixtures cover evals 1, 5, 8 and 9 only. Both arms
+  correctly established absence and demonstrated on clearly-labelled comparable
+  resources, but those verdicts rest on a substitute object and are the least robust in
+  the set. Grading absence-handling is deliberate and legitimate; grading a *diagnosis*
+  through a substitute is weaker, and these three should get fixtures next.
+- **Eval 5's `maxUpdate` expectation presumes a field the ApplicationSet lacks.** This one
+  is our own doing: the fixture declares `rollingSync.steps` without `maxUpdate`, so the
+  expectation cannot be fully satisfied. Fix the fixture, not the expectation.
 - **Eval 2's "traffic routing if configured" is unresolvable** — the substitute Rollout has
   none — and failed in both arms identically.
+- **Eval 5 measures the inert case.** RollingSync is declared but the applicationset
+  controller runs without `--enable-progressive-syncs`, so it never engages. That is a
+  real and common OpenShift GitOps failure mode and both arms identified it, but it means
+  the suite does not exercise a working progressive sync. Enabling the flag requires
+  editing the shared `ArgoCD` CR, which the fixtures deliberately do not touch.
 
 Earlier runs of this skill are archived: [`results-run4-eval9defect/`](results-run4-eval9defect/),
 [`results-run3-oldsuite/`](results-run3-oldsuite/), [`results-run2-fixturecapped/`](results-run2-fixturecapped/).

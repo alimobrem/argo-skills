@@ -525,21 +525,28 @@ the answer is unflattering.
 
 | Skill | with-skill | baseline | delta |
 |-------|-----------:|---------:|------:|
-| [`argo-performance-tuning`](benchmarks/argo-performance-tuning.md) | **94.2%** | 66.8% | **+27.4** |
-| [`argo-repo-audit`](benchmarks/argo-repo-audit.md) | **97.5%** | 81.2% | **+16.2** |
-| [`argo-operations`](benchmarks/argo-operations.md) | **93.8%** | 84.4% | **+9.4** |
-| [`argo-cluster-debug`](benchmarks/argo-cluster-debug.md) | **94.1%** | 84.7% | **+9.3** |
-| [`argo-knowledge`](benchmarks/argo-knowledge.md) | **98.5%** | 93.9% | +4.5 |
-| [`argo-team-onboard`](benchmarks/argo-team-onboard.md) | 84.5% | 84.5% | **0.0** |
-| **Weighted overall** | **93.8%** | **83.0%** | **+10.8** |
+| [`argo-performance-tuning`](benchmarks/argo-performance-tuning.md) | **96.2%** | 64.6% | **+31.6** |
+| [`argo-operations`](benchmarks/argo-operations.md) | **96.4%** | 81.6% | **+14.8** |
+| [`argo-repo-audit`](benchmarks/argo-repo-audit.md) | **97.0%** | 85.4% | **+11.6** |
+| [`argo-cluster-debug`](benchmarks/argo-cluster-debug.md) | **92.6%** | 86.1% | **+6.6** |
+| [`argo-team-onboard`](benchmarks/argo-team-onboard.md) | 89.4% | 84.6% | +4.8 |
+| [`argo-knowledge`](benchmarks/argo-knowledge.md) | 98.5% | 93.9% | +4.5 |
+| **Weighted overall** | **95.3%** | **82.8%** | **+12.4** |
 
 **The delta tracks how product-specific a skill is.** Performance tuning — exact setting
 names, defaults the operator silently overrides, which CR field actually wins — gains
 most. General Argo CD knowledge the model already has gains least.
 
-**One skill shows no measurable benefit, and we publish that** — `argo-team-onboard`
-ties its baseline exactly. We also measured the grader: regrading identical text moved
-scores up to 7 points, so treat anything under ~5 points as unresolved.
+**Two skills land under the noise floor, and we publish that.** Regrading identical text
+with a fresh grader moved scores by up to 7 points, so we treat anything under ~5 points
+as unresolved — which is where `argo-team-onboard` (+4.8) and `argo-knowledge` (+4.5)
+sit. They are not claimed as wins.
+
+**Fixing a bad eval can lower the score, and did.** `argo-repo-audit`'s expectations were
+rewritten after we found they could not tell a correct root cause from a confident wrong
+one. Its delta fell from +16.2 to +11.6, because the corrected rubric gave the baseline
+credit the vague wording had been denying it. Numbers that move only upward when you
+improve your own measurements are a warning sign; these did not.
 
 </details>
 

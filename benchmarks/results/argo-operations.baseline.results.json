@@ -1,8 +1,8 @@
 {
  "skill": "argo-operations",
  "model": "claude-opus-5",
+ "run": "2026-10-23 rerun6, corrected expectation suite",
  "condition": "baseline",
- "run": "2026-10-21 post-fix (uncontaminated baseline)",
  "evals": [
   {
    "id": 1,
@@ -11,54 +11,55 @@
     {
      "text": "Checks if the OpenShift GitOps operator is already installed before generating a Subscription",
      "verdict": "pass",
-     "evidence": "Opens by establishing operator installed with three managed instances"
+     "evidence": "Ran `oc get subscription.operators.coreos.com -A | grep gitops` and read the existing ArgoCD CR status (phase Available, all components Running) before proposing anything; concludes 'Do not reinstall'."
     },
     {
      "text": "If already installed, shows what configuration changes are needed on the existing ArgoCD CR",
      "verdict": "pass",
-     "evidence": "Requirement table marks two gaps; Option A patch closes them"
+     "evidence": "Six-row requirement-vs-current-state table with per-item verdicts, followed by a merge patch for exactly the two unmet items plus the explicit Route TLS."
     },
     {
      "text": "If not installed, generates a Subscription and ArgoCD CR with the requested settings",
      "verdict": "pass",
-     "evidence": "Branch inapplicable; Option B still supplies full ArgoCD CR"
+     "evidence": "Antecedent is false and correctly established, but B still supplies the green-field equivalent: a full v1beta1 ArgoCD CR with route TLS, sso.dex, rbac, notifications and Tekton exclusions. No Subscription manifest. Graded N/A rather than penalised; the green-field CR goes beyond."
     },
     {
      "text": "ArgoCD CR or patch includes Route with reencrypt TLS",
      "verdict": "pass",
-     "evidence": "Both options set route.tls termination reencrypt, Redirect"
+     "evidence": "Patch sets server.route.tls {termination: reencrypt, insecureEdgeTerminationPolicy: Redirect}; live Route confirmed reencrypt/Redirect by `oc get routes ... -o jsonpath='{.spec.tls}'`; green-field CR has the same block."
     },
     {
      "text": "ArgoCD CR or patch includes dex.openShiftOAuth or sso.dex.openShiftOAuth for OAuth",
      "verdict": "pass",
-     "evidence": "Option B CR sets sso.provider dex, dex.openShiftOAuth true"
+     "evidence": "Green-field CR has spec.sso.provider: dex with dex.openShiftOAuth: true, and the live state is evidenced by the openshift connector in argocd-cm dex.config."
     },
     {
      "text": "RBAC configured with readonly default and cluster-admins mapped to admin",
      "verdict": "pass",
-     "evidence": "defaultPolicy role:readonly plus both cluster-admins admin lines"
+     "evidence": "Patch sets rbac.defaultPolicy: role:readonly; the server-side dry-run output shows the resulting rbac object retaining 'g, cluster-admins, role:admin'; argocd-rbac-cm output shows the current policy.default: \"\"."
     },
     {
      "text": "Resource exclusions for Tekton TaskRun/PipelineRun included",
      "verdict": "pass",
-     "evidence": "Option B resourceExclusions tekton.dev TaskRun/PipelineRun; warns about whole-string replace"
+     "evidence": "Tekton TaskRun/PipelineRun exclusion block shown from the live spec.resourceExclusions and reproduced verbatim in the green-field CR."
     },
     {
      "text": "Notifications enabled",
      "verdict": "pass",
-     "evidence": "notifications.enabled true in both options"
+     "evidence": "Patch sets notifications.enabled: true; dry-run output confirms {\"enabled\":true}; the current false is evidenced by the CR and by the absence of any notifications Deployment cluster-wide."
     },
     {
      "text": "Shows diff or preview of changes before applying",
-     "verdict": "partial",
-     "evidence": "Dry-run line for Option B only; patch path shows no preview"
+     "verdict": "pass",
+     "evidence": "`oc patch --dry-run=server -o jsonpath=...` output showing the exact resulting spec.rbac, spec.notifications and spec.server.route."
     },
     {
      "text": "Asks for user confirmation before applying changes",
-     "verdict": "pass",
-     "evidence": "'I'd rather you say go before I flip it'"
+     "verdict": "partial",
+     "evidence": "No general confirmation gate; the patch command is simply given. Does ask for confirmation on the one risky field \u2014 'Confirm that is what you want before applying' for defaultPolicy \u2014 under a standing framing that every write is a command for the user to run."
     }
-   ]
+   ],
+   "regraded": false
   },
   {
    "id": 2,
@@ -67,54 +68,60 @@
     {
      "text": "Generates Application YAML with argoproj.io/v1alpha1",
      "verdict": "pass",
-     "evidence": "apiVersion argoproj.io/v1alpha1, kind Application"
+     "evidence": "Application manifest is apiVersion: argoproj.io/v1alpha1, kind: Application."
     },
     {
      "text": "OCI source with oci:// prefix and chart field",
      "verdict": "partial",
-     "evidence": "chart field present; oci:// deliberately stripped to bare host"
+     "evidence": "Primary manifest uses repoURL: registry.example.com + chart: myapp (no oci:// prefix); a second, separately dry-run-validated variant uses repoURL: oci://registry.example.com/myapp but has no chart field. Both halves appear, but not together in one source."
     },
     {
      "text": "targetRevision with semver constraint for 2.x",
      "verdict": "pass",
-     "evidence": "targetRevision 2.x, with range-vs-pin risk explained"
+     "evidence": "targetRevision: 2.x annotated as the semver range >=2.0.0 <3.0.0."
     },
     {
      "text": "Destination namespace production on in-cluster",
      "verdict": "pass",
-     "evidence": "server kubernetes.default.svc, namespace production"
+     "evidence": "destination: server https://kubernetes.default.svc annotated '\"in-cluster\"', namespace: production; `oc get ns production` NotFound shown."
     },
     {
      "text": "project set to platform",
      "verdict": "pass",
-     "evidence": "spec.project platform; missing AppProject also generated"
+     "evidence": "spec.project: platform with the platform AppProject generated in the same file because it was proven absent."
     },
     {
      "text": "Automated sync with prune and selfHeal true",
      "verdict": "pass",
-     "evidence": "automated prune true, selfHeal true"
+     "evidence": "syncPolicy.automated with prune: true and selfHeal: true."
     },
     {
      "text": "syncOptions includes CreateNamespace=true and ServerSideApply=true",
      "verdict": "pass",
-     "evidence": "Both options listed, ServerSideApply ownership caveat noted"
+     "evidence": "syncOptions list contains CreateNamespace=true and ServerSideApply=true."
     },
     {
      "text": "Shows the YAML and a dry-run or preview before applying",
-     "verdict": "partial",
-     "evidence": "YAML shown; 'validated server-side' asserted but no output"
+     "verdict": "pass",
+     "evidence": "YAML shown and `oc apply --dry-run=server` output for the Secret, AppProject and Application, plus a second dry-run for the native OCI variant."
     },
     {
      "text": "Asks for user confirmation before applying",
-     "verdict": "partial",
-     "evidence": "Flags concerns 'before you apply'; no explicit confirmation gate"
+     "verdict": "fail",
+     "evidence": "No confirmation is requested. The 'Commands to run' block gives `oc apply -f eval2-app.yaml` directly, with no yes/no gate or equivalent ask before applying."
     },
     {
      "text": "Does NOT apply without confirmation",
      "verdict": "pass",
-     "evidence": "Nothing applied; read-only run stated up front"
+     "evidence": "Nothing was applied; only server-side dry-runs were run."
+    },
+    {
+     "text": "Every recommended action states its IMPACT \u2014 what else is affected if someone acts on it (components that restart, other Applications or tenants affected, whether anything is deleted, and any ordering dependency on another recommendation) \u2014 not only its priority. 'Impact: nothing else is affected' counts; omitting the impact entirely does not. An impact reasoned from manifests rather than verified against a cluster must say so.",
+     "verdict": "pass",
+     "evidence": "Impact section: three new objects, nothing existing modified or deleted; the production namespace is created and becomes Argo CD-owned; prune+selfHeal clobber risk; floating 2.x auto-deploys to production; ServerSideApply field-ownership change; no other Application or tenant affected; ordering AppProject before Application; and it explicitly flags repo-server egress to registry.example.com as unverified because exec was unavailable."
     }
-   ]
+   ],
+   "regraded": false
   },
   {
    "id": 3,
@@ -123,44 +130,45 @@
     {
      "text": "Checks the current rollout status BEFORE attempting promotion",
      "verdict": "pass",
-     "evidence": "rollouts get plus .status fields read before any action"
+     "evidence": "Ran `kubectl-argo-rollouts get rollout canary-demo -n example-rollout` and corroborated with the raw CR status before considering a promote."
     },
     {
      "text": "Reports current phase, step index, and replica counts",
      "verdict": "pass",
-     "evidence": "Healthy, step 6/6, desired/current/ready 2 reported"
+     "evidence": "Status Healthy, Step 6/6, SetWeight/ActualWeight 100, Desired/Current/Updated/Ready/Available all 2, plus currentPodHash == stableRS and the full revision tree."
     },
     {
      "text": "If already healthy/fully promoted: correctly identifies no action needed and explains why",
      "verdict": "pass",
-     "evidence": "stableRS equals currentPodHash, Completed=True, promote is no-op"
+     "evidence": "'There is nothing to promote', justified by currentStepIndex 6 of a 6-step canary, Paused=False, abort=false, stable == current, all older ReplicaSets scaled to zero."
     },
     {
      "text": "If paused/in-progress: shows the promote command and explains what it will do",
      "verdict": "pass",
-     "evidence": "Branch inapplicable; promote command shown with no-op explanation"
+     "evidence": "Antecedent false; still gives the full sequence for a real promotion (set image -> watch -> promote one step), notes the pauses are duration-based so a new revision self-advances, and identifies the analysis step as the only genuine gate."
     },
     {
      "text": "Does NOT blindly execute promote without checking status first",
      "verdict": "pass",
-     "evidence": "'I did not run it' after status assessment"
+     "evidence": "Status read first; conclusion is 'Do not run a promote'."
     },
     {
      "text": "Does NOT use --full unless explicitly requested",
      "verdict": "pass",
-     "evidence": "--full mentioned only as equally no-op; not used"
+     "evidence": "--full is not used or recommended; it is listed as an alternative and the Impact section spells out that it skips the analysis gate and jumps straight to 100%."
     },
     {
      "text": "Asks for confirmation before executing any state-changing command",
      "verdict": "partial",
-     "evidence": "Offers set image/restart alternatives without an explicit confirmation gate"
+     "evidence": "No confirmation gate. The recommended action is to do nothing, but the answer also recommends a destructive command \u2014 `oc delete rollouts.argoproj.io example -n openshift-gitops` to stop the controller error loop \u2014 with its impact stated but no confirmation asked."
     },
     {
      "text": "Provides context on what promotion means for this specific rollout (steps, weights)",
      "verdict": "pass",
-     "evidence": "Six steps consumed, weight 100, no pause to clear, revision 5"
+     "evidence": "Quotes the rollout's own spec.strategy.canary.steps with weights (25/50/75), the two timed pauses and the analysis template, and notes the live spec points at always-pass while last-applied-configuration records success-rate."
     }
-   ]
+   ],
+   "regraded": false
   },
   {
    "id": 4,
@@ -169,49 +177,55 @@
     {
      "text": "Checks current Argo CD version and installation method first",
      "verdict": "pass",
-     "evidence": "CSV v1.21.3 Replacing / v1.21.4 Pending under OLM identified"
+     "evidence": "Argo CD v3.4.5 from a live `/api/version` curl; install method established as OLM via CSV, InstallPlan, Subscription and packagemanifest output."
     },
     {
      "text": "Identifies the correct upgrade path for the installation method (Helm, OLM, or manual)",
      "verdict": "pass",
-     "evidence": "OLM path: fix webhook, unblock replacement, pin channel, then upgrade"
+     "evidence": "OLM path identified, with the catalog head (latest -> v1.22.2) read from the packagemanifest rather than assumed."
     },
     {
      "text": "If OLM/operator: explains the operator upgrade path (subscription channel, install plan approval)",
-     "verdict": "pass",
-     "evidence": "Channel gitops-1.21, installPlanApproval Manual, approve step explained"
+     "verdict": "partial",
+     "evidence": "Covers the subscription channel path (patch channel to gitops-1.21 then gitops-1.22) and the InstallPlan lifecycle, but never mentions installPlanApproval or manual approval of the install plan."
     },
     {
      "text": "If Helm: generates CRD updates first, then helm upgrade with --dry-run",
      "verdict": "pass",
-     "evidence": "Branch inapplicable; install method correctly determined OLM"
+     "evidence": "Antecedent false \u2014 install is OLM-managed, proven with CSV/Subscription output. Graded N/A rather than penalised."
     },
     {
      "text": "Recommends backing up Applications/AppProjects before upgrading",
      "verdict": "pass",
-     "evidence": "Step 0 'Back up first', references EVAL 5 backup plus CRDs"
+     "evidence": "'Step 0 \u2014 back up first (EVAL 5 does this). Run the EVAL 5 backup before touching OLM', reiterated in the Impact section."
     },
     {
      "text": "Mentions checking release notes or breaking changes",
-     "verdict": "fail",
-     "evidence": "No mention of release notes or breaking changes anywhere"
+     "verdict": "pass",
+     "evidence": "'Read the 1.22 release notes for RBAC/API and ApplicationSet behavioural changes before Step 4', framed around the 1.21 -> 1.22 minor jump from Argo CD v3.4.5."
     },
     {
      "text": "Shows preview of what will change",
      "verdict": "partial",
-     "evidence": "Ordered remediation with commands; no dry-run or diff preview"
+     "evidence": "No rendered diff or dry-run of the upgrade. Does state the target (installedCSV should reach v1.22.2), enumerates which component pods in all three namespaces will be recreated, and gives a watch command for the resolution."
     },
     {
      "text": "Asks for confirmation before applying",
-     "verdict": "pass",
-     "evidence": "'NOT executed, needs your go-ahead'; 'Want me to take steps 0-1?'"
+     "verdict": "fail",
+     "evidence": "No confirmation gate anywhere in this eval, including before `oc delete clusterserviceversion openshift-gitops-operator.v1.21.3`, which the answer itself says deletes the operator Deployment, Services, ServiceAccount and ConfigMaps."
     },
     {
      "text": "Includes post-upgrade verification steps",
      "verdict": "pass",
-     "evidence": "Verify all three CRs reconcile, guestbook Synced, TLS flood stops"
+     "evidence": "Step 5 verification: `oc get argocds -A`, `oc get applications -A`, and a curl of /api/version to confirm the new Argo CD version."
+    },
+    {
+     "text": "Every recommended action states its IMPACT \u2014 what else is affected if someone acts on it (components that restart, other Applications or tenants affected, whether anything is deleted, and any ordering dependency on another recommendation) \u2014 not only its priority. 'Impact: nothing else is affected' counts; omitting the impact entirely does not. An impact reasoned from manifests rather than verified against a cluster must say so.",
+     "verdict": "pass",
+     "evidence": "Per-step impact: step 1 rolls only the operator pod and Argo CD itself is not restarted; step 2 deletes the CSV-owned Deployment/Services/SA/ConfigMaps (backed by the ownership table) while explicitly listing what is NOT deleted (CRDs, ArgoCD CRs, Applications, AppProjects, ApplicationSets, workloads); steps 3/4 recreate every component pod in all three namespaces and are called out as a multi-tenant event affecting team-b; ordering EVAL 5 -> EVAL 4 -> EVAL 1/8/9 stated."
     }
-   ]
+   ],
+   "regraded": false
   },
   {
    "id": 5,
@@ -220,44 +234,45 @@
     {
      "text": "Exports Application resources to YAML files",
      "verdict": "pass",
-     "evidence": "applications.yaml plus per-Application file in backup tree"
+     "evidence": "Executed; applications/_all-applications.yaml plus team-b-gitops__team-b-guestbook.yaml shown in the find output."
     },
     {
      "text": "Exports AppProject resources to YAML files",
      "verdict": "pass",
-     "evidence": "appprojects.yaml plus four per-project files listed"
+     "evidence": "Executed; appprojects/_all-appprojects.yaml plus one file per AppProject across all four."
     },
     {
      "text": "Saves to individual files or a structured backup directory",
      "verdict": "pass",
-     "evidence": "Timestamped directory tree with MANIFEST.txt shown"
+     "evidence": "Structured backup directory with applications/, appprojects/, applicationsets/ and restorable/ subdirectories, one file per object plus combined dumps."
     },
     {
      "text": "Reports the count of exported resources",
      "verdict": "pass",
-     "evidence": "'1 Application, 4 AppProjects, 1 ApplicationSet'"
+     "evidence": "'Exactly 1 Application, 4 AppProjects ... and 1 ApplicationSet', with the full file listing."
     },
     {
      "text": "Offers to also export ConfigMaps (argocd-cm, argocd-rbac-cm) or ArgoCD CR",
      "verdict": "pass",
-     "evidence": "Included all three ArgoCD CRs with rationale"
+     "evidence": "Offers both, with commands: `oc get argocds -A -o yaml` and the argocd-cm / argocd-rbac-cm / argocd-cmd-params-cm / known-hosts / tls-certs / gpg-keys ConfigMap export, plus `argocd admin export` as a fuller logical export."
     },
     {
      "text": "Offers to export credential Secrets with a clear security warning",
-     "verdict": "partial",
-     "evidence": "Warns and writes name inventory, but never offers export"
+     "verdict": "pass",
+     "evidence": "Offers repository, repo-creds and cluster Secret exports with commands, notes none exist here, and warns 'These contain live tokens \u2014 encrypt them (sops / sealed-secrets) and do not put them in git in the clear.'"
     },
     {
      "text": "Does NOT modify or delete any cluster resources",
      "verdict": "pass",
-     "evidence": "Read-only get/export only"
+     "evidence": "Reads only; the restorable-set validation used server-side dry runs, explicitly described as non-mutating ('unchanged' / 'configured (server dry run)')."
     },
     {
      "text": "Handles the backup as a read-only operation (no confirmation needed for export)",
      "verdict": "pass",
-     "evidence": "Executed immediately, reported 'Done'"
+     "evidence": "Ran it directly with no confirmation gate and states it is read-only. Goes further by producing a verified restorable set and honestly flagging that stripping finalizers changes cascade-delete semantics on restore."
     }
-   ]
+   ],
+   "regraded": false
   },
   {
    "id": 6,
@@ -265,55 +280,56 @@
    "expectations": [
     {
      "text": "Generates or references installation of gitops-promoter (kubectl apply or helm install)",
-     "verdict": "partial",
-     "evidence": "Confirms controller v0.27.1 already installed; no install command referenced"
+     "verdict": "pass",
+     "evidence": "Establishes the promoter is already installed and working: pods in promoter-system, controller image gitops-promoter:v0.27.1, and the full promoter.argoproj.io API-resource list; 'You need new CRs, not an install.'"
     },
     {
      "text": "Generates a Secret for GitHub App credentials",
-     "verdict": "fail",
-     "evidence": "Only reuses existing github-app-key secretRef; no Secret manifest"
+     "verdict": "partial",
+     "evidence": "No Secret manifest is generated. It reuses the existing github-app-key via the existing ScmProvider and only describes the need in prose \u2014 'a second ScmProvider with its own App and a secretRef to a new private-key secret' \u2014 which is in tension with its own finding that the existing installation will not reach acme-corp."
     },
     {
      "text": "Generates an ScmProvider with github config (appID, installationID)",
-     "verdict": "pass",
-     "evidence": "Second ScmProvider github-acme-corp with appID and installationID"
+     "verdict": "partial",
+     "evidence": "No new ScmProvider is generated; the GitRepository points at the existing `github` provider, whose appID 4153635 / installationID 142790508 are shown from live output. The answer itself states an App installation is per-account and will not reach acme-corp unless installed there, so the referenced provider is probably not usable as written."
     },
     {
      "text": "Generates a GitRepository referencing the ScmProvider with owner and repo name",
      "verdict": "pass",
-     "evidence": "GitRepository payments, scmProviderRef github, owner acme-corp"
+     "evidence": "GitRepository payments with github {owner: acme-corp, name: payments} and scmProviderRef {kind: ScmProvider, name: github}."
     },
     {
      "text": "Generates a PromotionStrategy with 3 environments (dev, staging, production branches)",
      "verdict": "pass",
-     "evidence": "environment/dev, /staging, /production listed"
+     "evidence": "PromotionStrategy payments with environment/dev, environment/staging and environment/production."
     },
     {
      "text": "Production has autoMerge: false, dev and staging auto-merge",
      "verdict": "pass",
-     "evidence": "dev/staging autoMerge true explicit, production false"
+     "evidence": "autoMerge: true explicitly on dev and staging, autoMerge: false on production with the behaviour explained (the promoter opens the PR, a human merges)."
     },
     {
      "text": "activeCommitStatuses includes argocd-app-health",
      "verdict": "partial",
-     "evidence": "activeCommitStatuses key is argocd-health, not argocd-app-health"
+     "evidence": "An Argo CD app-health gate is in spec.activeCommitStatuses and is fed by an ArgoCDCommitStatus, but the key is `argocd-health`, not the `argocd-app-health` named in the expectation. Graded literally on the key name."
     },
     {
      "text": "proposedCommitStatuses includes security-scan",
      "verdict": "pass",
-     "evidence": "security-scan key plus matching CommitStatus label example"
+     "evidence": "spec.proposedCommitStatuses: [{key: security-scan}] at strategy level, with an explanation that something must write a CommitStatus per proposed SHA or the promoter waits forever, evidenced by the two existing CommitStatus objects."
     },
     {
      "text": "Shows dry-run or preview before applying",
-     "verdict": "partial",
-     "evidence": "'validated server-side' asserted; no dry-run output shown"
+     "verdict": "pass",
+     "evidence": "`oc apply --dry-run=server` output for all three generated objects, plus `oc explain ... --recursive` against the live CRDs to ground the schema."
     },
     {
      "text": "Asks for user confirmation before applying",
-     "verdict": "partial",
-     "evidence": "Ordering advice only; no explicit confirmation request"
+     "verdict": "fail",
+     "evidence": "No confirmation is requested before applying. The answer lists out-of-cluster prerequisites and an ordering, but never asks the user to confirm the apply."
     }
-   ]
+   ],
+   "regraded": false
   },
   {
    "id": 7,
@@ -321,35 +337,36 @@
    "expectations": [
     {
      "text": "Detects the cluster is plain Kubernetes, not OpenShift (checks for the route.openshift.io API group)",
-     "verdict": "pass",
-     "evidence": "States no vanilla Kubernetes context exists; only OpenShift reachable"
+     "verdict": "partial",
+     "evidence": "Correctly states the connected cluster is OpenShift 4.21.28 running operator-managed Argo CD and that the task targets a different vanilla cluster, and notes 'No Route on vanilla Kubernetes'. But no route.openshift.io API-group check is shown; detection rests on the cluster version and the operator install."
     },
     {
      "text": "Generates Helm values or install command for the upstream argo-cd chart, not an OpenShift GitOps Operator Subscription",
      "verdict": "pass",
-     "evidence": "helm repo add argo, helm upgrade --install with HA values file"
+     "evidence": "helm repo add argo / helm install argo/argo-cd with a values-ha.yaml; no Subscription anywhere."
     },
     {
      "text": "Includes HA configuration (redis-ha enabled, controller replicas/StatefulSet)",
      "verdict": "pass",
-     "evidence": "redis-ha enabled with sentinels/HAProxy, controller.replicas 3, spread constraints"
+     "evidence": "redis-ha.enabled: true with redis.enabled: false (explicitly mutually exclusive), controller.replicas: 3 with consistent-hashing sharding, repoServer 3, server 2, applicationSet 2, hard anti-affinity; expected StatefulSets listed in the verify block."
     },
     {
      "text": "Shows preview (helm template or --dry-run) before applying",
-     "verdict": "partial",
-     "evidence": "Advises 'helm template it and diff'; helm absent, no preview produced"
+     "verdict": "fail",
+     "evidence": "No helm template and no --dry-run anywhere; the install command is given directly as `helm install argocd argo/argo-cd --namespace argocd -f values-ha.yaml --version <pin-a-chart-version>`."
     },
     {
      "text": "Asks for confirmation before applying",
      "verdict": "partial",
-     "evidence": "Declines unverified apply, 'say the word' refers to verification"
+     "evidence": "No confirmation ask, but it imposes a hard precondition before running \u2014 'Do not run it against the current context' and 'Explicitly kubectl config use-context <vanilla> before running anything in this section' \u2014 backed by a concrete account of what would break if ignored."
     },
     {
      "text": "Verifies installation with kubectl get pods after apply",
-     "verdict": "fail",
-     "evidence": "No post-install verification steps given at all"
+     "verdict": "pass",
+     "evidence": "`kubectl -n argocd get pods` with the expected pod set enumerated, plus get statefulset, a sentinel quorum check and the initial admin secret retrieval."
     }
-   ]
+   ],
+   "regraded": false
   },
   {
    "id": 8,
@@ -358,34 +375,35 @@
     {
      "text": "Generates ApplicationSet YAML with argoproj.io/v1alpha1",
      "verdict": "pass",
-     "evidence": "apiVersion argoproj.io/v1alpha1, kind ApplicationSet"
+     "evidence": "ApplicationSet manifest with apiVersion: argoproj.io/v1alpha1."
     },
     {
      "text": "git generator with repoURL and directories path pattern addons/*",
      "verdict": "pass",
-     "evidence": "git generator inside matrix, directories path addons/*"
+     "evidence": "Inner git generator with repoURL https://github.com/acme/platform-addons.git, revision HEAD and directories: - path: addons/*."
     },
     {
      "text": "Template generates one Application per matched directory using {{.path.basename}} or equivalent",
      "verdict": "pass",
-     "evidence": "name '{{.path.basename}}-{{.name}}', path '{{.path.path}}'"
+     "evidence": "template.metadata.name '{{.name}}-{{.path.basename}}' with path '{{.path.path}}' and goTemplate: true; also warns the existing appset on the cluster uses the old fasttemplate syntax and the two must not be mixed."
     },
     {
      "text": "strategy.type: RollingSync with steps matching staging first (maxUpdate 100%) then production (maxUpdate 25%)",
      "verdict": "pass",
-     "evidence": "RollingSync steps env staging 100% then production 25%"
+     "evidence": "strategy.type: RollingSync, step 1 envLabel In [staging] maxUpdate 100%, step 2 envLabel In [production] maxUpdate 25%, with the template stamping envLabel from the cluster's own label so the steps match."
     },
     {
      "text": "Shows preview (dry-run) before applying",
      "verdict": "pass",
-     "evidence": "'applicationset.argoproj.io/platform-addons created (server dry run)'"
+     "evidence": "`oc apply --dry-run=server` output for the ApplicationSet, plus `oc explain applicationsets.spec.strategy --recursive` to ground the field shape."
     },
     {
      "text": "Asks for user confirmation before applying",
      "verdict": "partial",
-     "evidence": "No confirmation request; relies on global nothing-applied statement"
+     "evidence": "No confirmation ask before applying. It does build in a human checkpoint \u2014 apply with syncPolicy.automated removed, 'confirm the generated Application list is what you expect', then add automation back \u2014 and a five-step ordering, but never asks the user to approve the apply."
     }
-   ]
+   ],
+   "regraded": false
   },
   {
    "id": 9,
@@ -394,34 +412,35 @@
     {
      "text": "Generates or updates argocd-notifications-cm with a Slack service definition",
      "verdict": "pass",
-     "evidence": "NotificationsConfiguration service.slack; operator owns the ConfigMap"
+     "evidence": "service.slack with 'token: $slack-token' supplied through the operator-owned NotificationsConfiguration, explicitly 'so the operator does not revert hand-edits to argocd-notifications-cm'; the Impact section notes argocd-notifications-cm is created by the operator. Tension noted: the ConfigMap is not edited directly, by design."
     },
     {
      "text": "Generates trigger definitions for on-sync-failed and on-health-degraded",
      "verdict": "pass",
-     "evidence": "Both triggers defined, with oncePer on sync-failed"
+     "evidence": "trigger.on-sync-failed (with a nil guard and oncePer on syncResult.revision) and trigger.on-health-degraded."
     },
     {
      "text": "Generates or references templates for the failure/degraded messages",
      "verdict": "pass",
-     "evidence": "app-sync-failed and app-health-degraded templates with Slack attachments"
+     "evidence": "template.app-sync-failed and template.app-health-degraded with message bodies, deep links and Slack attachment colours."
     },
     {
      "text": "Generates the subscription annotation on Applications, or explains how to apply it fleet-wide",
      "verdict": "pass",
-     "evidence": "Global subscriptions block chosen over per-app annotations, trade-off explained"
+     "evidence": "Instance-wide subscriptions block for fleet coverage plus an `oc annotate` per-Application opt-in alternative; also establishes that real coverage requires repeating the config in team-b-gitops since the only Application lives there. (The subscriptions block is written as a YAML list and was not dry-run validated.)"
     },
     {
      "text": "References the Secret needed for the Slack token without putting a literal token value in the ConfigMap",
      "verdict": "pass",
-     "evidence": "$slack-token in config; placeholder token only in separate Secret"
+     "evidence": "The CR carries only '$slack-token'; the token lives in a separately created argocd-notifications-secret, written as xoxb-REDACTED."
     },
     {
      "text": "Shows preview before applying and asks for confirmation",
-     "verdict": "partial",
-     "evidence": "'validated server-side' claimed; no output and no confirmation gate"
+     "verdict": "fail",
+     "evidence": "No preview and no confirmation: no dry-run of the NotificationsConfiguration or of the enable patch, and no confirmation gate before the oc create secret / oc patch / apply sequence."
     }
-   ]
+   ],
+   "regraded": false
   },
   {
    "id": 10,
@@ -430,34 +449,35 @@
     {
      "text": "Checks the current rollout status before acting",
      "verdict": "pass",
-     "evidence": "Listed all rollouts and analysisruns; no checkout, no production namespace"
+     "evidence": "Checked `oc get ns production` (NotFound), `oc get rollouts -A` and a grep for checkout before acting; explicitly refuses to abort a resource that does not exist."
     },
     {
      "text": "Shows the abort command and explains what it does (marks current update as unhealthy, reverts to stable)",
      "verdict": "pass",
-     "evidence": "rollouts abort shown; scales canary to zero, pins traffic stable"
+     "evidence": "`kubectl argo rollouts abort checkout -n production` with the effect given: shifts 100% of traffic back to the stable ReplicaSet, scales the canary to zero, Rollout reports Degraded; also gives the pure-oc status-subresource equivalent."
     },
     {
      "text": "Asks for confirmation before aborting",
-     "verdict": "partial",
-     "evidence": "Asks which rollout; no confirmation gate before the abort itself"
+     "verdict": "fail",
+     "evidence": "No confirmation gate of any kind before the abort; the abort is step 1 of a numbered command sequence."
     },
     {
      "text": "After abort is confirmed, explains retry behavior and shows the retry command separately",
      "verdict": "pass",
-     "evidence": "Separate retry command; explains restart from step 1 re-runs analysis"
+     "evidence": "Retry is step 4, separate from abort (step 1) and separated by 'Fix the underlying cause here. Do not skip this step.'; retry behaviour explained as clearing the abort and restarting the canary from step 0, re-exposing traffic if the cause is unfixed."
     },
     {
      "text": "Does not combine abort and retry into a single unconfirmed action",
      "verdict": "pass",
-     "evidence": "Abort, verify, then retry presented as distinct steps"
+     "evidence": "Not combined: a mandatory fix step sits between them and the Impact section states 'Do not abort-and-immediately-retry; that is a loop, not a remediation.'"
     },
     {
      "text": "Reports the rollout's resulting phase after each step",
      "verdict": "partial",
-     "evidence": "Post-abort Degraded stated; no expected phase after retry"
+     "evidence": "The resulting phase is given after abort (expect Degraded, abort=true, with a jsonpath for status.abort/phase/message). After retry there is only `--watch`; no expected resulting phase is stated."
     }
-   ]
+   ],
+   "regraded": false
   },
   {
    "id": 11,
@@ -465,35 +485,36 @@
    "expectations": [
     {
      "text": "Identifies the correct repo credential Secret (by argocd.argoproj.io/secret-type=repo-creds or repository label)",
-     "verdict": "pass",
-     "evidence": "Label query run, absence established; procedure step 1 uses same selector"
+     "verdict": "partial",
+     "evidence": "Checked all three storage locations with the right selectors (secret-type=repository, secret-type=repo-creds and the legacy argocd-cm repositories key) and proved all are empty, cross-checking that the only Application pulls a public repo. The specific infra-repo Secret could not be identified because it does not exist; the method is shown but no credential is located."
     },
     {
      "text": "Generates the updated Secret with the new token value as a placeholder the user fills in, not a hardcoded fake token",
-     "verdict": "pass",
-     "evidence": "Merge patch of password field with <NEW_PAT> placeholder"
+     "verdict": "partial",
+     "evidence": "No Secret manifest is generated. Rotation is an in-place `oc patch secret infra-repo --type merge -p '{\"stringData\":{\"password\":\"$NEW_PAT\"}}'` using a shell variable rather than a hardcoded token \u2014 the placeholder requirement is honoured, the 'generates the updated Secret' part is not, and the secret name is assumed rather than resolved via the label selector."
     },
     {
      "text": "Shows the preview/diff before applying",
      "verdict": "fail",
-     "evidence": "Procedure patches directly; no diff or dry-run step"
+     "evidence": "No preview or diff before applying; the patch command is given directly, with no dry-run, no `oc diff` and no check that only the password field changes."
     },
     {
      "text": "Asks for confirmation before applying",
-     "verdict": "partial",
-     "evidence": "Asks which cluster; no confirmation gate before the patch"
+     "verdict": "fail",
+     "evidence": "No confirmation is requested before the patch. Ordering advice (keep the old PAT valid, revoke last) is given, but there is no confirmation gate."
     },
     {
      "text": "Includes a verification step (e.g. argocd repo get or a connectivity test) after rotation",
      "verdict": "pass",
-     "evidence": "argocd repo list Successful, repo-server restart, hard-refresh, log check"
+     "evidence": "Verification before revocation: `argocd repo get --refresh`, a hard-refresh annotation on a dependent Application, a sweep of all Applications for ComparisonError/auth conditions, and a repo-server log grep for 401/403 \u2014 with revocation explicitly step 5."
     },
     {
      "text": "Does not expose or echo the old or new token value in plaintext logs",
      "verdict": "pass",
-     "evidence": "Placeholder only; recommends minimal scope and GitHub App alternative"
+     "evidence": "No token value is ever printed; a $NEW_PAT shell variable and <user> placeholders are used throughout. (The token is passed as a command-line argument, visible in shell history/ps, and no redaction guidance is given \u2014 noted, but not counted as echoing.)"
     }
-   ]
+   ],
+   "regraded": false
   },
   {
    "id": 12,
@@ -502,34 +523,35 @@
     {
      "text": "Scans or greps for deprecated apiVersions (extensions/v1beta1 Ingress, policy/v1beta1 PodDisruptionBudget, etc.)",
      "verdict": "pass",
-     "evidence": "api-resources, apirequestcounts, app resources, plus rendered-manifest grep loop"
+     "evidence": "Queried /apis/networking.k8s.io and /apis/policy raw (only v1 served), filtered APIRequestCount for removedInRelease (no rows), listed all Ingresses (none) and PDBs (all policy/v1), and enumerated every Argo CD-tracked resource; also gives grep/kubent recipes for the git sources."
     },
     {
      "text": "Identifies the correct replacement apiVersion for each deprecated resource",
      "verdict": "pass",
-     "evidence": "networking.k8s.io/v1 and policy/v1 with field restructuring notes"
+     "evidence": "Explicit mapping with the structural changes, not just the version string: extensions/v1beta1 or networking.k8s.io/v1beta1 -> networking.k8s.io/v1 (ingressClassName, pathType now required, backend.service) and policy/v1beta1 -> policy/v1 with the selector caveat."
     },
     {
      "text": "Shows the specific files/Applications affected before proposing changes",
      "verdict": "pass",
-     "evidence": "Single Application's resources enumerated; zero Ingress, all PDBs policy/v1"
+     "evidence": "Shows the single Application and its two tracked resources, plus `status.conditions` empty (no ComparisonError/SyncError), and the appset controller log proving agentit-managed-apps generates nothing."
     },
     {
      "text": "Generates the corrected manifests or a migration plan",
      "verdict": "pass",
-     "evidence": "Migration guidance plus repeatable method and kubent/pluto CI control"
+     "evidence": "Corrected manifests for both Ingress and PodDisruptionBudget, plus a reusable four-step method (A-D) and the key point that the migration is a git change rather than a cluster change, with a warning that oc patch would be reverted by selfHeal."
     },
     {
      "text": "Shows preview/diff before applying any change",
      "verdict": "partial",
-     "evidence": "Nothing to migrate; no preview demonstrated"
+     "evidence": "No diff or dry-run gate. `argocd app manifests <app> | grep -nE ...` renders the source for inspection before changing it, and the plan is one Application at a time with verification, but no preview of the change itself is shown."
     },
     {
      "text": "Asks for confirmation before applying",
      "verdict": "partial",
-     "evidence": "No confirmation gate; nothing proposed to apply"
+     "evidence": "No confirmation gate in this eval; nothing is proposed to apply on this cluster. For the hypothetical migration it says to schedule it and not bulk-migrate, but never asks for confirmation."
     }
-   ]
+   ],
+   "regraded": false
   },
   {
    "id": 13,
@@ -537,30 +559,31 @@
    "expectations": [
     {
      "text": "Shows what currently exists (kind, name, namespace, age) before deleting",
-     "verdict": "pass",
-     "evidence": "Lists all Applications cluster-wide; legacy-batch-job absent, short-name trap noted"
+     "verdict": "partial",
+     "evidence": "Shows the complete Application inventory (`-A` and `-A -o name`) and a cluster-wide grep across all/cronjob/job proving nothing named legacy-batch-job exists, so kind/name/namespace of what does exist is covered \u2014 but age is never shown, and the Step 1 show-command enumerates managed resources rather than the Application's kind/name/namespace/age."
     },
     {
      "text": "Explains the deletion options (cascade vs orphan / finalizer behavior) and their consequences",
      "verdict": "pass",
-     "evidence": "Cascade vs --cascade=false, finalizer hang, PVC data risk explained"
+     "evidence": "Explains that the resources-finalizer.argocd.argoproj.io finalizer is the difference between a cascading delete (Deployments, Services, PVCs, the namespace; 'Data in PVCs is gone') and a non-cascading one that orphans running workloads, and gives both command paths with consequences."
     },
     {
      "text": "Requires the user to type the exact resource name to confirm, not just yes/no",
      "verdict": "fail",
-     "evidence": "Asks only for cluster and cascade intent; no name-typing requirement"
+     "evidence": "No typed-resource-name confirmation. The gating is a checklist (back up, enumerate, check finalizer, check ownerReferences, confirm the cluster) plus 'after confirming with the workload owner' \u2014 never 'type the name to confirm'."
     },
     {
      "text": "Does not use --cascade=false or force flags unless explicitly requested",
-     "verdict": "pass",
-     "evidence": "Orphan offered as labeled alternative; nothing forced"
+     "verdict": "partial",
+     "evidence": "Nothing is executed, but the non-cascading path (`oc patch ... finalizers: null` then delete, 'equivalently: argocd app delete --cascade=false') is presented as the 'recommended default' although the user did not request it, and orphaning is itself a consequential unrequested choice. No force flags are used."
     },
     {
      "text": "Does not execute the deletion until the resource-name confirmation is received",
      "verdict": "pass",
-     "evidence": "Nothing deleted; waits for user direction before running"
+     "evidence": "No deletion was executed \u2014 'Do not run a delete' \u2014 and the procedure is gated behind back up, enumerate, check finalizer and check ownerReferences. Graded literally: no deletion occurred; the absent resource-name confirmation is charged under the preceding expectation."
     }
-   ]
+   ],
+   "regraded": false
   }
  ]
 }

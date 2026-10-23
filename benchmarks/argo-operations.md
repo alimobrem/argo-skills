@@ -1,8 +1,8 @@
 # argo-operations
 
-## Run 2 — 2026-10-21, live cluster, blind A/B
+## Run 6 — 2026-10-23, live cluster, blind A/B
 
-**93.8% with the skill vs 84.4% baseline (+9.4) over 96 expectations.**
+**96.4% with the skill vs 81.6% baseline (+14.8) over 98 expectations.**
 
 Measured against a live OpenShift cluster (OpenShift GitOps 1.21.3, Argo CD v3.4.5).
 Graders saw "Condition A"/"Condition B" without knowing which was which and could not
@@ -12,26 +12,27 @@ read `skills/`. Partial credit; every verdict carries an evidence string. Raw ve
 
 | # | Eval | n | with-skill | baseline | delta |
 |---|------|--:|-----------:|---------:|------:|
-| 1 | Install or configure Argo CD on OpenShift | 10 | 100% | 95% | +5 |
-| 2 | Create Application for OCI Helm chart | 10 | 95% | 85% | +10 |
+| 1 | Install or configure Argo CD on OpenShift | 10 | 95% | 95% | +0 |
+| 2 | Create Application for OCI Helm chart | 11 | 95% | 86% | +9 |
 | 3 | Promote or assess canary rollout | 8 | 100% | 94% | +6 |
-| 4 | Upgrade Argo CD | 9 | 89% | 83% | +6 |
-| 5 | Backup Argo CD resources | 8 | 100% | 94% | +6 |
-| 6 | Set up gitops-promoter for environment promotion | 10 | 80% | 70% | +10 |
-| 7 | Install Argo CD via Helm on vanilla Kubernetes | 6 | 92% | 67% | +25 |
+| 4 | Upgrade Argo CD | 10 | 95% | 80% | +15 |
+| 5 | Backup Argo CD resources | 8 | 100% | 100% | +0 |
+| 6 | Set up gitops-promoter for environment promotion | 10 | 100% | 75% | +25 |
+| 7 | Install Argo CD via Helm on vanilla Kubernetes | 6 | 100% | 67% | +33 |
 | 8 | Create ApplicationSet with git generator and progressive sync | 6 | 100% | 92% | +8 |
-| 9 | Set up Slack notifications for sync failures | 6 | 100% | 92% | +8 |
-| 10 | Abort and retry a stuck rollout | 6 | 83% | 83% | +0 |
-| 11 | Rotate Git repository credentials | 6 | 100% | 75% | +25 |
-| 12 | Migrate deprecated Kubernetes APIs | 6 | 83% | 83% | +0 |
-| 13 | Delete an Application — destructive operation safety | 5 | 100% | 80% | +20 |
-| | **total** | **96** | **93.8%** | **84.4%** | **+9.4** |
+| 9 | Set up Slack notifications for sync failures | 6 | 100% | 83% | +17 |
+| 10 | Abort and retry a stuck rollout | 6 | 100% | 75% | +25 |
+| 11 | Rotate Git repository credentials | 6 | 92% | 50% | +42 |
+| 12 | Migrate deprecated Kubernetes APIs | 6 | 75% | 83% | -8 |
+| 13 | Delete an Application — destructive operation safety | 5 | 100% | 60% | +40 |
+| | **total** | **98** | **96.4%** | **81.6%** | **+14.8** |
 
-**Largest gains:** #11 Rotate Git repository credentials (+25); #7 Install Argo CD via Helm on vanilla Kubernetes (+25); #13 Delete an Application — destructive operation safety (+20).
+**Largest gains:** #11 Rotate Git repository credentials (+42); #13 Delete an Application — destructive operation safety (+40); #7 Install Argo CD via Helm on vanilla Kubernetes (+33).
 
-> **Baseline re-run for run 2.** The run-1 baseline for this skill was contaminated
+> **Baseline history.** The run-1 baseline for this skill was contaminated
 > by the prompt author (told to stop before writing, which is part of what these evals
-> measure). This run states the write ban as an environment constraint only.
+> measure). Every run since states the write ban as an environment constraint only,
+> including run 6, whose baseline was generated fresh.
 
 ---
 

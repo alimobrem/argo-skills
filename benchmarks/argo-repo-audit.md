@@ -1,8 +1,8 @@
 # argo-repo-audit
 
-## Run 2 — 2026-10-21, live cluster, blind A/B
+## Run 6 — 2026-10-23, live cluster, blind A/B
 
-**97.5% with the skill vs 81.2% baseline (+16.2) over 80 expectations.**
+**97.0% with the skill vs 85.4% baseline (+11.6) over 82 expectations.**
 
 Measured against a live OpenShift cluster (OpenShift GitOps 1.21.3, Argo CD v3.4.5).
 Graders saw "Condition A"/"Condition B" without knowing which was which and could not
@@ -12,26 +12,35 @@ read `skills/`. Partial credit; every verdict carries an evidence string. Raw ve
 
 | # | Eval | n | with-skill | baseline | delta |
 |---|------|--:|-----------:|---------:|------:|
-| 1 | app-of-apps-audit | 12 | 100% | 50% | +50 |
-| 2 | applicationset-audit | 11 | 100% | 100% | +0 |
-| 3 | mixed-issues-audit | 11 | 100% | 86% | +14 |
-| 4 | validate-only | 6 | 100% | 83% | +17 |
-| 5 | detect-wildcard-project | 5 | 100% | 90% | +10 |
-| 6 | detect-plain-secret | 4 | 100% | 88% | +12 |
-| 7 | detect-no-sync-policy | 4 | 100% | 88% | +12 |
-| 8 | detect-head-in-prod | 4 | 75% | 75% | +0 |
-| 9 | detect-weak-analysis | 4 | 75% | 62% | +12 |
-| 10 | detect-hardcoded-helm-password | 4 | 100% | 88% | +12 |
-| 11 | clean-repo-zero-findings | 9 | 100% | 94% | +6 |
-| 12 | subtle-rbac | 6 | 100% | 75% | +25 |
-| | **total** | **80** | **97.5%** | **81.2%** | **+16.2** |
+| 1 | app-of-apps-audit | 13 | 100% | 73% | +27 |
+| 2 | applicationset-audit | 11 | 100% | 95% | +5 |
+| 3 | mixed-issues-audit | 12 | 100% | 96% | +4 |
+| 4 | validate-only | 6 | 100% | 92% | +8 |
+| 5 | detect-wildcard-project | 5 | 90% | 80% | +10 |
+| 6 | detect-plain-secret | 4 | 88% | 62% | +25 |
+| 7 | detect-no-sync-policy | 4 | 100% | 100% | +0 |
+| 8 | detect-head-in-prod | 4 | 100% | 100% | +0 |
+| 9 | detect-weak-analysis | 4 | 100% | 50% | +50 |
+| 10 | detect-hardcoded-helm-password | 4 | 75% | 75% | +0 |
+| 11 | clean-repo-zero-findings | 9 | 100% | 100% | +0 |
+| 12 | Subtle RBAC: looks restricted but has privilege escalation | 6 | 92% | 75% | +17 |
+| | **total** | **82** | **97.0%** | **85.4%** | **+11.6** |
 
-**Largest gains:** #1 app-of-apps-audit (+50); #12 subtle-rbac (+25); #4 validate-only (+17).
+**Largest gains:** #9 detect-weak-analysis (+50); #1 app-of-apps-audit (+27); #6 detect-plain-secret (+25).
 
-> **Baseline reused from run 1 and regraded.** The eval prompts were verified
-> byte-identical between runs, and baselines never see `skills/`. See the grader-drift
-> table in the [root README](../README.md#benchmarks) — absolute scores move with the
-> grader, so read the direction, not the decimal.
+> **Run 6 used a freshly generated baseline**, not the reused-and-regraded run-1 baseline
+> that earlier revisions of this page described. It also used a corrected expectation
+> suite: nine of the twelve evals had expectations rewritten because the originals could
+> be satisfied by naming any plausible cause, and so scored a correct root cause and a
+> confident wrong one identically.
+>
+> **The correction lowered the published delta, from +16.2 to +11.6.** The skill arm
+> barely moved; the baseline rose from 81.2% to 85.4% because the sharper wording credited
+> work the vague wording had been failing. Expect that direction when you fix your own
+> rubric — if rewriting expectations only ever improves your numbers, the rewrite is the
+> thing to distrust. See the grader-drift table in the
+> [root README](../README.md#benchmarks): absolute scores move with the grader, so read
+> the direction, not the decimal.
 
 ---
 
