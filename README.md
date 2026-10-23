@@ -488,32 +488,6 @@ of operator-specific detail without consuming the window.
 Where being exactly right matters, the skill runs a **script** rather than describing a
 procedure. A documented command can be followed loosely; `scripts/validate.sh` cannot.
 
-## Data and privacy
-
-**The skills send nothing anywhere.** They are inert Markdown and shell scripts in your
-checkout — there is no telemetry, no callback, no account.
-
-Be clear about what *your agent* does, though: when it reads cluster state to answer a
-question, that output becomes part of the conversation with whichever model you are
-using. That is a property of using an AI coding agent at all, not of these skills, but it
-is worth knowing before pointing one at a production cluster.
-
-Practical consequences:
-
-- Three skills (`repo-audit`, `cluster-debug`, and `performance-tuning` while diagnosing)
-  specify only read operations — no create, apply, patch or delete anywhere in them.
-  That is a property of the instructions, not an enforced sandbox; see
-  [Safety model](#safety-model).
-- The agent acts with **your** credentials and can do nothing your `kubeconfig` cannot.
-  This is the only hard limit in the list, and it is the one worth configuring.
-- `repo-audit` runs `kubeconform` with `-skip=Secret`, so Secret contents are not sent
-  through schema validation.
-- **It does not currently redact credential values it finds.** Auditing a repo with real
-  plaintext secrets in it will put those values in your agent transcript — an audit run
-  today decoded a base64 Secret and printed the username and password. Treat an audit of
-  a repo containing live credentials the same way you would treat opening that file. This
-  is a known gap, tracked for a redaction pass.
-
 ## Benchmarks
 
 **Every skill in this repo is measured against an unaided baseline** — same model, same
@@ -627,6 +601,32 @@ Three skills (`repo-audit`, `cluster-debug`, `performance-tuning` in diagnosis m
 contain no write operations at all, so for those the gate never has to fire. If you want
 that enforced rather than specified, run the agent with a read-only `kubeconfig` — the
 skills behave identically and the question stops being a matter of trust.
+
+## Data and privacy
+
+**The skills send nothing anywhere.** They are inert Markdown and shell scripts in your
+checkout — there is no telemetry, no callback, no account.
+
+Be clear about what *your agent* does, though: when it reads cluster state to answer a
+question, that output becomes part of the conversation with whichever model you are
+using. That is a property of using an AI coding agent at all, not of these skills, but it
+is worth knowing before pointing one at a production cluster.
+
+Practical consequences:
+
+- Three skills (`repo-audit`, `cluster-debug`, and `performance-tuning` while diagnosing)
+  specify only read operations — no create, apply, patch or delete anywhere in them.
+  That is a property of the instructions, not an enforced sandbox; see
+  [Safety model](#safety-model).
+- The agent acts with **your** credentials and can do nothing your `kubeconfig` cannot.
+  This is the only hard limit in the list, and it is the one worth configuring.
+- `repo-audit` runs `kubeconform` with `-skip=Secret`, so Secret contents are not sent
+  through schema validation.
+- **It does not currently redact credential values it finds.** Auditing a repo with real
+  plaintext secrets in it will put those values in your agent transcript — an audit run
+  today decoded a base64 Secret and printed the username and password. Treat an audit of
+  a repo containing live credentials the same way you would treat opening that file. This
+  is a known gap, tracked for a redaction pass.
 
 ## Contributing
 
