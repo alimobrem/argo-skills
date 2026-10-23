@@ -13,55 +13,64 @@
 
 <p align="center">
   <b>Agent Skills for Red Hat OpenShift layered products.</b><br>
-  Deep, measured expertise your AI agent can use — starting with OpenShift GitOps
-  (Argo CD and Argo Rollouts as the operator ships them): generate manifests, audit repos,
-  debug clusters, tune performance, onboard teams, and run day-2 operations.
+  Generate manifests, audit repos, debug clusters, tune performance, onboard teams.<br>
+  <sub>Every skill measured against an unaided baseline — see <a href="#benchmarks">Benchmarks</a>.</sub>
 </p>
 
 ---
 
-<details>
-<summary><b>Quick Start</b></summary>
+## Install
 
 ```shell
 # Claude Code
 /plugin marketplace add alimobrem/skills-for-argo
 /plugin install openshift-gitops@openshift
 
-# Or, for any agent (Codex, Cline, Amp, Antigravity, Cursor, ...)
+# Any other agent — Codex, Cline, Amp, Cursor, Antigravity, and 15 more
 npx skills add alimobrem/skills-for-argo
-
-# Then try:
-# "Audit the current repo for GitOps best practices"
-# "Check if Argo CD is healthy on my cluster"
-# "Generate an ApplicationSet with git directory generator"
 ```
 
-</details>
+Then just describe what you need — skills activate on context, you never name them:
 
-## Install
+```text
+"Audit this repo for GitOps best practices"
+"Why is my Application stuck OutOfSync?"
+"Generate an ApplicationSet with a git directory generator"
+```
+
+Skills are plain Markdown with YAML frontmatter, so they are not tied to one agent.
+`npx skills` is the [vercel-labs/skills](https://github.com/vercel-labs/skills) CLI — it
+reads this repo directly and installs into whichever agent directories it finds.
 
 <details>
-<summary><b>Claude Code</b></summary>
+<summary><b>Prerequisites</b></summary>
+
+**Required** — `kubectl` **or** `oc`.
+
+**Optional**, each unlocking more capability:
+
+| Tool | Adds |
+|------|------|
+| `kustomize` | overlay builds during repo audits |
+| `kubeconform` | schema validation against Argo CRDs |
+| `yq` | YAML-aware parsing and duplicate detection |
+| `argocd` | richer Application debugging and sync operations |
+| `kubectl-argo-rollouts` | Rollout status and promotion |
 
 ```shell
-/plugin marketplace add alimobrem/skills-for-argo
-/plugin install openshift-gitops@openshift
+brew bundle     # installs all of the above on macOS
 ```
-
-After install, the `argocd` agent appears in `/agents` and the 6 GitOps skills
-auto-trigger based on context. Run `/reload-plugins` if they don't appear immediately.
 
 </details>
 
 <details>
-<summary><b>Codex</b></summary>
+<summary><b>Codex</b> — manual marketplace entry</summary>
 
 Add to `$REPO_ROOT/.agents/plugins/marketplace.json` or `~/.agents/plugins/marketplace.json`:
 
 ```json
 {
-  "name": "argo-skills",
+  "name": "openshift-gitops",
   "category": "Developer Tools",
   "source": {
     "source": "url",
@@ -75,12 +84,12 @@ Add to `$REPO_ROOT/.agents/plugins/marketplace.json` or `~/.agents/plugins/marke
 }
 ```
 
+Or just use `npx skills add` above, which handles Codex too.
+
 </details>
 
 <details>
 <summary><b>GitHub Copilot</b></summary>
-
-Copy the agent file to your repository:
 
 ```shell
 mkdir -p .github/copilot
@@ -90,49 +99,24 @@ cp agents/github-copilot/argocd.agent.md .github/copilot/
 </details>
 
 <details>
-<summary><b>Prerequisites</b></summary>
+<summary><b>Claude Code notes</b></summary>
 
-Required:
-- `kubectl` or `oc` for Kubernetes/OpenShift cluster interaction
-
-Optional (enhances capabilities):
-- `kustomize` — Kustomize overlay builds
-- `kubeconform` — schema validation against Argo CRDs
-- `yq` — YAML parsing
-- `argocd` — richer Application debugging and sync operations
-- `kubectl-argo-rollouts` — Rollout status and promotion
-
-Install all on macOS:
-```shell
-brew bundle
-```
+After install the `argocd` agent appears in `/agents` and the 6 GitOps skills activate on
+context. Run `/reload-plugins` if they do not appear immediately.
 
 </details>
-
-## Works with
-
-Skills are plain Markdown with YAML frontmatter, so they are not tied to one agent.
-
-| How | Agents | Command |
-|-----|--------|---------|
-| **Any agent** | 20+ including Codex, Cline, Amp, Cursor, Antigravity | `npx skills add alimobrem/skills-for-argo` |
-| **Claude Code** | plugin with the bundled `argocd` agent | `/plugin marketplace add alimobrem/skills-for-argo` |
-
-`npx skills` is the [vercel-labs/skills](https://github.com/vercel-labs/skills) CLI. It
-reads this repo directly — nothing to publish, and it installs skills into whichever
-agent directories it finds.
 
 ## Products
 
 Skills live under `skills/<product>/`, one plugin per product, so you install only what
 you run.
 
-| Product | Skills | Status |
-|---------|-------:|--------|
-| [**gitops**](skills/gitops) — Argo CD, Argo Rollouts | 6 | shipping, benchmarked |
-| [**servicemesh**](skills/servicemesh) — Istio | 0 | [open for contributions](docs/adding-a-skill.md) |
-| [**serverless**](skills/serverless) — Knative | 0 | [open for contributions](docs/adding-a-skill.md) |
-| [**pipelines**](skills/pipelines) — Tekton | 0 | [open for contributions](docs/adding-a-skill.md) |
+| Product | Covers | Skills | Status |
+|---------|--------|-------:|--------|
+| [**gitops**](skills/gitops) | Argo CD, Argo Rollouts | **6** | shipping, benchmarked |
+| [**servicemesh**](skills/servicemesh) | Istio | — | [open for contributions](docs/adding-a-skill.md) |
+| [**serverless**](skills/serverless) | Knative | — | [open for contributions](docs/adding-a-skill.md) |
+| [**pipelines**](skills/pipelines) | Tekton | — | [open for contributions](docs/adding-a-skill.md) |
 
 Adding skills for your product? Start with **[docs/adding-a-skill.md](docs/adding-a-skill.md)**.
 Evals are required — the guide explains the bar and why it is set where it is.
@@ -577,15 +561,25 @@ before quoting any of these numbers.
 
 The first question most platform teams ask is *"will this let an agent break my cluster?"*
 
-**Every write follows the same protocol, and the agent stops at the gate.**
+**Every write follows the same five steps, and the agent stops at step 4.**
 
-| Step | What happens |
-|------|--------------|
-| **1. Generate** | Produces the manifest or command and shows it in full. Nothing runs. |
-| **2. Preview** | `kubectl diff` for updates, `--dry-run=server --validate=strict` for creates. Never `--dry-run=client`, which validates nothing and cannot show what an update changes. |
-| **3. Blast radius** | Resolves what *else* the change touches — how many Applications stop reconciling, which tenants share the instance, what gets deleted. A diff shows one object; most Argo CD objects are fan-out points. |
-| **4. Confirm** | Asks explicitly. Destructive operations require typing the resource name. |
-| **5. Verify** | After applying, checks it actually worked and reports the result. |
+**1 · Generate** — produces the manifest or command and shows it in full. Nothing runs.
+
+**2 · Preview** — `kubectl diff` for an update, `--dry-run=server --validate=strict` for a
+create.
+> Never `--dry-run=client`. It validates nothing, and for an update it only echoes your
+> input back — it cannot show what would change.
+
+**3 · Blast radius** — resolves what *else* the change touches.
+> A diff shows one object. Most Argo CD objects are fan-out points: a one-field edit to an
+> `ArgoCD` CR restarts components that every Application on the instance depends on.
+> This step names how many Applications stop reconciling, which tenants share the
+> instance, and what gets deleted.
+
+**4 · Confirm** — asks explicitly, and waits. Destructive operations require typing the
+resource name.
+
+**5 · Verify** — after applying, checks it actually worked and reports the result.
 
 Read-only work — audits, status checks, backups — skips the gate entirely.
 
