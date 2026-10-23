@@ -39,64 +39,6 @@ npx skills add alimobrem/skills-for-argo
 
 </details>
 
-## Products
-
-Skills live under `skills/<product>/`, one plugin per product, so you install only what
-you run.
-
-| Product | Skills | Status |
-|---------|-------:|--------|
-| [**gitops**](skills/gitops) — Argo CD, Argo Rollouts | 6 | shipping, benchmarked |
-| [**servicemesh**](skills/servicemesh) — Istio | 0 | [open for contributions](docs/adding-a-skill.md) |
-| [**serverless**](skills/serverless) — Knative | 0 | [open for contributions](docs/adding-a-skill.md) |
-| [**pipelines**](skills/pipelines) — Tekton | 0 | [open for contributions](docs/adding-a-skill.md) |
-
-Adding skills for your product? Start with **[docs/adding-a-skill.md](docs/adding-a-skill.md)**.
-Evals are required — the guide explains the bar and why it is set where it is.
-
-## Safety model
-
-The first question most platform teams ask is *"will this let an agent break my cluster?"*
-
-**Every write follows the same protocol, and the agent stops at the gate.**
-
-| Step | What happens |
-|------|--------------|
-| **1. Generate** | Produces the manifest or command and shows it in full. Nothing runs. |
-| **2. Preview** | `kubectl diff` for updates, `--dry-run=server --validate=strict` for creates. Never `--dry-run=client`, which validates nothing and cannot show what an update changes. |
-| **3. Blast radius** | Resolves what *else* the change touches — how many Applications stop reconciling, which tenants share the instance, what gets deleted. A diff shows one object; most Argo CD objects are fan-out points. |
-| **4. Confirm** | Asks explicitly. Destructive operations require typing the resource name. |
-| **5. Verify** | After applying, checks it actually worked and reports the result. |
-
-Read-only work — audits, status checks, backups — skips the gate entirely.
-
-**Recommendations carry impact too, not just urgency.** A skill that tells you to raise a
-memory limit also tells you that doing so restarts the server and interrupts everyone on
-that instance. "How soon" is the easy half; "what else moves" is the half you cannot work
-out from the recommendation alone.
-
-```
-BLOCKER — Delete Rollout/openshift-gitops/example (no containers; hot-loops the controller)
-  Impact: argo-rollouts controller only. The Rollout is invalid so nothing runs from
-          it; no workload is affected. Controller restarts once.
-```
-
-Three skills (`repo-audit`, `cluster-debug`, `performance-tuning` in diagnosis mode) never
-write at all.
-
-## Works with
-
-Skills are plain Markdown with YAML frontmatter, so they are not tied to one agent.
-
-| How | Agents | Command |
-|-----|--------|---------|
-| **Any agent** | 20+ including Codex, Cline, Amp, Cursor, Antigravity | `npx skills add alimobrem/skills-for-argo` |
-| **Claude Code** | plugin with the bundled `argocd` agent | `/plugin marketplace add alimobrem/skills-for-argo` |
-
-`npx skills` is the [vercel-labs/skills](https://github.com/vercel-labs/skills) CLI. It
-reads this repo directly — nothing to publish, and it installs skills into whichever
-agent directories it finds.
-
 ## Install
 
 <details>
@@ -167,6 +109,34 @@ brew bundle
 
 </details>
 
+## Works with
+
+Skills are plain Markdown with YAML frontmatter, so they are not tied to one agent.
+
+| How | Agents | Command |
+|-----|--------|---------|
+| **Any agent** | 20+ including Codex, Cline, Amp, Cursor, Antigravity | `npx skills add alimobrem/skills-for-argo` |
+| **Claude Code** | plugin with the bundled `argocd` agent | `/plugin marketplace add alimobrem/skills-for-argo` |
+
+`npx skills` is the [vercel-labs/skills](https://github.com/vercel-labs/skills) CLI. It
+reads this repo directly — nothing to publish, and it installs skills into whichever
+agent directories it finds.
+
+## Products
+
+Skills live under `skills/<product>/`, one plugin per product, so you install only what
+you run.
+
+| Product | Skills | Status |
+|---------|-------:|--------|
+| [**gitops**](skills/gitops) — Argo CD, Argo Rollouts | 6 | shipping, benchmarked |
+| [**servicemesh**](skills/servicemesh) — Istio | 0 | [open for contributions](docs/adding-a-skill.md) |
+| [**serverless**](skills/serverless) — Knative | 0 | [open for contributions](docs/adding-a-skill.md) |
+| [**pipelines**](skills/pipelines) — Tekton | 0 | [open for contributions](docs/adding-a-skill.md) |
+
+Adding skills for your product? Start with **[docs/adding-a-skill.md](docs/adding-a-skill.md)**.
+Evals are required — the guide explains the bar and why it is set where it is.
+
 ## Usage Guide
 
 > **Full guide with all example prompts:** [docs/USER_GUIDE.md](docs/USER_GUIDE.md)
@@ -195,7 +165,7 @@ Skills are grouped by product. Expand the one you use.
 <sub>Targets Red Hat OpenShift GitOps 1.19+ · Argo CD v2.14+ / v3.x · Argo Rollouts v1.8+.
 Measured against OpenShift GitOps 1.21.3 / Argo CD v3.4.5.</sub>
 
-#### How the Skills Work Together
+### How the Skills Work Together
 
 The agent automatically selects the right skill based on what you ask:
 
@@ -210,7 +180,7 @@ The agent automatically selects the right skill based on what you ask:
 
 You don't need to invoke skills manually — just describe what you need.
 
-#### Knowledge — Ask Questions & Generate YAML
+### Knowledge — Ask Questions & Generate YAML
 
 <p align="center">
   <img src="assets/screenshots/knowledge-preview.svg" alt="Knowledge Preview" width="820"/>
@@ -256,7 +226,7 @@ Generate an ArgoCD CR for the OpenShift GitOps operator with OAuth and Routes.
 
 </details>
 
-#### Repo Audit — Security & Best Practice Review
+### Repo Audit — Security & Best Practice Review
 
 <p align="center">
   <img src="assets/screenshots/audit-preview.svg" alt="Audit Report Preview" width="820"/>
@@ -285,7 +255,7 @@ Just validate YAML syntax and schemas, don't do a full audit.
 | Warning | Missing syncPolicy, `targetRevision: HEAD` in production, no retry/backoff, missing `ignoreDifferences` for controller-managed fields |
 | Info | Missing `ignoreDifferences` for HPA-managed replicas, no progressive sync on multi-cluster ApplicationSets |
 
-#### Cluster Debug — Troubleshoot Live Issues
+### Cluster Debug — Troubleshoot Live Issues
 
 <p align="center">
   <img src="assets/screenshots/debug-preview.svg" alt="Debug Report Preview" width="820"/>
@@ -313,7 +283,7 @@ Inspect all Rollouts on this cluster and give me a health report.
 Review the Argo CD configuration for security concerns.
 ```
 
-#### Operations — Install, Deploy, Promote, Maintain
+### Operations — Install, Deploy, Promote, Maintain
 
 <p align="center">
   <img src="assets/screenshots/operations-preview.svg" alt="Operations Preview" width="820"/>
@@ -346,7 +316,7 @@ Rotate the Git credentials for the infra repo.
 
 See **[Safety model](#safety-model)** for the full protocol.
 
-#### Performance Tuning — Diagnose & Fix Slowness at Scale
+### Performance Tuning — Diagnose & Fix Slowness at Scale
 
 <p align="center">
   <img src="assets/screenshots/performance-preview.svg" alt="Performance Tuning Preview" width="820"/>
@@ -393,7 +363,7 @@ safety model as Operations before changing anything live.
 
 </details>
 
-#### Team Onboarding — Set Up New Teams on Argo CD
+### Team Onboarding — Set Up New Teams on Argo CD
 
 <p align="center">
   <img src="assets/screenshots/onboarding-preview.svg" alt="Onboarding Preview" width="820"/>
@@ -468,7 +438,6 @@ Production should require manual approval.
 
 </details>
 
-
 </details>
 
 <details>
@@ -476,7 +445,9 @@ Production should require manual approval.
 
 No Service Mesh skills have been contributed yet. Likely first candidates:
 
-- sidecar injection, mTLS and PeerAuthentication, VirtualService/DestinationRule precedence, 503s between workloads
+- Sidecar injection — why a pod has no proxy, namespace labels vs the webhook
+- Traffic — VirtualService/DestinationRule precedence, mTLS PeerAuthentication modes
+- Diagnosing 503s between workloads, and telemetry that stops arriving
 
 If you work on Service Mesh, this is an open area — see
 [`skills/servicemesh/`](skills/servicemesh) and **[docs/adding-a-skill.md](docs/adding-a-skill.md)**.
@@ -489,7 +460,8 @@ Evals are required; the guide explains the bar and why it is set there.
 
 No Serverless skills have been contributed yet. Likely first candidates:
 
-- Revisions stuck in NotReady, traffic splitting, scale-to-zero and cold starts, Broker/Trigger wiring
+- Serving — Revisions stuck in NotReady, traffic splitting, scale-to-zero and cold starts
+- Eventing — Broker/Trigger wiring, Channel delivery, dead-letter sinks, source health
 
 If you work on Serverless, this is an open area — see
 [`skills/serverless/`](skills/serverless) and **[docs/adding-a-skill.md](docs/adding-a-skill.md)**.
@@ -502,13 +474,57 @@ Evals are required; the guide explains the bar and why it is set there.
 
 No Pipelines skills have been contributed yet. Likely first candidates:
 
-- PipelineRun/TaskRun failure triage, workspaces and results passing, EventListener triggers not firing
+- PipelineRun/TaskRun failure triage — step exit codes, init-container ordering
+- Workspaces, results passing between tasks, matrix fan-out
+- Triggers — EventListener, TriggerBinding and TriggerTemplate not firing
 
 If you work on Pipelines, this is an open area — see
 [`skills/pipelines/`](skills/pipelines) and **[docs/adding-a-skill.md](docs/adding-a-skill.md)**.
 Evals are required; the guide explains the bar and why it is set there.
 
 </details>
+
+## How it works
+
+A skill is a Markdown file with YAML frontmatter. No runtime, no service, no daemon.
+
+```
+skills/gitops/argo-cluster-debug/
+├── SKILL.md        # always in context once the skill activates — kept short
+├── references/     # loaded only when the workflow calls for them
+└── scripts/        # deterministic checks the agent runs instead of improvising
+```
+
+The agent picks a skill by matching your request against its `description`, so you never
+invoke one by name — you describe the problem and the right expertise loads. Reference
+files stay out of context until needed, which is why a skill can carry hundreds of lines
+of operator-specific detail without consuming the window.
+
+Where being exactly right matters, the skill runs a **script** rather than describing a
+procedure. A documented command can be followed loosely; `scripts/validate.sh` cannot.
+
+## Data and privacy
+
+**The skills send nothing anywhere.** They are inert Markdown and shell scripts in your
+checkout — there is no telemetry, no callback, no account.
+
+Be clear about what *your agent* does, though: when it reads cluster state to answer a
+question, that output becomes part of the conversation with whichever model you are
+using. That is a property of using an AI coding agent at all, not of these skills, but it
+is worth knowing before pointing one at a production cluster.
+
+Practical consequences:
+
+- Three skills (`repo-audit`, `cluster-debug`, and `performance-tuning` while diagnosing)
+  only ever read. They cannot change anything.
+- The agent acts with **your** credentials and can do nothing your `kubeconfig` cannot.
+- `repo-audit` runs `kubeconform` with `-skip=Secret`, so Secret contents are not sent
+  through schema validation.
+- **It does not currently redact credential values it finds.** Auditing a repo with real
+  plaintext secrets in it will put those values in your agent transcript — an audit run
+  today decoded a base64 Secret and printed the username and password. Treat an audit of
+  a repo containing live credentials the same way you would treat opening that file. This
+  is a known gap, tracked for a redaction pass.
 
 ## Benchmarks
 
@@ -557,12 +573,41 @@ See **[docs/adding-a-skill.md](docs/adding-a-skill.md)** for what that involves.
 → **[Methodology, grader-variance analysis, and caveats](benchmarks/README.md)** — read
 before quoting any of these numbers.
 
+## Safety model
+
+The first question most platform teams ask is *"will this let an agent break my cluster?"*
+
+**Every write follows the same protocol, and the agent stops at the gate.**
+
+| Step | What happens |
+|------|--------------|
+| **1. Generate** | Produces the manifest or command and shows it in full. Nothing runs. |
+| **2. Preview** | `kubectl diff` for updates, `--dry-run=server --validate=strict` for creates. Never `--dry-run=client`, which validates nothing and cannot show what an update changes. |
+| **3. Blast radius** | Resolves what *else* the change touches — how many Applications stop reconciling, which tenants share the instance, what gets deleted. A diff shows one object; most Argo CD objects are fan-out points. |
+| **4. Confirm** | Asks explicitly. Destructive operations require typing the resource name. |
+| **5. Verify** | After applying, checks it actually worked and reports the result. |
+
+Read-only work — audits, status checks, backups — skips the gate entirely.
+
+**Recommendations carry impact too, not just urgency.** A skill that tells you to raise a
+memory limit also tells you that doing so restarts the server and interrupts everyone on
+that instance. "How soon" is the easy half; "what else moves" is the half you cannot work
+out from the recommendation alone.
+
+```
+BLOCKER — Delete Rollout/openshift-gitops/example (no containers; hot-loops the controller)
+  Impact: argo-rollouts controller only. The Rollout is invalid so nothing runs from
+          it; no workload is affected. Controller restarts once.
+```
+
+Three skills (`repo-audit`, `cluster-debug`, `performance-tuning` in diagnosis mode) never
+write at all.
+
 ## Contributing
 
 New skills — including for a product not listed above — are welcome. Read
 **[docs/adding-a-skill.md](docs/adding-a-skill.md)** first: it covers the eval bar,
 baselines, fixtures, and the guards CI enforces.
-
 
 Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
@@ -604,6 +649,24 @@ Two guards worth knowing about, because they catch the mistakes that actually ha
 See [AGENTS.md](AGENTS.md) for the repo layout, skill conventions, and eval runner instructions.
 
 </details>
+
+## Support
+
+**This is a community project. It is not a Red Hat product and carries no Red Hat
+support.** There is no SLA, no guaranteed response, and no entitlement attached to it.
+
+- Questions, bugs and feature requests: open a [GitHub issue](../../issues).
+- Contributions are welcome — see [docs/adding-a-skill.md](docs/adding-a-skill.md).
+- Fixes land on a best-effort basis, by whoever has time.
+
+Using these skills does **not** affect the support status of your OpenShift or OpenShift
+GitOps subscription. They generate manifests and run read-only commands against your
+cluster; nothing here modifies a supported component's configuration without you
+approving the change first.
+
+For supported OpenShift GitOps guidance, use
+[Red Hat documentation](https://docs.redhat.com/en/documentation/red_hat_openshift_gitops)
+and a support case.
 
 ## Code of Conduct
 
