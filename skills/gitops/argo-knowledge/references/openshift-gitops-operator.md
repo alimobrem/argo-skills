@@ -1,4 +1,4 @@
-<!-- Loaded on demand by skills/argo-knowledge/SKILL.md. The operator-owned CRDs that
+<!-- Loaded on demand by skills/gitops/argo-knowledge/SKILL.md. The operator-owned CRDs that
      are specific to Red Hat OpenShift GitOps — the ones with no upstream Argo CD
      equivalent. Every field below was read from the installed CRDs with
      `kubectl explain` / the CRD schema, not from memory. -->
@@ -203,7 +203,7 @@ On the `ArgoCD` side each entry requires both `name` and `allowManagedBy`.
 - Prefer this over hand-editing `--application-namespaces`; the operator owns that flag
   and will reset it.
 - Relevant to onboarding: this is how a tenant namespace gets attached to a central Argo
-  CD instance. See `skills/argo-team-onboard`.
+  CD instance. See `skills/gitops/argo-team-onboard`.
 
 ---
 

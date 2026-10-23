@@ -1,4 +1,4 @@
-<!-- Loaded on demand by skills/argo-cluster-debug/SKILL.md. Load only the workflow(s)
+<!-- Loaded on demand by skills/gitops/argo-cluster-debug/SKILL.md. Load only the workflow(s)
      matching the reported symptom; each is self-contained. -->
 
 # Debugging Workflows

@@ -1,4 +1,4 @@
-<!-- Loaded on demand by skills/argo-knowledge/SKILL.md. Each pattern is a validated
+<!-- Loaded on demand by skills/gitops/argo-knowledge/SKILL.md. Each pattern is a validated
      starting point — adapt to the user's specifics rather than pasting verbatim. -->
 
 # Canonical YAML Patterns

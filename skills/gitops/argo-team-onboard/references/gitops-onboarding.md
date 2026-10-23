@@ -1,4 +1,4 @@
-<!-- Loaded on demand by skills/argo-team-onboard/SKILL.md. This is the RECOMMENDED
+<!-- Loaded on demand by skills/gitops/argo-team-onboard/SKILL.md. This is the RECOMMENDED
      onboarding model: a per-tenant values file in Git, rendered by a shared onboarding
      Helm chart, discovered by an ApplicationSet. -->
 

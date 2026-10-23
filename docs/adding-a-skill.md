@@ -169,7 +169,7 @@ failed that expectation. The content was there; the adherence was not.
 So where correctness matters, prefer in this order:
 
 1. **A script** the skill invokes (`scripts/`). Deterministic and testable — see
-   `skills/argo-repo-audit/scripts/validate.sh` or `scripts/blast-radius.sh`.
+   `skills/gitops/argo-repo-audit/scripts/validate.sh` or `scripts/blast-radius.sh`.
 2. **An eval expectation** that fails when the step is skipped. This is what makes
    adherence visible at all.
 3. **Prose**, for everything else.
