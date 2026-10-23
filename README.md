@@ -13,9 +13,10 @@
 </p>
 
 <p align="center">
-  <b>Give your AI agent deep expertise in Red Hat OpenShift GitOps.</b><br>
-  Argo CD and Argo Rollouts as the operator ships them — generate manifests, audit repos,
-  debug clusters, tune performance, onboard teams, and manage operations from your terminal.
+  <b>Agent Skills for Red Hat OpenShift layered products.</b><br>
+  Deep, measured expertise your AI agent can use — starting with OpenShift GitOps
+  (Argo CD and Argo Rollouts as the operator ships them): generate manifests, audit repos,
+  debug clusters, tune performance, onboard teams, and run day-2 operations.
 </p>
 
 ---
@@ -42,7 +43,7 @@
 ```shell
 # Claude Code
 /plugin marketplace add alimobrem/skills-for-argo
-/plugin install argo-skills@argocd
+/plugin install openshift-gitops@openshift
 
 # Or, for any agent (Codex, Cline, Amp, Antigravity, Cursor, ...)
 npx skills add alimobrem/skills-for-argo
@@ -55,6 +56,21 @@ npx skills add alimobrem/skills-for-argo
 
 </details>
 
+## Products
+
+Skills live under `skills/<product>/`, one plugin per product, so you install only what
+you run.
+
+| Product | Skills | Status |
+|---------|-------:|--------|
+| [**gitops**](skills/gitops) — Argo CD, Argo Rollouts | 6 | shipping, benchmarked |
+| [**servicemesh**](skills/servicemesh) — Istio | 0 | [open for contributions](docs/adding-a-skill.md) |
+| [**serverless**](skills/serverless) — Knative | 0 | [open for contributions](docs/adding-a-skill.md) |
+| [**pipelines**](skills/pipelines) — Tekton | 0 | [open for contributions](docs/adding-a-skill.md) |
+
+Adding skills for your product? Start with **[docs/adding-a-skill.md](docs/adding-a-skill.md)**.
+Evals are required — the guide explains the bar and why it is set where it is.
+
 ## Install
 
 <details>
@@ -62,11 +78,11 @@ npx skills add alimobrem/skills-for-argo
 
 ```shell
 /plugin marketplace add alimobrem/skills-for-argo
-/plugin install argo-skills@argocd
+/plugin install openshift-gitops@openshift
 ```
 
-After install, the `argocd` agent appears in `/agents` and the 6 skills auto-trigger
-based on context. Run `/reload-plugins` if they don't appear immediately.
+After install, the `argocd` agent appears in `/agents` and the 6 GitOps skills
+auto-trigger based on context. Run `/reload-plugins` if they don't appear immediately.
 
 </details>
 
@@ -443,6 +459,11 @@ scores up to 7 points, so treat anything under ~5 points as unresolved.
 before quoting any of these numbers.
 
 ## Contributing
+
+New skills — including for a product not listed above — are welcome. Read
+**[docs/adding-a-skill.md](docs/adding-a-skill.md)** first: it covers the eval bar,
+baselines, fixtures, and the guards CI enforces.
+
 
 Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
