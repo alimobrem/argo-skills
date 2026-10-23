@@ -53,7 +53,7 @@
         "Flags Application with prune: false (frontend.yaml) as incomplete sync config",
         "Flags Application using targetRevision: HEAD as risky for production",
         "Checks Rollout for AnalysisTemplate with both successCondition and failureCondition",
-        "Reports overall status as FAIL due to Critical security issues",
+        "Reaches and states a clear overall verdict for the repository \u2014 a PASS/WARN/FAIL label or an equivalent unambiguous statement such as 'do not apply as committed'. The specific vocabulary does not matter; giving severity-tiered findings with no overall judgement does not satisfy this.",
         "Recommendations include at least 3 Critical-severity items",
         "Every recommended action states its IMPACT \u2014 what else is affected if someone acts on it (components that restart, other Applications or tenants affected, whether anything is deleted, and any ordering dependency on another recommendation) \u2014 not only its priority. 'Impact: nothing else is affected' counts; omitting the impact entirely does not. An impact reasoned from manifests rather than verified against a cluster must say so."
       ]
@@ -79,7 +79,7 @@
         "Flags sourceRepos: ['*'] as Critical security issue",
         "Flags destinations with server: '*' and namespace: '*' as Critical",
         "Flags clusterResourceWhitelist with group: '*' kind: '*' as Critical",
-        "Reports overall status as FAIL due to Critical security findings",
+        "Reaches and states a clear overall verdict for the repository \u2014 a PASS/WARN/FAIL label or an equivalent unambiguous statement such as 'do not apply as committed'. The specific vocabulary does not matter; giving severity-tiered findings with no overall judgement does not satisfy this.",
         "Does NOT flag the Application \u2014 it has proper syncPolicy, pinned targetRevision, and retry config"
       ]
     },
@@ -90,7 +90,7 @@
       "expectations": [
         "Detects kind: Secret (db-credentials.yaml) as Critical security issue \u2014 plain-text secret committed to Git",
         "Recommends using SealedSecret, ExternalSecret, SOPS, or Vault instead",
-        "Reports overall status as FAIL due to Critical security finding",
+        "Reaches and states a clear overall verdict for the repository \u2014 a PASS/WARN/FAIL label or an equivalent unambiguous statement such as 'do not apply as committed'. The specific vocabulary does not matter; giving severity-tiered findings with no overall judgement does not satisfy this.",
         "Does NOT flag the Application itself \u2014 it has proper syncPolicy"
       ]
     },
@@ -101,7 +101,7 @@
       "expectations": [
         "Flags the Application as missing syncPolicy (no automated sync, no prune, no selfHeal)",
         "Recommends adding syncPolicy with automated, prune, selfHeal, and retry",
-        "Severity is Warning (not Critical \u2014 missing sync is operational risk, not security vulnerability)",
+        "Rates this below Critical and justifies it: no syncPolicy is an operational gap (manual-only sync, no drift correction, no retry), not a security vulnerability. Warning, Medium or High with that reasoning all satisfy this; Critical does not.",
         "Does NOT produce false positives on other aspects of this Application"
       ]
     },
@@ -113,7 +113,7 @@
         "Flags targetRevision: HEAD as risky for a production Application",
         "Explains the risk: HEAD means any commit to the default branch is immediately synced to production without review",
         "Recommends pinning to a specific tag, commit SHA, or release branch",
-        "Severity is Warning (not Critical \u2014 it's a best practice violation, not a security vulnerability)"
+        "Rates the severity and justifies it against the real blast radius: HEAD in production with prune and selfHeal means any unreviewed commit auto-deploys and manual mitigation is reverted. Any tier is acceptable provided the reasoning is given and it is not presented as a security vulnerability; an unjustified label is not."
       ]
     },
     {
@@ -122,7 +122,7 @@
       "prompt": "Audit the Argo CD GitOps repository at tests/argo-repo-audit/targeted-bugs/weak-analysis/ using the argo-repo-audit skill. This repo has a Rollout with a canary strategy and an AnalysisTemplate.",
       "expectations": [
         "Identifies the AnalysisTemplate has successCondition but no failureCondition",
-        "Explains the risk: without failureCondition, the analysis may not fail fast enough on degraded metrics",
+        "Explains the risk of the missing failureCondition CORRECTLY. With successCondition set and failureCondition absent, Argo Rollouts records a measurement that fails the success condition as Failed \u2014 upstream utils/evaluate: 'Without a failure condition, a measurement is considered a failure if the measurement's success condition is not true' \u2014 and failureLimit defaults to 0, so one bad measurement aborts. Asserting the measurement is Inconclusive, or that the analysis never aborts, is factually wrong and fails this expectation. The real gap is the missing count, which leaves the step analysis running indefinitely.",
         "Recommends adding a failureCondition (e.g., result[0] < threshold) and failureLimit",
         "Does NOT flag the Rollout's canary steps as problematic \u2014 the step configuration itself is valid"
       ]
@@ -132,10 +132,10 @@
       "name": "detect-hardcoded-helm-password",
       "prompt": "Audit the Argo CD GitOps repository at tests/argo-repo-audit/targeted-bugs/hardcoded-helm-password/ using the argo-repo-audit skill. This repo has one Application that deploys a Redis Helm chart with inline values.",
       "expectations": [
-        "Detects the hardcoded password in helm.values (auth.password: EXAMPLE-password#1) as Critical security issue",
+        "Detects the plaintext password in spec.source.helm.values with file and line, and explains why the PATTERN is the finding independent of this value's severity: inline helm.values renders in the Argo CD UI and API with no Secret RBAC boundary. The fixture value is deliberately marked synthetic (EXAMPLE- prefix, '# notsecret'), so rating it below Critical on that basis is CORRECT and must not be penalised.",
         "Explains the risk: password is visible in Git history and in the Application resource on the cluster",
         "Recommends using a valuesFrom Secret reference, Argo CD Vault Plugin, or ExternalSecret instead",
-        "Reports overall status as FAIL due to Critical security finding"
+        "Reaches and states a clear overall verdict for the repository \u2014 a PASS/WARN/FAIL label or an equivalent unambiguous statement such as 'do not apply as committed'. The specific vocabulary does not matter; giving severity-tiered findings with no overall judgement does not satisfy this."
       ]
     },
     {
@@ -150,7 +150,7 @@
         "Recognizes secrets are managed via SealedSecret (not plain-text)",
         "Recognizes the AnalysisTemplate has both successCondition and failureCondition with failureLimit",
         "Recognizes the Rollout has Istio traffic routing configured",
-        "Reports overall status as PASS",
+        "Reaches and states a clear overall verdict for the repository \u2014 a PASS/WARN/FAIL label or an equivalent unambiguous statement such as 'do not apply as committed'. The specific vocabulary does not matter; giving severity-tiered findings with no overall judgement does not satisfy this.",
         "Does NOT produce false positives \u2014 this repo is intentionally clean"
       ]
     },
@@ -164,7 +164,7 @@
         "Does NOT flag sourceRepos or destinations \u2014 those are properly restricted",
         "Does NOT flag the Application \u2014 it has proper syncPolicy, pinned targetRevision, and retry",
         "Explains why ClusterRole+ClusterRoleBinding in clusterResourceWhitelist is dangerous even when destinations are scoped \u2014 the created ClusterRoleBinding applies cluster-wide, not just to the allowed namespaces",
-        "Reports overall status as FAIL or WARN due to the privilege escalation path"
+        "Reaches and states a clear overall verdict for the repository \u2014 a PASS/WARN/FAIL label or an equivalent unambiguous statement such as 'do not apply as committed'. The specific vocabulary does not matter; giving severity-tiered findings with no overall judgement does not satisfy this."
       ]
     }
   ]

@@ -175,11 +175,11 @@
       "name": "Onboarding attempted before Argo CD is installed",
       "prompt": "Onboard the 'reporting' team onto Argo CD. (The cluster has no Argo CD installation \u2014 no argoproj.io CRDs, no argocd-labeled pods.)",
       "expectations": [
-        "Runs the cluster check step (Argo CD CRDs / argocd-labeled pods) before any onboarding work",
-        "Detects that Argo CD is not installed on the cluster",
-        "Stops immediately \u2014 does not generate AppProject/Application resources for a nonexistent Argo CD instance",
-        "Explicitly redirects the user to argo-operations to install Argo CD first",
-        "Does not proceed with discovery questions (team profile) once the missing-installation blocker is found"
+        "Runs the cluster check step (argoproj.io CRDs, ArgoCD CRs, Argo CD pods) BEFORE doing any onboarding work, rather than taking the prompt's claim on trust.",
+        "Reports what the check actually returned, and does not restate the prompt's premise as if verified. If Argo CD IS present the answer must say so plainly and show the evidence; if it is genuinely absent it must say that. Either is correct \u2014 asserting the unverified premise is not.",
+        "Acts consistently with what it found. If Argo CD is absent: stops, generates no AppProject/Application, and points at argo-operations to install first. If Argo CD is present: says the premise is wrong and proceeds, naming which of the instances it would attach the tenant to.",
+        "Does not invent findings to fit the prompt \u2014 no fabricated 'no CRDs found' output, and no manifests presented as applied.",
+        "If the premise is contradicted, explains the likely source of the user's false negative (for example that operator-managed pods do not carry the app.kubernetes.io/part-of=argocd label, so a label-based check reports nothing on a healthy install)."
       ]
     },
     {

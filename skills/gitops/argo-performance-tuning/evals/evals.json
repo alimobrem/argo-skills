@@ -189,7 +189,7 @@
         "Recommends resource.exclusions as the fix, not resource.customizations.ignoreResourceUpdates",
         "Explains the distinction: exclusions stop the controller from watching the kind at all, while ignoreResourceUpdates still watches but skips reconciling on specific field changes",
         "Notes that recent Argo CD versions (3.0+) ship default exclusions for exactly these kinds (Endpoints, EndpointSlice, Kyverno report kinds) and recommends checking whether they're already present before adding duplicates",
-        "States the correct placement for standalone (argocd-cm) and Operator (spec.extraConfig)",
+        "States the correct placement for each install type: standalone writes `resource.exclusions` into argocd-cm; the Operator has a DEDICATED `spec.resourceExclusions` field on the ArgoCD CR and that is what should be used. `spec.extraConfig` is documented for 'fields not supported by Argo CD CRD' and 'takes precedence over Argo CD CRD', so using it here silently overrides the dedicated field \u2014 naming extraConfig as the Operator placement is wrong.",
         "Follows Generate -> Preview -> Confirm before suggesting the change be applied"
       ]
     },
