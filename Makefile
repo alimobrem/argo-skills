@@ -103,6 +103,9 @@ score-compare: ## Diff this run against a prior one: make score-compare PRIOR=pa
 test-expectations: ## Validate eval expectations' field paths against the Argo CRD schemas
 	@bash scripts/check-eval-expectations.sh
 
+test-blast-radius: ## Behavioural tests for scripts/blast-radius.sh (stubbed oc, no cluster needed)
+	@bash tests/blast-radius/test.sh
+
 test-registration: ## Check every skill is registered in manifests, agent, Makefile, banner, docs
 	@bash scripts/check-skill-registration.sh
 

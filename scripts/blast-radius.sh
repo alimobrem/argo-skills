@@ -14,7 +14,8 @@
 # are fan-out points, so that is rarely the question that matters. A one-field edit to
 # an ArgoCD CR looks trivial and restarts components every Application depends on.
 #
-# Exit codes: 0 = resolved (or nothing affected), 2 = usage, 3 = no cluster reachable.
+# Exit codes: 0 = resolved (or nothing affected), 2 = usage, 3 = no cluster reachable,
+#             4 = a lookup failed, so the radius is UNKNOWN rather than zero.
 # Never non-zero merely because the blast radius is large — callers display, they do
 # not gate on it.
 set -uo pipefail
@@ -56,6 +57,60 @@ fi
 APPS=applications.argoproj.io
 APPSETS=applicationsets.argoproj.io
 
+# "I could not determine this" must never render as "nothing is affected".
+#
+# Every count below comes from a `get` that used to be suffixed with 2>/dev/null.
+# If the list call fails — RBAC denies it, the CRD is absent, the API times out —
+# that produced an empty result, which produced a count of 0, which the caller
+# reads as "no fan-out, safe to proceed". That is the same silent-undercount
+# failure that made this script report 0 Applications for an ApplicationSet that
+# owned two. A tool answering "what else does this touch" has to distinguish
+# zero from unknown, and say so loudly when it cannot tell.
+# A FILE, not a variable. Most of these lookups run inside $( ), and a variable
+# set in a subshell never reaches the parent — so an earlier version printed
+# "COULD NOT DETERMINE" to stderr and then cheerfully reported a count of 0 and
+# exited 0. That is the exact silent-zero this guard exists to stop, reintroduced
+# by the guard itself. The test suite caught it; nothing else would have.
+UNKNOWN_FLAG="$(mktemp)"; rm -f "$UNKNOWN_FLAG"
+trap 'rm -f "$UNKNOWN_FLAG"' EXIT
+unknown_seen() { [[ -e "$UNKNOWN_FLAG" ]]; }
+die_unknown() {
+  : > "$UNKNOWN_FLAG"
+  echo "  !! COULD NOT DETERMINE: $1" >&2
+  echo "  !! Treat the blast radius as UNKNOWN, not as zero. Do not proceed on this output." >&2
+}
+
+# Run a read and distinguish failure from an empty result.
+# Prints output on success; on failure prints nothing and flags UNKNOWN.
+try_get() {
+  local what="$1"; shift
+  local out rc
+  out="$($KCTL "$@" 2>&1)"; rc=$?
+  if [[ $rc -ne 0 ]]; then
+    die_unknown "$what — ${KCTL} exited $rc: $(printf '%s' "$out" | head -1)"
+    return 1
+  fi
+  printf '%s' "$out"
+}
+
+# Does a named object exist? Distinguishes absent from unreadable.
+exists() {  # exists <resource> <name> [-n ns]
+  local out rc
+  out="$($KCTL get "$@" -o name 2>&1)"; rc=$?
+  [[ $rc -eq 0 ]] && return 0
+  if printf '%s' "$out" | grep -qiE 'not found|notfound'; then
+    return 1
+  fi
+  die_unknown "could not read $1/$2 — $(printf '%s' "$out" | head -1)"
+  return 2
+}
+
+# Report "no such object" distinctly from "exists, affects nothing".
+absent_note() {
+  echo "  No $1 named '$2'${3:+ in namespace $3} — nothing resolved."
+  echo "  This is NOT a statement that the change is safe; the object was not found."
+}
+
 # project \t namespace/name \t owner-from-ownerReferences \t owner-from-label
 #
 # Two owner columns on purpose. The ApplicationSet link is taken primarily from
@@ -68,7 +123,7 @@ APPSETS=applicationsets.argoproj.io
 # nothing else is affected when things are. The label is kept as a fallback for
 # Applications whose ownerReference has been stripped.
 apps_tsv() {
-  $KCTL get "$APPS" -A -o jsonpath='{range .items[*]}{.spec.project}{"\t"}{.metadata.namespace}/{.metadata.name}{"\t"}{.metadata.ownerReferences[?(@.kind=="ApplicationSet")].name}{"\t"}{.metadata.labels.argocd\.argoproj\.io/application-set-name}{"\n"}{end}' 2>/dev/null
+  try_get "list of Applications cluster-wide" get "$APPS" -A -o jsonpath='{range .items[*]}{.spec.project}{"\t"}{.metadata.namespace}/{.metadata.name}{"\t"}{.metadata.ownerReferences[?(@.kind=="ApplicationSet")].name}{"\t"}{.metadata.labels.argocd\.argoproj\.io/application-set-name}{"\n"}{end}'
 }
 
 echo "BLAST RADIUS: $KIND/${NS:+$NS/}$NAME"
@@ -78,9 +133,9 @@ case "$KIND" in
 
   ArgoCD)
     [[ -z "$NS" ]] && { echo "  (namespace required for ArgoCD)" >&2; exit 2; }
-    if ! $KCTL get argocd "$NAME" -n "$NS" >/dev/null 2>&1; then
-      echo "  no such ArgoCD CR — nothing resolved"; exit 0
-    fi
+    exists argocd "$NAME" -n "$NS"; rc=$?
+    [[ $rc -eq 1 ]] && { absent_note "ArgoCD CR" "$NAME" "$NS"; exit 0; }
+    [[ $rc -eq 2 ]] && exit 4
     # An ArgoCD CR governs Applications in its own namespace plus any sourceNamespaces.
     watched="$NS $($KCTL get argocd "$NAME" -n "$NS" -o jsonpath='{range .spec.sourceNamespaces[*]}{@}{" "}{end}' 2>/dev/null)"
     n_app=0
@@ -102,10 +157,31 @@ case "$KIND" in
 
   AppProject)
     [[ -z "$NS" ]] && { echo "  (namespace required for AppProject)" >&2; exit 2; }
-    members=$(apps_tsv | awk -F'\t' -v p="$NAME" '$1==p {print "    "$2}')
+    exists appprojects.argoproj.io "$NAME" -n "$NS"; rc=$?
+    [[ $rc -eq 1 ]] && { absent_note "AppProject" "$NAME" "$NS"; exit 0; }
+    [[ $rc -eq 2 ]] && exit 4
+    tsv="$(apps_tsv)"
+    # Scope to this AppProject's own instance. A project name is only unique within
+    # an Argo CD instance: two instances can both define `default`, and matching on
+    # name alone silently merges their Applications into one impact figure.
+    members=$(printf '%s' "$tsv" | awk -F'\t' -v p="$NAME" -v ns="$NS/" '$1==p && $2 ~ "^"ns {print "    "$2}')
     cnt=$(printf '%s\n' "$members" | grep -c . || true)
-    echo "  Applications in this project: $cnt"
-    [[ "$cnt" -gt 0 ]] && printf '%s\n' "$members"
+    elsewhere=$(printf '%s' "$tsv" | awk -F'\t' -v p="$NAME" -v ns="$NS/" '$1==p && $2 !~ "^"ns {print "    "$2}')
+    ecnt=$(printf '%s\n' "$elsewhere" | grep -c . || true)
+    if unknown_seen; then
+      echo "  Applications in this project: UNKNOWN (the lookup failed above)"
+    else
+      echo "  Applications in this project: $cnt"
+      [[ "$cnt" -gt 0 ]] && printf '%s\n' "$members"
+    fi
+    if [[ "$ecnt" -gt 0 ]]; then
+      echo
+      echo "  NOTE: $ecnt other Application(s) name a project '$NAME' in a different"
+      echo "  namespace. Project names are unique per instance, so these are probably a"
+      echo "  DIFFERENT AppProject and are not counted above — confirm before assuming"
+      echo "  they are unaffected:"
+      printf '%s\n' "$elsewhere"
+    fi
     echo
     echo "  Tightening sourceRepos, destinations or the resource whitelists can push these"
     echo "  Applications to InvalidSpecError. They stop syncing with nobody editing them."
@@ -113,9 +189,13 @@ case "$KIND" in
 
   ApplicationSet)
     [[ -z "$NS" ]] && { echo "  (namespace required for ApplicationSet)" >&2; exit 2; }
+    exists "$APPSETS" "$NAME" -n "$NS"; rc=$?
+    [[ $rc -eq 1 ]] && { absent_note "ApplicationSet" "$NAME" "$NS"; exit 0; }
+    [[ $rc -eq 2 ]] && exit 4
     gen=$(apps_tsv | awk -F'\t' -v s="$NAME" '$3==s || $4==s {print "    "$2}')
     cnt=$(printf '%s\n' "$gen" | grep -c . || true)
-    echo "  Applications generated by it: $cnt"
+    unknown_seen && { echo "  Applications generated by it: UNKNOWN (the lookup failed above)"; cnt="?"; } \
+                 || echo "  Applications generated by it: $cnt"
     [[ "$cnt" -gt 0 ]] && printf '%s\n' "$gen"
     echo
     echo "  A template edit rewrites all $cnt at once. A generator edit can prune some away,"
@@ -124,10 +204,26 @@ case "$KIND" in
 
   Application)
     [[ -z "$NS" ]] && { echo "  (namespace required for Application)" >&2; exit 2; }
-    res=$($KCTL get "$APPS" "$NAME" -n "$NS" -o jsonpath='{range .status.resources[*]}    {.kind}/{.namespace}/{.name}{"\n"}{end}' 2>/dev/null)
+    exists "$APPS" "$NAME" -n "$NS"; rc=$?
+    [[ $rc -eq 1 ]] && { absent_note "Application" "$NAME" "$NS"; exit 0; }
+    [[ $rc -eq 2 ]] && exit 4
+    res=$(try_get "managed resources of $NAME" get "$APPS" "$NAME" -n "$NS" -o jsonpath='{range .status.resources[*]}    {.kind}/{.namespace}/{.name}{"\n"}{end}')
     cnt=$(printf '%s\n' "$res" | grep -c . || true)
     prune=$($KCTL get "$APPS" "$NAME" -n "$NS" -o jsonpath='{.spec.syncPolicy.automated.prune}' 2>/dev/null)
+    sync=$($KCTL get "$APPS" "$NAME" -n "$NS" -o jsonpath='{.status.sync.status}' 2>/dev/null)
+    if [[ "$cnt" -eq 0 ]] && ! unknown_seen; then
+      # status.resources is empty both when an Application manages nothing and when
+      # it has NEVER SYNCED — most often because comparison failed. Those are very
+      # different impacts and the raw count cannot tell them apart.
+      echo "  Managed resources: 0"
+      echo "  sync status: ${sync:-<none>}"
+      if [[ "$sync" != "Synced" ]]; then
+        echo "  This Application has no resources recorded AND is not Synced, so the zero"
+        echo "  above probably means it never deployed — not that deleting it is harmless."
+      fi
+    else
     echo "  Managed resources: $cnt"
+    fi
     [[ "$cnt" -gt 0 ]] && printf '%s\n' "$res"
     echo
     if [[ "$prune" == "true" ]]; then
@@ -139,7 +235,12 @@ case "$KIND" in
     ;;
 
   RolloutManager)
-    cnt=$($KCTL get rollouts.argoproj.io -A --no-headers 2>/dev/null | wc -l | tr -d ' ')
+    if [[ -n "$NS" ]]; then
+      exists rolloutmanagers.argoproj.io "$NAME" -n "$NS"; rc=$?
+      [[ $rc -eq 1 ]] && { absent_note "RolloutManager" "$NAME" "$NS"; exit 0; }
+      [[ $rc -eq 2 ]] && exit 4
+    fi
+    cnt=$(try_get "cluster-wide Rollout list" get rollouts.argoproj.io -A --no-headers | grep -c . || true)
     scoped=$($KCTL get rolloutmanager "$NAME" ${NS:+-n "$NS"} -o jsonpath='{.spec.namespaceScoped}' 2>/dev/null)
     echo "  Rollouts on the cluster: $cnt"
     echo "  namespaceScoped: ${scoped:-false (default) — controller watches ALL namespaces}"
@@ -166,4 +267,9 @@ case "$KIND" in
 esac
 
 echo
+if unknown_seen; then
+  echo "  (read-only; nothing was modified — but one or more lookups FAILED above."
+  echo "   The numbers here are incomplete. Do not report this as a computed impact.)"
+  exit 4
+fi
 echo "  (read-only; nothing was modified)"
