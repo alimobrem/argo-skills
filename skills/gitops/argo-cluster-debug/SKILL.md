@@ -207,7 +207,7 @@ HIGH    — Raise argocd-server memory to 1Gi (OOMKilling at the 256Mi default)
 Where a cluster is reachable, compute it rather than guess:
 
 ```bash
-scripts/blast-radius.sh <kind> <name> [namespace]
+<repo-root>/scripts/blast-radius.sh <kind> <name> [namespace]
 ```
 
 It resolves the fan-out for `ArgoCD`, `AppProject`, `ApplicationSet`, `Application`,

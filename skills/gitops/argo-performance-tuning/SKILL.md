@@ -175,7 +175,7 @@ on that instance stops reconciling until it is back — a one-field diff hides t
 entirely. Compute the affected set and show it before asking to confirm:
 
 ```bash
-scripts/blast-radius.sh ArgoCD <name> <namespace>
+<repo-root>/scripts/blast-radius.sh ArgoCD <name> <namespace>
 ```
 
 `spec.resourceExclusions` and `resourceTrackingMethod` are the widest of these: they
