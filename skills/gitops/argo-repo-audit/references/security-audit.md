@@ -146,18 +146,37 @@ grep -rn "kind: Secret" <repo-root> --include="*.yaml" --include="*.yml" -l | wh
 done
 ```
 
-### Scanning: Find hardcoded credentials
+### Scanning: Find hardcoded credentials and keys
 
 ```bash
-grep -rn -iE "(password|token|secret|apikey|api_key):" <repo-root> --include="*.yaml" --include="*.yml" | \
-  grep -v "secretName\|secretKeyRef\|valueFrom\|kind:\|#" | head -20
+<repo-root>/scripts/scan-credentials.sh <repo-root>
 ```
 
-### Scanning: Find SSH keys
+**Use the script, not a bare `grep`.** The obvious one-liner —
 
 ```bash
-grep -rn "sshPrivateKey\|BEGIN.*PRIVATE KEY\|BEGIN RSA" <repo-root> --include="*.yaml" --include="*.yml"
+grep -rn -iE "(password|token|secret):" <repo-root>    # DO NOT
 ```
+
+— prints the whole matching line, which puts the credential itself into the
+conversation. An audit that leaks the thing it is auditing for is worse than no audit.
+The finding is the **location**, never the value.
+
+`scan-credentials.sh` reports file, line, key name and value *length*, which is enough
+to triage severity and find the string yourself. It also separates three cases a plain
+grep conflates:
+
+| Classified as | Meaning |
+|---|---|
+| `PLAINTEXT` | a real finding — treat as compromised, it is in git history |
+| `encrypted at rest` | SOPS or SealedSecret ciphertext in the same key — **not** a finding |
+| `marked synthetic / templated` | `# notsecret`, `EXAMPLE-`, `CHANGEME`, `${VAR}`, `{{ }}` |
+
+That last distinction matters: flagging SealedSecret ciphertext as a plaintext password
+is the false positive that teaches people to ignore the scanner.
+
+If you must inspect a value to judge severity, say so and ask first — do not print it
+unprompted.
 
 ### Scanning: Find cluster secrets
 

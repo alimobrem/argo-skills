@@ -114,6 +114,12 @@ from `assets/schemas/`), and Kustomize overlay builds.
 - **Secrets are not inspected here.** The script runs kubeconform with `-skip=Secret`, so
   a validate-only run can never surface a plain-text Secret. Those are Phase 4 findings.
   Never let a clean Pass 2 imply the repo is free of hardcoded credentials.
+
+**Never print a credential value.** Report file, line and key name; run
+`scripts/scan-credentials.sh <repo-root>`, which redacts values by construction. Do not
+`cat` a Secret manifest, and do not `base64 -d` a `data:` value to "confirm" it — the
+decoded secret lands in the transcript, and whether it decodes cleanly was never the
+question. If judging severity genuinely requires seeing a value, ask the user first.
 - **Schemas ship for every in-scope kind** — Application, AppProject, ApplicationSet,
   ArgoCD, Rollout, AnalysisTemplate, AnalysisRun, Experiment. Argo Workflows and Argo
   Events kinds are out of scope for OpenShift GitOps; if a repo contains them, note that

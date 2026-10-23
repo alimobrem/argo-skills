@@ -622,11 +622,18 @@ Practical consequences:
   This is the only hard limit in the list, and it is the one worth configuring.
 - `repo-audit` runs `kubeconform` with `-skip=Secret`, so Secret contents are not sent
   through schema validation.
-- **It does not currently redact credential values it finds.** Auditing a repo with real
-  plaintext secrets in it will put those values in your agent transcript — an audit run
-  today decoded a base64 Secret and printed the username and password. Treat an audit of
-  a repo containing live credentials the same way you would treat opening that file. This
-  is a known gap, tracked for a redaction pass.
+- **`repo-audit` reports credential locations, not values.** It runs
+  `scan-credentials.sh`, which prints file, line, key name and value *length* — enough to
+  triage and to find the string yourself, not enough to use it. This replaced a
+  documented `grep` that printed whole matching lines; an audit run put a decoded
+  username and password into the transcript before it was fixed. The scanner also
+  separates real plaintext from SOPS/SealedSecret ciphertext and from values marked
+  `# notsecret` or `EXAMPLE-`.
+- **That is a property of the script, not a guarantee about the agent.** The skill
+  instructs it never to `cat` a Secret or `base64 -d` a value, and the scanner leaks
+  nothing by construction — but an agent asked point-blank to show a secret can still
+  read the file. Audit a repo holding live credentials with the same care you would give
+  to opening that file.
 
 ## Contributing
 

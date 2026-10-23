@@ -78,7 +78,7 @@
     {
       "id": 6,
       "name": "Blue-green rollout stuck at preview, never promotes",
-      "prompt": "The blue-green rollout for checkout-api in namespace prod has been sitting at the preview stage for an hour and autoPromotionEnabled is false. The team expected it to analyze automatically. Debug it.",
+      "prompt": "The blue-green rollout for checkout-api in namespace prod is sitting at the preview stage and has not promoted. autoPromotionEnabled is false. The team expected it to analyze automatically. Debug it.",
       "expectations": [
         "Retrieves the Rollout and identifies strategy.blueGreen configuration",
         "Checks autoPromotionEnabled and explains that false requires manual promotion, not automatic analysis",

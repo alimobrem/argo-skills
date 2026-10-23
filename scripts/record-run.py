@@ -44,6 +44,35 @@ def score(evals):
     return earned, total
 
 
+def _evals_on_disk(skill):
+    matches = sorted(ROOT.glob(f"skills/*/{skill}/evals/evals.json"))
+    if not matches:
+        return None
+    d = json.loads(matches[0].read_text())
+    return d if isinstance(d, list) else d.get("evals", d.get("cases", []))
+
+
+def prompt_fp(skill):
+    """Hash the eval PROMPTS as they exist on disk right now.
+
+    suite_fp covers expectation texts only, because that is all a results file
+    records. But changing a prompt changes what the agent was asked, which can
+    change the answer completely — and that moved nothing in suite_fp. Eval 6 of
+    argo-cluster-debug had a fabricated "for an hour" claim removed and the
+    staleness check stayed silent, which is exactly the kind of quiet
+    non-comparability this file exists to prevent.
+
+    Recorded alongside the run. Rows written before this existed have no
+    prompt_fp and are reported as unknown rather than stale — guessing either
+    way would be worse than saying so.
+    """
+    evs = _evals_on_disk(skill)
+    if evs is None:
+        return None
+    texts = sorted(f"{e.get('id')}|{e.get('prompt', '')}" for e in evs)
+    return hashlib.sha256("\n".join(texts).encode()).hexdigest()[:12]
+
+
 def current_fp(skill):
     """Fingerprint of the expectations as they exist on disk right now.
 
@@ -86,6 +115,7 @@ def record(results_dir, run, date, note, commit):
             "n": int(total),
             "suite_fp": fp,
             "suite_n": n_fp,
+            "prompt_fp": prompt_fp(d.get("skill", f.name.split(".")[0])),
             "model": d.get("model", "unknown"),
             "skills_commit": commit,
             "note": note,
@@ -122,17 +152,40 @@ def report():
                 # Compare against the suite that is CURRENTLY on disk, not the last
                 # one recorded. Comparing to the latest *record* silently marks a
                 # stale run as current whenever every recorded run predates an edit.
-                mark = " " if w["suite_fp"] == current_fp(s) else "*"
+                if w["suite_fp"] != current_fp(s):
+                    mark = "*"
+                elif w.get("prompt_fp") and w["prompt_fp"] != prompt_fp(s):
+                    mark = "p"     # expectations unchanged, PROMPTS changed
+                elif not w.get("prompt_fp"):
+                    mark = "?"     # recorded before prompts were fingerprinted
+                else:
+                    mark = " "
                 line += f"{w['pct']:>10.1f}/{b['pct']:<6.1f}{w['pct']-b['pct']:>+6.1f}{mark}"
         print(line)
     print("\n* = graded against an expectation suite that is NO LONGER the one on disk;")
     print("    those scores are not comparable to a run of the current suite.")
+    print("p = same expectations, but one or more PROMPTS have changed since; the agent")
+    print("    was asked something different, so the score is not comparable either.")
+    print("? = recorded before prompts were fingerprinted — comparability unverifiable.")
     # A skill needs a re-run only if NO recorded run used the current suite --
     # not merely if some older run used a different one.
     # A skill whose evals.json cannot be located is a BUG, not a stale suite. Reporting
     # it as "needs a re-run" costs ten agent runs chasing a path problem. This is how the
     # multi-product move went unnoticed: current_fp() returned None for every skill and
     # the report looked plausible.
+    drifted = [s for s in skills
+               if current_fp(s) is not None
+               and any(r["skill"] == s and r["suite_fp"] == current_fp(s)
+                       and r.get("prompt_fp") and r["prompt_fp"] != prompt_fp(s)
+                       for r in h)
+               and not any(r["skill"] == s and r["suite_fp"] == current_fp(s)
+                           and r.get("prompt_fp") == prompt_fp(s) for r in h)]
+    if drifted:
+        print("\nPROMPTS CHANGED since the last comparable run (expectations are "
+              "unchanged, so the\n* marker above does not catch these): "
+              + ", ".join(drifted))
+        print("Re-run these; the recorded answers were produced from different prompts.")
+
     unresolved = [s for s in skills if current_fp(s) is None]
     if unresolved:
         print("\nERROR: could not locate evals.json for: " + ", ".join(unresolved),

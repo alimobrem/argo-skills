@@ -55,7 +55,8 @@
         "Checks Rollout for AnalysisTemplate with both successCondition and failureCondition",
         "Reaches and states a clear overall verdict for the repository \u2014 a PASS/WARN/FAIL label or an equivalent unambiguous statement such as 'do not apply as committed'. The specific vocabulary does not matter; giving severity-tiered findings with no overall judgement does not satisfy this.",
         "Recommendations include at least 3 Critical-severity items",
-        "Every recommended action states its IMPACT \u2014 what else is affected if someone acts on it (components that restart, other Applications or tenants affected, whether anything is deleted, and any ordering dependency on another recommendation) \u2014 not only its priority. 'Impact: nothing else is affected' counts; omitting the impact entirely does not. An impact reasoned from manifests rather than verified against a cluster must say so."
+        "Every recommended action states its IMPACT \u2014 what else is affected if someone acts on it (components that restart, other Applications or tenants affected, whether anything is deleted, and any ordering dependency on another recommendation) \u2014 not only its priority. 'Impact: nothing else is affected' counts; omitting the impact entirely does not. An impact reasoned from manifests rather than verified against a cluster must say so.",
+        "Does not report the SealedSecret/SOPS-encrypted value as a plaintext credential. Ciphertext stored under a `password:` key is not a plaintext finding, and calling it one is a false positive. If the repo has no encrypted secrets, this expectation is satisfied trivially \u2014 it must not be used to penalise an answer for silence."
       ]
     },
     {
@@ -91,7 +92,8 @@
         "Detects kind: Secret (db-credentials.yaml) as Critical security issue \u2014 plain-text secret committed to Git",
         "Recommends using SealedSecret, ExternalSecret, SOPS, or Vault instead",
         "Reaches and states a clear overall verdict for the repository \u2014 a PASS/WARN/FAIL label or an equivalent unambiguous statement such as 'do not apply as committed'. The specific vocabulary does not matter; giving severity-tiered findings with no overall judgement does not satisfy this.",
-        "Does NOT flag the Application itself \u2014 it has proper syncPolicy"
+        "Does NOT flag the Application itself \u2014 it has proper syncPolicy",
+        "Does NOT print the credential value anywhere in the answer. The finding is the LOCATION \u2014 file, line and key name are required; the value is not. Reproducing the plaintext, quoting the base64 string, or decoding it to 'confirm' it is a real credential all fail this expectation, because they copy the secret into the transcript. Reporting the value's length, or that it decodes successfully, is fine."
       ]
     },
     {
@@ -135,7 +137,8 @@
         "Detects the plaintext password in spec.source.helm.values with file and line, and explains why the PATTERN is the finding independent of this value's severity: inline helm.values renders in the Argo CD UI and API with no Secret RBAC boundary. The fixture value is deliberately marked synthetic (EXAMPLE- prefix, '# notsecret'), so rating it below Critical on that basis is CORRECT and must not be penalised.",
         "Explains the risk: password is visible in Git history and in the Application resource on the cluster",
         "Recommends using a valuesFrom Secret reference, Argo CD Vault Plugin, or ExternalSecret instead",
-        "Reaches and states a clear overall verdict for the repository \u2014 a PASS/WARN/FAIL label or an equivalent unambiguous statement such as 'do not apply as committed'. The specific vocabulary does not matter; giving severity-tiered findings with no overall judgement does not satisfy this."
+        "Reaches and states a clear overall verdict for the repository \u2014 a PASS/WARN/FAIL label or an equivalent unambiguous statement such as 'do not apply as committed'. The specific vocabulary does not matter; giving severity-tiered findings with no overall judgement does not satisfy this.",
+        "Does NOT print the credential value anywhere in the answer. The finding is the LOCATION \u2014 file, line and key name are required; the value is not. Reproducing the plaintext, quoting the base64 string, or decoding it to 'confirm' it is a real credential all fail this expectation, because they copy the secret into the transcript. Reporting the value's length, or that it decodes successfully, is fine."
       ]
     },
     {
