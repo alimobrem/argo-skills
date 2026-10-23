@@ -54,7 +54,9 @@ for path in $SKILL_PATHS; do
   grep -q "^  - $skill\$"              agents/claude-code/argocd.md    || note "agents/claude-code/argocd.md skills: list"
   grep -q "^eval-$short:"              Makefile                        || note "Makefile target eval-$short"
   grep -qE "^eval:.*[[:space:]]eval-$short([[:space:]]|\$)" Makefile    || note "Makefile 'eval' aggregate does not include eval-$short"
-  grep -q ">$short<"                   assets/banner.svg               || note "assets/banner.svg pill for '$short'"
+  # The banner shows PRODUCT pills, not one per skill — a per-skill banner would not
+  # survive more than a handful of products. Each skill's product must have a pill.
+  grep -q ">$product<"                 assets/banner.svg               || note "assets/banner.svg pill for product '$product'"
   grep -q "$skill"                     README.md                       || note "README.md mention"
   grep -qe "^ *- $skill\$"             .github/workflows/evals.yml     || note ".github/workflows/evals.yml choice option"
   grep -qe "^ *- skill: $skill\$"      .github/workflows/evals.yml     || note ".github/workflows/evals.yml matrix entry"
