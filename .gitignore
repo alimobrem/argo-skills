@@ -7,4 +7,4 @@ workspace/
 .playwright-mcp/
 
 # Staging dir used by `make download-schemas`; removed on success, lingers on failure
-skills/argo-repo-audit/assets/schemas.tmp/
+skills/gitops/argo-repo-audit/assets/schemas.tmp/

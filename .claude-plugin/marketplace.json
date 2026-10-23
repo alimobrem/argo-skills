@@ -1,26 +1,26 @@
 {
-  "name": "argocd",
+  "name": "openshift",
   "owner": {
-    "name": "The Argo Skills authors",
-    "url": "https://github.com/alimobrem/skills-for-argo"
+    "name": "Red Hat",
+    "url": "https://github.com/redhat-developer/agentic-skills"
   },
   "metadata": {
-    "description": "AI skills for Red Hat OpenShift GitOps \u2014 Argo CD and Argo Rollouts on OpenShift",
-    "version": "0.0.1"
+    "version": "0.1.0",
+    "description": "Agent Skills for Red Hat OpenShift layered products \u2014 one plugin per product."
   },
   "plugins": [
     {
-      "name": "argo-skills",
+      "name": "openshift-gitops",
       "description": "Skills for Red Hat OpenShift GitOps (Argo CD + Argo Rollouts) \u2014 knowledge and manifest generation, repository auditing, live cluster debugging, operations, performance tuning, and GitOps-first team onboarding",
       "source": "./",
       "strict": false,
       "skills": [
-        "./skills/argo-knowledge",
-        "./skills/argo-repo-audit",
-        "./skills/argo-cluster-debug",
-        "./skills/argo-operations",
-        "./skills/argo-performance-tuning",
-        "./skills/argo-team-onboard"
+        "./skills/gitops/argo-knowledge",
+        "./skills/gitops/argo-repo-audit",
+        "./skills/gitops/argo-cluster-debug",
+        "./skills/gitops/argo-operations",
+        "./skills/gitops/argo-performance-tuning",
+        "./skills/gitops/argo-team-onboard"
       ],
       "agents": [
         "./agents/claude-code/argocd.md"

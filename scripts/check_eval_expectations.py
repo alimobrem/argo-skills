@@ -1,19 +1,38 @@
 #!/usr/bin/env python3
-"""Validate field paths asserted in eval expectations against the committed Argo CRD schemas.
+"""Validate field paths asserted in eval expectations against committed CRD schemas.
 
 Three expectations were found grading FOR output the API server rejects or silently
 prunes. Nothing checked the expectations themselves. This does.
 
 Only flags paths rooted at `spec.` that resolve in NO available schema — conservative by
 design, because expectations are prose and a false positive is worse than a miss here.
+
+Schemas are per product (skills/<product>/_schemas/). A product with no schemas has its
+paths reported as unvalidated rather than failed, so a Tekton or Istio expectation is not
+rejected for failing to appear in Argo's CRDs.
 """
 import json
 import pathlib
 import re
 import sys
 
-SCHEMA_DIR = pathlib.Path("skills/argo-repo-audit/assets/schemas")
-EVAL_GLOB = "skills/*/evals/evals.json"
+# Skills live at skills/<product>/<skill>/. Schemas are PER PRODUCT: a Tekton
+# expectation asserting spec.taskRef.name must not be validated against Argo CRDs and
+# fail for a reason that has nothing to do with the expectation being wrong.
+SKILL_GLOB = "skills/*/*/evals/evals.json"
+
+
+def schema_dir_for(product):
+    """Schemas a product's expectations are checked against.
+
+    Convention: skills/<product>/_schemas/, with the Argo set kept where it already
+    lives so the repo-audit skill can ship it as an asset.
+    """
+    shared = pathlib.Path("skills") / product / "_schemas"
+    if shared.is_dir():
+        return shared
+    legacy = pathlib.Path("skills") / product / "argo-repo-audit" / "assets" / "schemas"
+    return legacy if legacy.is_dir() else None
 
 # Paths that are legitimately not in a CRD schema: other projects' CRDs we don't ship
 # schemas for, or non-Argo kinds.
@@ -44,11 +63,11 @@ KNOWN_DIVERGENCES = {
 }
 
 
-def load_schemas():
+def load_schemas(schema_dir):
     out = {}
-    if not SCHEMA_DIR.is_dir():
+    if schema_dir is None or not schema_dir.is_dir():
         return out
-    for f in sorted(SCHEMA_DIR.glob("*.json")):
+    for f in sorted(schema_dir.glob("*.json")):
         try:
             out[f.stem] = json.loads(f.read_text())
         except Exception as exc:  # pragma: no cover
@@ -75,16 +94,34 @@ def resolve(schema, path):
 
 
 def main():
-    schemas = load_schemas()
-    if not schemas:
-        print("No CRD schemas found — run `make download-schemas` first. Skipping.")
-        return 0
-
     path_re = re.compile(r"\bspec(?:\.[a-zA-Z][a-zA-Z0-9]*){1,6}\b")
     findings, diverged = [], []
     checked = 0
 
-    for ef in sorted(pathlib.Path(".").glob(EVAL_GLOB)):
+    eval_files = sorted(pathlib.Path(".").glob(SKILL_GLOB))
+
+    # A check that examines nothing must FAIL, not report success. When skills moved
+    # from skills/<skill>/ to skills/<product>/<skill>/ this script kept printing
+    # "All asserted spec.* paths resolve" while globbing zero files. A guard that
+    # passes by doing nothing is worse than no guard: it is actively reassuring.
+    if not eval_files:
+        print(f"FAIL: no eval files matched {SKILL_GLOB!r} — nothing was checked.",
+              file=sys.stderr)
+        print("Skills are expected at skills/<product>/<skill>/evals/evals.json.",
+              file=sys.stderr)
+        return 1
+
+    products = sorted({pathlib.Path(f).parts[1] for f in eval_files})
+    schemas_by_product = {p: load_schemas(schema_dir_for(p)) for p in products}
+    for prod, sch in schemas_by_product.items():
+        if not sch:
+            print(f"  note: no CRD schemas for product '{prod}' — its spec.* paths are "
+                  f"not validated. Add skills/{prod}/_schemas/ to enable checking.")
+
+    for ef in eval_files:
+        schemas = schemas_by_product.get(pathlib.Path(ef).parts[1], {})
+        if not schemas:
+            continue
         data = json.loads(ef.read_text())
         for ev in data.get("evals", []):
             blob = " ".join(ev.get("expectations", [])) + " " + str(ev.get("expected_output", ""))
@@ -107,8 +144,9 @@ def main():
                 if not any(resolve(s, raw) for s in schemas.values()):
                     findings.append((str(ef), ev.get("id", "?"), raw))
 
+    print(f"Products: {', '.join(products)}  ({len(eval_files)} eval file(s))")
     print(f"Checked {checked} distinct spec.* paths across eval expectations "
-          f"against {len(schemas)} CRD schemas.\n")
+          f"against {sum(len(s) for s in schemas_by_product.values())} CRD schemas.\n")
     if diverged:
         print("Allowed via KNOWN_DIVERGENCES (shipped schema differs from the product):")
         for p_, why in sorted(set(diverged)):
