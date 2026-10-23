@@ -44,9 +44,14 @@ for contributing to this project.
 
 ### Evals
 
-- Each skill should have `evals/evals.json` with evaluation scenarios
-- Each eval needs specific, mechanically verifiable expectations
-- Test the evals by running them through the skill workflow
+Every skill needs `evals/evals.json`, and the expectations have to be able to tell a
+correct answer from a merely plausible one — which is harder than it sounds and is the
+most common thing to get wrong.
+
+**Adding a skill, especially from another product team? Start with
+[docs/adding-a-skill.md](docs/adding-a-skill.md).** It covers the eval bar, baselines,
+fixtures, and the guards, with the specific mistakes we made and how to avoid repeating
+them.
 
 ## Development
 

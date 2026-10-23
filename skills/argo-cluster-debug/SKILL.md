@@ -189,6 +189,43 @@ Prioritized list of actions:
 - **MEDIUM** — best practice violation contributing to the issue
 - **LOW** — improvement for reliability or observability
 
+**Every recommendation must state its impact, not just its urgency.** Priority says how
+soon; impact says what else moves when someone acts on it. A reader deciding whether to
+do this now or in a maintenance window needs the second one, and it is the part they
+cannot work out from the recommendation itself.
+
+```
+BLOCKER — Delete Rollout/openshift-gitops/example (no containers; hot-loops the controller)
+  Impact: argo-rollouts controller only. The Rollout is invalid so nothing runs from
+          it; no workload is affected. Controller restarts once.
+
+HIGH    — Raise argocd-server memory to 1Gi (OOMKilling at the 256Mi default)
+  Impact: restarts argocd-server on the openshift-gitops instance. UI and API
+          unavailable for ~30s for everyone using it. Reconciliation is unaffected.
+```
+
+Where a cluster is reachable, compute it rather than guess:
+
+```bash
+scripts/blast-radius.sh <kind> <name> [namespace]
+```
+
+It resolves the fan-out for `ArgoCD`, `AppProject`, `ApplicationSet`, `Application`,
+`RolloutManager` and the shared ConfigMaps, and is strictly read-only. With no cluster,
+reason it out from the manifests and **say it was not verified** — an unverified impact
+is still far more useful than none.
+
+"Impact: this Application only, nothing else references it" is a good answer. Say it
+rather than omitting the line; silence reads as "unknown", which is a different claim.
+
+Three cases worth stating explicitly whenever they apply:
+- **Operator-managed objects restart on edit.** The restart is itself the impact and it
+  is invisible in a diff.
+- **Shared instances.** On OpenShift the default `openshift-gitops` instance is usually
+  shared; the person asking typically owns one tenant and is not thinking about the others.
+- **Ordering.** If one recommendation must land before another is safe, say so. Enabling
+  a gate while a dependency is broken can create the very failure being reported.
+
 ---
 
 ## Edge Cases

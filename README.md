@@ -44,6 +44,9 @@
 /plugin marketplace add alimobrem/skills-for-argo
 /plugin install argo-skills@argocd
 
+# Or, for any agent (Codex, Cline, Amp, Antigravity, Cursor, ...)
+npx skills add alimobrem/skills-for-argo
+
 # Then try:
 # "Audit the current repo for GitOps best practices"
 # "Check if Argo CD is healthy on my cluster"

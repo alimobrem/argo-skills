@@ -17,7 +17,8 @@
         "Checks for retry configuration on sync policies",
         "Identifies sync wave ordering via annotations",
         "Produces a structured report with Summary, Best Practices, Security, and Recommendations",
-        "Assigns an overall status (PASS, WARN, or FAIL) based on findings"
+        "Assigns an overall status (PASS, WARN, or FAIL) based on findings",
+        "Every recommended action states its IMPACT \u2014 what else is affected if someone acts on it (components that restart, other Applications or tenants affected, whether anything is deleted, and any ordering dependency on another recommendation) \u2014 not only its priority. 'Impact: nothing else is affected' counts; omitting the impact entirely does not. An impact reasoned from manifests rather than verified against a cluster must say so."
       ]
     },
     {
@@ -53,7 +54,8 @@
         "Flags Application using targetRevision: HEAD as risky for production",
         "Checks Rollout for AnalysisTemplate with both successCondition and failureCondition",
         "Reports overall status as FAIL due to Critical security issues",
-        "Recommendations include at least 3 Critical-severity items"
+        "Recommendations include at least 3 Critical-severity items",
+        "Every recommended action states its IMPACT \u2014 what else is affected if someone acts on it (components that restart, other Applications or tenants affected, whether anything is deleted, and any ordering dependency on another recommendation) \u2014 not only its priority. 'Impact: nothing else is affected' counts; omitting the impact entirely does not. An impact reasoned from manifests rather than verified against a cluster must say so."
       ]
     },
     {

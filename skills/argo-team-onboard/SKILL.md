@@ -146,6 +146,26 @@ Show the diff and explain in plain language what Argo CD will create once this m
 For an existing tenant, always show the *diff against the committed file* — never
 overwrite a tenant's config without showing what changed.
 
+### Step 2b: Blast radius
+
+The default output here is a **commit**, not an apply, so the question is "what will Argo
+CD do when it syncs this?" rather than "what does this kubectl change touch". Usually the
+answer is "nothing existing" — onboarding is additive. Say that; it is reassuring and
+costs one command.
+
+Three cases are not additive, and each needs its impact stated:
+
+- **Editing an existing `AppProject`** rather than creating one. Tightening `sourceRepos`,
+  `destinations` or the resource whitelists can push Applications already in that project
+  to `InvalidSpecError` — they stop syncing with nobody touching them.
+  `scripts/blast-radius.sh AppProject <name> <namespace>` lists them.
+- **Attaching a tenant to a shared instance** via `NamespaceManagement` or
+  `sourceNamespaces`. Name the instance and who else is already on it:
+  `scripts/blast-radius.sh ArgoCD <name> <namespace>`.
+- **An ApplicationSet whose generator will now match more tenants.** It creates
+  Applications on merge; a narrowed generator can prune existing ones and delete their
+  workloads unless `preserveResourcesOnDeletion` is set.
+
 ### Step 3: Confirm
 
 Ask the user explicitly: **"Commit this? (yes/no)"** — and, if they use a review flow,

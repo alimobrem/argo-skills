@@ -24,7 +24,9 @@ audit repos, and diagnose problems without changes. This skill **acts**.
 
 ## Safety Model
 
-**Every write operation follows a 4-step protocol: Generate, Preview, Confirm, Verify.**
+**Every write operation follows this protocol: Generate, Preview, Blast radius, Confirm,
+Verify.** Preview shows what changes on the object; blast radius shows who else is
+affected. They are different questions and a diff only answers the first.
 
 The fourth step is not optional. A benchmark run found this skill losing to an unaided
 baseline on exactly one thing: it stopped at the confirmation gate and never checked that
@@ -73,6 +75,31 @@ So:
 - **Updating?** Use `kubectl diff`. A client dry-run is not a preview of an update under
   any circumstances; presenting one as the Preview step gives the user false assurance
   that the change is understood and safe.
+
+### Step 2b: Blast radius — who else does this touch?
+
+A dry-run or diff answers "what changes on **this object**". It does not answer "what
+**else** is affected", and for Argo CD those are rarely the same question: most of its
+objects are fan-out points. A one-field diff on an `ArgoCD` CR looks trivial and restarts
+components every Application on the instance depends on.
+
+**Compute it, then show the user the result before asking to confirm:**
+
+```bash
+scripts/blast-radius.sh <kind> <name> [namespace]
+```
+
+It handles `ArgoCD`, `AppProject`, `ApplicationSet`, `Application`, `RolloutManager` and
+the shared ConfigMaps, and is strictly read-only. Exit 3 means no cluster was reachable —
+reason the impact out instead and say it was not verified.
+
+Say the number out loud. "This restarts the repo-server serving 47 Applications" lands
+very differently from "this changes one field". An empty result is worth saying too:
+"blast radius: just this Application, nothing else references it".
+
+This applies to **recommendations as well as writes.** If you tell the user to do
+something you are not executing, it still needs its impact stated — see the Report
+Format. Most of the harm from a bad recommendation happens after the session ends.
 
 ### Step 3: Confirm
 

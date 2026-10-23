@@ -192,7 +192,8 @@
         "Discovery ApplicationSet uses a git FILE generator with a recursive glob (tenant-projects/**/values.yaml) so new tenants need no ApplicationSet edit",
         "Lists valueFiles with the global file FIRST and the tenant file second, so tenant values win",
         "Output is committed to the GitOps repo and ends at a commit/PR confirmation gate \u2014 not kubectl apply",
-        "Does not claim the onboarding Helm chart already exists if it does not; flags that the chart itself must be authored"
+        "Does not claim the onboarding Helm chart already exists if it does not; flags that the chart itself must be authored",
+        "Every recommended action states its IMPACT \u2014 what else is affected if someone acts on it (components that restart, other Applications or tenants affected, whether anything is deleted, and any ordering dependency on another recommendation) \u2014 not only its priority. 'Impact: nothing else is affected' counts; omitting the impact entirely does not. An impact reasoned from manifests rather than verified against a cluster must say so."
       ]
     },
     {
