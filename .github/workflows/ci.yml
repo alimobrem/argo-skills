@@ -28,7 +28,7 @@ jobs:
         run: |
           for fixture in tests/argo-repo-audit/*/; do
             echo "=== $(basename $fixture) ==="
-            bash skills/argo-repo-audit/scripts/discover.sh -d "$fixture"
+            bash skills/gitops/argo-repo-audit/scripts/discover.sh -d "$fixture"
             echo
           done
 
@@ -39,21 +39,21 @@ jobs:
             # Intentionally-broken fixtures live under targeted-bugs/ and mixed-issues/;
             # those are expected to report findings. The clean fixtures must validate.
             case "$fixture" in
-              */targeted-bugs/*|*/mixed-issues/*) bash skills/argo-repo-audit/scripts/validate.sh -d "$fixture" || true ;;
-              *) bash skills/argo-repo-audit/scripts/validate.sh -d "$fixture" ;;
+              */targeted-bugs/*|*/mixed-issues/*) bash skills/gitops/argo-repo-audit/scripts/validate.sh -d "$fixture" || true ;;
+              *) bash skills/gitops/argo-repo-audit/scripts/validate.sh -d "$fixture" ;;
             esac
             echo
           done
 
       - name: Validate JSON files
         run: |
-          find . -name '*.json' -not -path './skills/argo-repo-audit/assets/schemas/*' | while read f; do
+          find . -name '*.json' -not -path './skills/gitops/argo-repo-audit/assets/schemas/*' | while read f; do
             python3 -m json.tool "$f" > /dev/null || { echo "Invalid JSON: $f"; exit 1; }
           done
 
       - name: Validate SKILL.md frontmatter
         run: |
-          for f in skills/*/SKILL.md; do
+          for f in skills/*/*/SKILL.md; do
             head -1 "$f" | grep -q '^---' || { echo "Missing frontmatter: $f"; exit 1; }
             echo "OK: $f"
           done

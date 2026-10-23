@@ -48,8 +48,8 @@ The sub-agent should not be told the expectations — it must produce the correc
 
 1. Create `skills/{skill-name}/` with the structure above
 2. Write `SKILL.md` with frontmatter (`name`, `description`, `allowed-tools`) and a phased workflow
-3. Use the existing skills as templates — read `skills/argo-repo-audit/SKILL.md` and
-   `skills/argo-cluster-debug/SKILL.md` to match the conventions:
+3. Use the existing skills as templates — read `skills/gitops/argo-repo-audit/SKILL.md` and
+   `skills/gitops/argo-cluster-debug/SKILL.md` to match the conventions:
    - Workflows are explicit step-by-step, not open-ended
    - Reference docs are actionable checklists and lookup tables, not tutorials
    - Edge cases section prevents false positives on common patterns

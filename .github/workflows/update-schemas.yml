@@ -28,7 +28,7 @@ jobs:
       - name: Check for changes
         id: diff
         run: |
-          if git diff --quiet skills/argo-repo-audit/assets/schemas/; then
+          if git diff --quiet skills/gitops/argo-repo-audit/assets/schemas/; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -41,7 +41,7 @@ jobs:
         run: |
           BRANCH="update-schemas-$(date +%Y%m%d)"
           git checkout -b "$BRANCH"
-          git add skills/argo-repo-audit/assets/schemas/
+          git add skills/gitops/argo-repo-audit/assets/schemas/
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git commit -m "Update Argo CRD schemas"

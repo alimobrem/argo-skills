@@ -47,7 +47,7 @@ given identical, real file-read access to the actual fixture directories for all
 only variable between conditions was whether `SKILL.md` + `references/*.md` were loaded first.
 No cluster state, API responses, or outcomes were simulated or asserted — every finding below
 is grounded in literal fixture content, scored against each eval's real `expectations` array in
-`skills/argo-repo-audit/evals/evals.json`.
+`skills/gitops/argo-repo-audit/evals/evals.json`.
 
 4 subagents were dispatched — Opus-tier and Sonnet-tier, each in with-skill and baseline
 conditions — each covering all 13 real eval scenarios in a single batched run (not the

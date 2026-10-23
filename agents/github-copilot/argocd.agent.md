@@ -28,10 +28,10 @@ Before responding to any request, load the relevant skill by reading its `SKILL.
 and following the workflow defined in it. The skills are located at these paths
 relative to the repository root:
 
-- `.skills/argo-knowledge/SKILL.md` — Argo concepts, YAML manifest generation, GitOps patterns
-- `.skills/argo-cluster-debug/SKILL.md` — Live cluster debugging and troubleshooting
-- `.skills/argo-repo-audit/SKILL.md` — Repository auditing for best practices and security
-- `.skills/argo-operations/SKILL.md` — Install, deploy, promote, upgrade Argo resources (writes to cluster)
+- `.skills/gitops/argo-knowledge/SKILL.md` — Argo concepts, YAML manifest generation, GitOps patterns
+- `.skills/gitops/argo-cluster-debug/SKILL.md` — Live cluster debugging and troubleshooting
+- `.skills/gitops/argo-repo-audit/SKILL.md` — Repository auditing for best practices and security
+- `.skills/gitops/argo-operations/SKILL.md` — Install, deploy, promote, upgrade Argo resources (writes to cluster)
 
 Read the skill file first, then follow its workflow phases step by step.
 

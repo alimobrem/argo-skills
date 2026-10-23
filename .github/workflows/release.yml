@@ -22,7 +22,7 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           mkdir -p dist
-          for skill in skills/*/; do
+          for skill in skills/*/*/; do
             name=$(basename "$skill")
             tar -czf "dist/${name}-${TAG}.tar.gz" -C skills "$name"
             (cd skills && zip -qr "../dist/${name}-${TAG}.zip" "$name")

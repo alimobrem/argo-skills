@@ -1,8 +1,8 @@
-SCHEMAS_DIR := skills/argo-repo-audit/assets/schemas
+SCHEMAS_DIR := skills/gitops/argo-repo-audit/assets/schemas
 SCHEMAS_TMP := $(SCHEMAS_DIR).tmp
 
-DISCOVER_SCRIPT := skills/argo-repo-audit/scripts/discover.sh
-VALIDATE_SCRIPT := skills/argo-repo-audit/scripts/validate.sh
+DISCOVER_SCRIPT := skills/gitops/argo-repo-audit/scripts/discover.sh
+VALIDATE_SCRIPT := skills/gitops/argo-repo-audit/scripts/validate.sh
 TEST_DIR := tests/argo-repo-audit
 RESULTS_DIR ?= benchmarks/results
 
@@ -115,48 +115,48 @@ eval: eval-knowledge eval-repo-audit eval-cluster-debug eval-operations eval-per
 eval-knowledge: ## Run argo-knowledge evals
 	@echo "Running argo-knowledge evals..."
 	@claude --print --dangerously-skip-permissions \
-		"Read skills/argo-knowledge/evals/evals.json. For each eval: \
-		1. Spawn a sub-agent that reads skills/argo-knowledge/SKILL.md first, then answers the eval prompt following the skill workflow. \
+		"Read skills/gitops/argo-knowledge/evals/evals.json. For each eval: \
+		1. Spawn a sub-agent that reads skills/gitops/argo-knowledge/SKILL.md first, then answers the eval prompt following the skill workflow. \
 		2. Score the output against the expectations array. \
 		Report a scorecard table: eval id, passed/total, and list any failed expectations."
 
 eval-repo-audit: ## Run argo-repo-audit evals
 	@echo "Running argo-repo-audit evals..."
 	@claude --print --dangerously-skip-permissions \
-		"Read skills/argo-repo-audit/evals/evals.json. For each eval: \
-		1. Spawn a sub-agent that reads skills/argo-repo-audit/SKILL.md first, then follows the audit workflow on the specified test fixture directory. \
+		"Read skills/gitops/argo-repo-audit/evals/evals.json. For each eval: \
+		1. Spawn a sub-agent that reads skills/gitops/argo-repo-audit/SKILL.md first, then follows the audit workflow on the specified test fixture directory. \
 		2. Score the output against the expectations array. \
 		Report a scorecard table: eval name, passed/total, and list any failed expectations."
 
 eval-cluster-debug: ## Run argo-cluster-debug evals (requires live cluster)
 	@echo "Running argo-cluster-debug evals (requires kubectl access)..."
 	@claude --print --dangerously-skip-permissions \
-		"Read skills/argo-cluster-debug/evals/evals.json. For each eval: \
-		1. Spawn a sub-agent that reads skills/argo-cluster-debug/SKILL.md first, then follows the debug workflow. \
+		"Read skills/gitops/argo-cluster-debug/evals/evals.json. For each eval: \
+		1. Spawn a sub-agent that reads skills/gitops/argo-cluster-debug/SKILL.md first, then follows the debug workflow. \
 		2. Score the output against the expectations array. \
 		Report a scorecard table: eval id, passed/total, and list any failed expectations."
 
 eval-operations: ## Run argo-operations evals (requires live cluster)
 	@echo "Running argo-operations evals (requires kubectl access)..."
 	@claude --print --dangerously-skip-permissions \
-		"Read skills/argo-operations/evals/evals.json. For each eval: \
-		1. Spawn a sub-agent that reads skills/argo-operations/SKILL.md first, then follows the generate/preview/confirm workflow. \
+		"Read skills/gitops/argo-operations/evals/evals.json. For each eval: \
+		1. Spawn a sub-agent that reads skills/gitops/argo-operations/SKILL.md first, then follows the generate/preview/confirm workflow. \
 		2. Score the output against the expectations array. \
 		Report a scorecard table: eval id, passed/total, and list any failed expectations."
 
 eval-performance-tuning: ## Run argo-performance-tuning evals (requires live cluster)
 	@echo "Running argo-performance-tuning evals (requires kubectl access)..."
 	@claude --print --dangerously-skip-permissions \
-		"Read skills/argo-performance-tuning/evals/evals.json. For each eval: \
-		1. Spawn a sub-agent that reads skills/argo-performance-tuning/SKILL.md first, then follows the assess/diagnose/tune workflow. \
+		"Read skills/gitops/argo-performance-tuning/evals/evals.json. For each eval: \
+		1. Spawn a sub-agent that reads skills/gitops/argo-performance-tuning/SKILL.md first, then follows the assess/diagnose/tune workflow. \
 		2. Score the output against the expectations array. \
 		Report a scorecard table: eval id, passed/total, and list any failed expectations."
 
 eval-team-onboard: ## Run argo-team-onboard evals (requires live cluster)
 	@echo "Running argo-team-onboard evals (requires kubectl access)..."
 	@claude --print --dangerously-skip-permissions \
-		"Read skills/argo-team-onboard/evals/evals.json. For each eval: \
-		1. Spawn a sub-agent that reads skills/argo-team-onboard/SKILL.md first, then follows the discovery-first onboarding workflow. \
+		"Read skills/gitops/argo-team-onboard/evals/evals.json. For each eval: \
+		1. Spawn a sub-agent that reads skills/gitops/argo-team-onboard/SKILL.md first, then follows the discovery-first onboarding workflow. \
 		2. Score the output against the expectations array. \
 		Report a scorecard table: eval id, passed/total, and list any failed expectations."
 

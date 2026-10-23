@@ -20,13 +20,13 @@ Determine what the user needs and apply the matching skill's workflow:
 """
 
 [[skills.config]]
-path = ".agents/skills/argo-knowledge/SKILL.md"
+path = ".agents/skills/gitops/argo-knowledge/SKILL.md"
 
 [[skills.config]]
-path = ".agents/skills/argo-cluster-debug/SKILL.md"
+path = ".agents/skills/gitops/argo-cluster-debug/SKILL.md"
 
 [[skills.config]]
-path = ".agents/skills/argo-repo-audit/SKILL.md"
+path = ".agents/skills/gitops/argo-repo-audit/SKILL.md"
 
 [[skills.config]]
-path = ".agents/skills/argo-operations/SKILL.md"
+path = ".agents/skills/gitops/argo-operations/SKILL.md"
