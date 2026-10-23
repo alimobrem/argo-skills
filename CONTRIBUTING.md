@@ -1,4 +1,4 @@
-# Contributing to Argo Agent Skills
+# Contributing to OpenShift Agent Skills
 
 Thank you for your interest in contributing! This document provides guidelines
 for contributing to this project.

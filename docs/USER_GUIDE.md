@@ -1,4 +1,7 @@
-# User Guide — Argo Agent Skills
+# User Guide — OpenShift Agent Skills
+
+> Covers the **GitOps** product (Argo CD, Argo Rollouts) — the only product with skills
+> today. As other products land, their sections go here alongside.
 
 ## Quick Start
 

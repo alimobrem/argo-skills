@@ -1,6 +1,6 @@
 {
   "author": {
-    "name": "The Argo Skills authors",
+    "name": "The OpenShift Agent Skills authors",
     "url": "https://github.com/alimobrem/skills-for-argo"
   },
   "description": "Skills to turn AI agents into Red Hat OpenShift GitOps engineers",
