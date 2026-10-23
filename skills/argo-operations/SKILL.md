@@ -24,7 +24,9 @@ audit repos, and diagnose problems without changes. This skill **acts**.
 
 ## Safety Model
 
-**Every write operation follows a 4-step protocol: Generate, Preview, Confirm, Verify.**
+**Every write operation follows this protocol: Generate, Preview, Blast radius, Confirm,
+Verify.** Preview shows what changes on the object; blast radius shows who else is
+affected. They are different questions and a diff only answers the first.
 
 The fourth step is not optional. A benchmark run found this skill losing to an unaided
 baseline on exactly one thing: it stopped at the confirmation gate and never checked that
@@ -73,6 +75,40 @@ So:
 - **Updating?** Use `kubectl diff`. A client dry-run is not a preview of an update under
   any circumstances; presenting one as the Preview step gives the user false assurance
   that the change is understood and safe.
+
+### Step 2b: Blast radius — who else does this touch?
+
+A dry-run or diff answers "what changes on **this object**". It does not answer "what
+**else** is affected", and for Argo CD those are rarely the same question: most of its
+objects are fan-out points. A one-field diff on an `ArgoCD` CR looks trivial and restarts
+components that every Application on the instance depends on.
+
+**Before Step 3, enumerate the affected set and show the count to the user.** Say the
+number out loud — "this restarts the repo-server serving 47 Applications" lands very
+differently from "this changes one field".
+
+| Changing | Also affected | Enumerate before confirming |
+|----------|---------------|------------------------------|
+| `ArgoCD` CR | Operator restarts the component(s) you touched. Every Application on that instance stops reconciling until they are back. | `$KCTL get applications.argoproj.io -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"\n"}{end}' \| sort \| uniq -c` |
+| `AppProject` | Every Application referencing it. Tightening `sourceRepos`/`destinations`/whitelists can push existing apps to `InvalidSpecError` — they stop syncing without anyone editing them. | `$KCTL get applications.argoproj.io -A -o jsonpath='{range .items[*]}{.spec.project}{"\t"}{.metadata.namespace}/{.metadata.name}{"\n"}{end}' \| grep '^<project>\b'` |
+| `ApplicationSet` | Every Application it generated. A template edit rewrites them all at once; a generator edit can prune some away. | `$KCTL get applications.argoproj.io -A -l argocd.argoproj.io/application-set-name=<name>` |
+| Application with `prune: true` | Every resource it manages — deleting the Application deletes them. | `$KCTL get applications.argoproj.io <name> -n <ns> -o jsonpath='{range .status.resources[*]}{.kind}/{.namespace}/{.name}{"\n"}{end}'` |
+| `spec.resourceExclusions` / `resourceTrackingMethod` | Cluster-wide. Changes what **every** Application on the instance tracks; excluded kinds stop being managed and tracking changes can orphan live resources. | count all Applications on the instance, as for the `ArgoCD` CR |
+| `RolloutManager` | Every Rollout the controller watches, across all namespaces when cluster-scoped. | `$KCTL get rollouts.argoproj.io -A --no-headers \| wc -l` |
+| `argocd-cm`, `argocd-rbac-cm`, `argocd-cmd-params-cm` | The whole instance. RBAC changes can lock users out, including whoever is running the change. | as for the `ArgoCD` CR |
+
+**Shared instances deserve an explicit callout.** On OpenShift the default
+`openshift-gitops` instance is usually shared, and tenant instances are not. If the target
+is shared, say so and name who else is on it — the person asking usually owns one tenant
+and is not thinking about the others.
+
+**Operator-managed objects restart on edit.** That restart is itself the blast radius, and
+it is invisible in a diff. If the change is only to take effect later anyway, say so, so
+the user can choose a window.
+
+Where the affected set is empty or one object the user already named, say that plainly
+too — "blast radius: just this Application, nothing else references it" is a useful
+answer and takes one command.
 
 ### Step 3: Confirm
 

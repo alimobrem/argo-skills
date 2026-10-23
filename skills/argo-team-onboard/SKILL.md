@@ -146,6 +146,18 @@ Show the diff and explain in plain language what Argo CD will create once this m
 For an existing tenant, always show the *diff against the committed file* — never
 overwrite a tenant's config without showing what changed.
 
+### Step 2b: Blast radius
+
+Onboarding is mostly additive, so the usual answer is "nothing else is affected" — say
+that, it is reassuring and takes one command. Two cases are not additive:
+
+- **Editing an existing `AppProject`** rather than creating one. Tightening `sourceRepos`,
+  `destinations` or the resource whitelists can push Applications already in that project
+  to `InvalidSpecError`, and they stop syncing without anyone touching them.
+  `$KCTL get applications.argoproj.io -A -o jsonpath='{range .items[*]}{.spec.project}{"\t"}{.metadata.name}{"\n"}{end}' | grep '^<project>\b'`
+- **Attaching a tenant to a shared instance** via `NamespaceManagement` or
+  `sourceNamespaces`. Name which instance, and who else is already on it.
+
 ### Step 3: Confirm
 
 Ask the user explicitly: **"Commit this? (yes/no)"** — and, if they use a review flow,

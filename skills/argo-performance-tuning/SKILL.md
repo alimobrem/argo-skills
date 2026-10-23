@@ -167,7 +167,22 @@ If multiple symptoms are present, work through **Tuning order of leverage** in
 `references/tuning-settings.md`: reduce unnecessary work first, then align timeouts, then bound
 concurrency, then scale out with sharding.
 
-## Phase 3: Tune — Generate, Preview, Confirm
+## Phase 3: Tune — Generate, Preview, Blast radius, Confirm
+
+**Almost every tuning change here patches the `ArgoCD` CR, which is operator-managed and
+usually shared.** The operator restarts the component you touched, and every Application
+on that instance stops reconciling until it is back — a one-field diff hides that
+entirely. Before asking for confirmation, count what is on the instance and say the
+number:
+
+```bash
+$KCTL get applications.argoproj.io -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"\n"}{end}' | sort | uniq -c
+```
+
+`spec.resourceExclusions` and `resourceTrackingMethod` are the widest of these: they
+change what **every** Application on the instance tracks. See the blast-radius table in
+`skills/argo-operations/SKILL.md` for the full set.
+
 
 Every change that touches the live cluster follows the same 3-step protocol as
 `argo-operations`:
