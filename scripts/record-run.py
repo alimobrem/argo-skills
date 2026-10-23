@@ -45,10 +45,18 @@ def score(evals):
 
 
 def current_fp(skill):
-    """Fingerprint of the expectations as they exist on disk right now."""
-    f = ROOT / "skills" / skill / "evals" / "evals.json"
-    if not f.exists():
+    """Fingerprint of the expectations as they exist on disk right now.
+
+    Skills live at skills/<product>/<skill>/. This used a flat
+    skills/<skill>/evals/evals.json and silently returned None after the
+    multi-product move, which made `make history` report EVERY skill as stale —
+    including ones whose expectations had not changed. A wrong "needs a re-run"
+    is costly: it is ten agent runs per skill.
+    """
+    matches = sorted(ROOT.glob(f"skills/*/{skill}/evals/evals.json"))
+    if not matches:
         return None
+    f = matches[0]
     d = json.loads(f.read_text())
     evs = d if isinstance(d, list) else d.get("evals", d.get("cases", []))
     texts = sorted(f"{e.get('id')}|{x}" for e in evs for x in e.get("expectations", []))
@@ -121,6 +129,18 @@ def report():
     print("    those scores are not comparable to a run of the current suite.")
     # A skill needs a re-run only if NO recorded run used the current suite --
     # not merely if some older run used a different one.
+    # A skill whose evals.json cannot be located is a BUG, not a stale suite. Reporting
+    # it as "needs a re-run" costs ten agent runs chasing a path problem. This is how the
+    # multi-product move went unnoticed: current_fp() returned None for every skill and
+    # the report looked plausible.
+    unresolved = [s for s in skills if current_fp(s) is None]
+    if unresolved:
+        print("\nERROR: could not locate evals.json for: " + ", ".join(unresolved),
+              file=sys.stderr)
+        print("Expected skills/<product>/<skill>/evals/evals.json — fix the path, do not "
+              "re-run on the strength of this report.", file=sys.stderr)
+        return 1
+
     stale = sorted(s for s in skills
                    if current_fp(s) not in {r["suite_fp"] for r in h if r["skill"] == s})
     if stale:
