@@ -36,6 +36,12 @@ templates for every resource, and a post-onboarding validation checklist.
 
 ## AppProject Template
 
+> **Sync-window selectors are OR-ed, not AND-ed.** Argo CD: *"If more than one option is
+> specified, by default, the enabled options will be OR-ed."* So
+> `applications: ['*']` alongside `namespaces: [...]` matches **every Application on the
+> instance**, not the intersection — a deny window meant to freeze one tenant freezes
+> everyone. Use exactly one selector unless you genuinely want the union.
+
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
@@ -617,7 +623,6 @@ syncWindows:
     schedule: '0 8 * * 1-5'
     timeZone: UTC                                  # REQUIRED in practice: a bare schedule is evaluated in the controller's timezone, so a window annotated 'UTC' can fire hours off                          # Mon-Fri 8am UTC
     duration: 10h                                    # Until 6pm UTC
-    applications: ['*']
     namespaces: ['{{TEAM_NAME}}-prod']
     manualSync: true                                 # ESCAPE HATCH: lets a human sync outside the window
 
@@ -626,7 +631,6 @@ syncWindows:
     schedule: '0 18 * * 5'
     timeZone: UTC                                  # REQUIRED in practice: a bare schedule is evaluated in the controller's timezone, so a window annotated 'UTC' can fire hours off                           # Friday 6pm UTC
     duration: 62h                                    # Until Monday 8am UTC
-    applications: ['*']
     namespaces: ['{{TEAM_NAME}}-prod']
     manualSync: false                                # (default) emergency manual syncs are ALSO blocked
 ```
