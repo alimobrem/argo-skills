@@ -1,13 +1,12 @@
 <p align="center">
-  <img src="assets/banner.svg" alt="Argo Agent Skills" width="900"/>
+  <img src="assets/banner.svg" alt="OpenShift Agent Skills" width="900"/>
 </p>
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
   <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome"></a>
-  <img src="https://img.shields.io/badge/OpenShift%20GitOps-1.19+-EE0000.svg" alt="OpenShift GitOps">
-  <img src="https://img.shields.io/badge/Argo%20CD-v2.14+%20%7C%20v3.x-EF7B4D.svg" alt="Argo CD">
-  <img src="https://img.shields.io/badge/Rollouts-v1.8+-EF7B4D.svg" alt="Argo Rollouts">
+  <img src="https://img.shields.io/badge/OpenShift-layered%20products-EE0000.svg" alt="OpenShift">
+  <img src="https://img.shields.io/badge/products-1%20shipping%20%7C%203%20open-8A63D2.svg" alt="1 product shipping, 3 open">
   <img src="https://img.shields.io/badge/skills-6-8A63D2.svg" alt="6 skills">
   <img src="https://img.shields.io/badge/evals-86-3FB950.svg" alt="86 evals">
 </p>
@@ -145,7 +144,15 @@ brew bundle
 
 > **Full guide with all example prompts:** [docs/USER_GUIDE.md](docs/USER_GUIDE.md)
 
-### How the Skills Work Together
+Skills are grouped by product. Expand the one you use.
+
+<details open>
+<summary><b>🔵 GitOps</b> — Argo CD, Argo Rollouts · <b>6 skills</b>, benchmarked</summary>
+
+<sub>Targets Red Hat OpenShift GitOps 1.19+ · Argo CD v2.14+ / v3.x · Argo Rollouts v1.8+.
+Measured against OpenShift GitOps 1.21.3 / Argo CD v3.4.5.</sub>
+
+#### How the Skills Work Together
 
 The agent automatically selects the right skill based on what you ask:
 
@@ -160,7 +167,7 @@ The agent automatically selects the right skill based on what you ask:
 
 You don't need to invoke skills manually — just describe what you need.
 
-### Knowledge — Ask Questions & Generate YAML
+#### Knowledge — Ask Questions & Generate YAML
 
 <p align="center">
   <img src="assets/screenshots/knowledge-preview.svg" alt="Knowledge Preview" width="820"/>
@@ -206,7 +213,7 @@ Generate an ArgoCD CR for the OpenShift GitOps operator with OAuth and Routes.
 
 </details>
 
-### Repo Audit — Security & Best Practice Review
+#### Repo Audit — Security & Best Practice Review
 
 <p align="center">
   <img src="assets/screenshots/audit-preview.svg" alt="Audit Report Preview" width="820"/>
@@ -235,7 +242,7 @@ Just validate YAML syntax and schemas, don't do a full audit.
 | Warning | Missing syncPolicy, `targetRevision: HEAD` in production, no retry/backoff, missing `ignoreDifferences` for controller-managed fields |
 | Info | Missing `ignoreDifferences` for HPA-managed replicas, no progressive sync on multi-cluster ApplicationSets |
 
-### Cluster Debug — Troubleshoot Live Issues
+#### Cluster Debug — Troubleshoot Live Issues
 
 <p align="center">
   <img src="assets/screenshots/debug-preview.svg" alt="Debug Report Preview" width="820"/>
@@ -263,7 +270,7 @@ Inspect all Rollouts on this cluster and give me a health report.
 Review the Argo CD configuration for security concerns.
 ```
 
-### Operations — Install, Deploy, Promote, Maintain
+#### Operations — Install, Deploy, Promote, Maintain
 
 <p align="center">
   <img src="assets/screenshots/operations-preview.svg" alt="Operations Preview" width="820"/>
@@ -309,7 +316,7 @@ Destructive operations (delete, prune, rollback) require typing the resource nam
 
 </details>
 
-### Performance Tuning — Diagnose & Fix Slowness at Scale
+#### Performance Tuning — Diagnose & Fix Slowness at Scale
 
 <p align="center">
   <img src="assets/screenshots/performance-preview.svg" alt="Performance Tuning Preview" width="820"/>
@@ -356,7 +363,7 @@ safety model as Operations before changing anything live.
 
 </details>
 
-### Team Onboarding — Set Up New Teams on Argo CD
+#### Team Onboarding — Set Up New Teams on Argo CD
 
 <p align="center">
   <img src="assets/screenshots/onboarding-preview.svg" alt="Onboarding Preview" width="820"/>
@@ -428,6 +435,48 @@ Production should require manual approval.
 | What gets created, AppProject/Application/RBAC templates, validation checklist | `onboarding-guide.md` |
 | Self-service via ApplicationSet, PR workflow, guard rails | `self-service-pattern.md` |
 | Helm/Kustomize/directory variants, Rollouts, notifications, sync windows, promoter | `onboarding-variants.md` |
+
+</details>
+
+
+</details>
+
+<details>
+<summary><b>🟣 Service Mesh</b> — Istio · <i>no skills yet</i></summary>
+
+No Service Mesh skills have been contributed yet. Likely first candidates:
+
+- sidecar injection, mTLS and PeerAuthentication, VirtualService/DestinationRule precedence, 503s between workloads
+
+If you work on Service Mesh, this is an open area — see
+[`skills/servicemesh/`](skills/servicemesh) and **[docs/adding-a-skill.md](docs/adding-a-skill.md)**.
+Evals are required; the guide explains the bar and why it is set there.
+
+</details>
+
+<details>
+<summary><b>🟢 Serverless</b> — Knative Serving & Eventing · <i>no skills yet</i></summary>
+
+No Serverless skills have been contributed yet. Likely first candidates:
+
+- Revisions stuck in NotReady, traffic splitting, scale-to-zero and cold starts, Broker/Trigger wiring
+
+If you work on Serverless, this is an open area — see
+[`skills/serverless/`](skills/serverless) and **[docs/adding-a-skill.md](docs/adding-a-skill.md)**.
+Evals are required; the guide explains the bar and why it is set there.
+
+</details>
+
+<details>
+<summary><b>🟡 Pipelines</b> — Tekton · <i>no skills yet</i></summary>
+
+No Pipelines skills have been contributed yet. Likely first candidates:
+
+- PipelineRun/TaskRun failure triage, workspaces and results passing, EventListener triggers not firing
+
+If you work on Pipelines, this is an open area — see
+[`skills/pipelines/`](skills/pipelines) and **[docs/adding-a-skill.md](docs/adding-a-skill.md)**.
+Evals are required; the guide explains the bar and why it is set there.
 
 </details>
 
