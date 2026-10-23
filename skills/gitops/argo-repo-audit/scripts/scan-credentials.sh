@@ -19,10 +19,20 @@ set -uo pipefail
 ROOT="${1:-.}"
 [[ -d "$ROOT" ]] || { echo "usage: $(basename "$0") [repo-root]" >&2; exit 2; }
 
-# Keys worth flagging. secretName/secretKeyRef/valueFrom are REFERENCES, not
-# values, and are filtered out below — flagging them is the noise that makes
-# people stop reading credential scans.
-KEYS='password|passwd|token|secret|apikey|api_key|accesskey|access_key|sshPrivateKey|bearer|credential'
+# Keys worth flagging, matched as a SUBSTRING of the key name.
+#
+# An earlier version anchored the whole key — ^(password|token|secret):  — and so
+# matched `password:` but silently missed `api-key:`, `webhook-secret:`,
+# `connection-string:` and `bearerToken:`. A measured audit run caught it: the
+# scanner reported 2 of at least 5 credential locations in one fixture. For a
+# security scanner that is the worst failure mode available, because a clean
+# result is exactly what the reader acts on. Substring matching now, with an
+# explicit denylist below for the structural keys that merely REFERENCE a secret.
+KEYS='password|passwd|pwd|token|secret|apikey|api.key|access.?key|private.?key|ssh.?key|credential|connection.?string|dsn|bearer'
+
+# Keys that contain a flagged word but hold no secret: they name or point at one.
+# Flagging these is the noise that makes people stop reading credential scans.
+NOT_SECRETS='secretName|secretKeyRef|configMapKeyRef|valueFrom|secretRef|tokenSecretRef|topologyKey|secretGenerator|sealedSecret|creationTimestamp'
 
 plain=0; enc=0; synth=0; keys=0
 
@@ -34,12 +44,16 @@ echo
 
 tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
 
-# -I skips binaries. The grep prints whole lines, but nothing downstream of
-# here emits the value portion: awk splits on the first colon after the key
-# and keeps only its length.
-grep -rnIE "^[[:space:]]*[\"']?($KEYS)[\"']?[[:space:]]*:" "$ROOT" \
+# -I skips binaries. The grep prints whole lines, but nothing downstream emits
+# the value portion — only its length. The last filter drops PARENT keys such as
+# `stringData:` or `data:` that have nothing after the colon: the secret lives in
+# their children, which are matched on their own lines, and reporting the parent
+# too would double-count every finding.
+grep -rnIE "^[[:space:]]*[\"']?[A-Za-z0-9_.-]*($KEYS)[A-Za-z0-9_.-]*[\"']?[[:space:]]*:" "$ROOT" \
   --include='*.yaml' --include='*.yml' --include='*.json' 2>/dev/null \
-  | grep -vE 'secretName|secretKeyRef|valueFrom|configMapKeyRef|^[^:]*:[0-9]+:[[:space:]]*#' \
+  | grep -viE "($NOT_SECRETS)" \
+  | grep -vE '^[^:]*:[0-9]+:[[:space:]]*#' \
+  | grep -vE ':[[:space:]]*(\{\}|\[\]|\||>)?[[:space:]]*$' \
   > "$tmp" || true
 
 while IFS= read -r line; do
@@ -47,7 +61,7 @@ while IFS= read -r line; do
   file="${line%%:*}"; rest="${line#*:}"
   lineno="${rest%%:*}"; content="${rest#*:}"
 
-  key="$(printf '%s' "$content" | sed -E "s/^[[:space:]]*[\"']?($KEYS)[\"']?[[:space:]]*:.*/\1/I")"
+  key="$(printf '%s' "$content" | sed -E "s/^[[:space:]]*[\"']?([A-Za-z0-9_.-]+)[\"']?[[:space:]]*:.*/\1/")"
   val="$(printf '%s' "$content" | sed -E 's/^[^:]*:[[:space:]]*//')"
   # Strip a trailing comment before measuring, so "# notsecret" does not
   # inflate the reported length.
@@ -66,7 +80,7 @@ while IFS= read -r line; do
     enc=$((enc+1)); emit "$loc" "key=$key" "encrypted at rest — not a finding"
     continue
   fi
-  if [[ "$key" == "sshPrivateKey" ]]; then
+  if printf '%s' "$key" | grep -qiE 'ssh.?key|private.?key'; then
     keys=$((keys+1)); emit "$loc" "key=$key" "SSH private key, ${n} chars"
     continue
   fi
