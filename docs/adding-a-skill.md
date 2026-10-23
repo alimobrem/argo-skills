@@ -1,8 +1,14 @@
 # Adding a skill
 
-A guide for product teams contributing skills here — Service Mesh, Pipelines, Builds,
-anything else. It covers what a skill must contain, and in particular what its evals must
-do, because that is the part most contributions get wrong.
+A guide for OpenShift layered-product teams contributing skills here — Service Mesh,
+Serverless, Pipelines, anything else. It covers what a skill must contain, and in
+particular what its evals must do, because that is the part most contributions get wrong.
+
+**This is a monorepo.** You contribute by PR into this repository and CI enforces the bar
+below rather than trusting it was met. Product areas already exist as
+[`skills/servicemesh/`](../skills/servicemesh), [`skills/serverless/`](../skills/serverless)
+and [`skills/pipelines/`](../skills/pipelines), each with a README listing likely first
+skills.
 
 The short version: **a skill without evals is a guess**. We have measured skills in this
 repo that looked excellent and did not beat an unaided model, and we only found out
@@ -18,7 +24,7 @@ one scored *below* its unaided baseline.
 | `SKILL.md` with `name` + `description` frontmatter | How agents discover and route to it |
 | An eval suite (`evals/evals.json`) | Without it nobody can tell whether the skill helps |
 | A measured baseline | "90%" means nothing alone; the question is 90% versus *what* |
-| Passing the repo guards | `make test-registration test-expectations check-numbers` |
+| Passing the repo guards | `make test-registration test-expectations check-numbers history-check` |
 
 Budget real time for the evals. For the skills here they were roughly half the total
 effort, and they are what caught every serious defect.
@@ -28,14 +34,27 @@ effort, and they are what caught every serious defect.
 ## 2. Layout
 
 ```
-skills/<product>/<skill-name>/
-├── SKILL.md              # entry point; keep it short, it is always in context
-├── references/           # loaded on demand, not up front
-│   └── <topic>.md
-├── scripts/              # optional; deterministic beats prose (see §4)
-└── evals/
-    └── evals.json
+skills/<product>/              # gitops, servicemesh, serverless, pipelines, ...
+├── _schemas/                  # optional; CRD schemas for YOUR product (see below)
+└── <skill-name>/
+    ├── SKILL.md               # entry point; keep it short, it is always in context
+    ├── references/            # loaded on demand, not up front
+    │   └── <topic>.md
+    ├── scripts/               # optional; deterministic beats prose (see §4)
+    └── evals/
+        └── evals.json
 ```
+
+`<product>` is the OpenShift layered offering. There is deliberately no `openshift/`
+level — everything here is OpenShift, so it would be redundant on every path.
+
+**Product CRD schemas.** `make test-expectations` validates any `spec.*` path your
+expectations assert against committed CRD schemas, catching expectations that grade *for*
+a field the API would reject. Schemas are per product: put them in
+`skills/<product>/_schemas/` as JSON (one file per CRD, the `openAPIV3Schema` object).
+Until that directory exists your paths are reported **unvalidated** rather than failed —
+the guard will not block your first PR, but it will not protect you either. See
+`make download-schemas` for how `gitops` fetches and pins its set.
 
 `SKILL.md` frontmatter needs at minimum:
 
@@ -248,6 +267,18 @@ secret-shaped strings in test data, so handle it here rather than reporting it u
 - [ ] All five `make` guards pass
 
 ---
+
+## Adding a new product area
+
+If your product has no directory yet:
+
+1. `skills/<product>/README.md` describing scope. **No `SKILL.md`** — a placeholder skill
+   is discovered by `npx skills add` and installed by everyone.
+2. A plugin entry in `.claude-plugin/marketplace.json`. One plugin per product;
+   `openshift-gitops` is the worked example, so users install only what they need.
+3. Per skill: `benchmarks/<skill>.md` and a `make eval-<short>` target wired into the
+   `eval` aggregate. The registration guard enumerates everything it expects and names
+   what is missing — run it early rather than guessing.
 
 ## Questions
 
