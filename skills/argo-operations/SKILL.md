@@ -81,34 +81,25 @@ So:
 A dry-run or diff answers "what changes on **this object**". It does not answer "what
 **else** is affected", and for Argo CD those are rarely the same question: most of its
 objects are fan-out points. A one-field diff on an `ArgoCD` CR looks trivial and restarts
-components that every Application on the instance depends on.
+components every Application on the instance depends on.
 
-**Before Step 3, enumerate the affected set and show the count to the user.** Say the
-number out loud — "this restarts the repo-server serving 47 Applications" lands very
-differently from "this changes one field".
+**Compute it, then show the user the result before asking to confirm:**
 
-| Changing | Also affected | Enumerate before confirming |
-|----------|---------------|------------------------------|
-| `ArgoCD` CR | Operator restarts the component(s) you touched. Every Application on that instance stops reconciling until they are back. | `$KCTL get applications.argoproj.io -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"\n"}{end}' \| sort \| uniq -c` |
-| `AppProject` | Every Application referencing it. Tightening `sourceRepos`/`destinations`/whitelists can push existing apps to `InvalidSpecError` — they stop syncing without anyone editing them. | `$KCTL get applications.argoproj.io -A -o jsonpath='{range .items[*]}{.spec.project}{"\t"}{.metadata.namespace}/{.metadata.name}{"\n"}{end}' \| grep '^<project>\b'` |
-| `ApplicationSet` | Every Application it generated. A template edit rewrites them all at once; a generator edit can prune some away. | `$KCTL get applications.argoproj.io -A -l argocd.argoproj.io/application-set-name=<name>` |
-| Application with `prune: true` | Every resource it manages — deleting the Application deletes them. | `$KCTL get applications.argoproj.io <name> -n <ns> -o jsonpath='{range .status.resources[*]}{.kind}/{.namespace}/{.name}{"\n"}{end}'` |
-| `spec.resourceExclusions` / `resourceTrackingMethod` | Cluster-wide. Changes what **every** Application on the instance tracks; excluded kinds stop being managed and tracking changes can orphan live resources. | count all Applications on the instance, as for the `ArgoCD` CR |
-| `RolloutManager` | Every Rollout the controller watches, across all namespaces when cluster-scoped. | `$KCTL get rollouts.argoproj.io -A --no-headers \| wc -l` |
-| `argocd-cm`, `argocd-rbac-cm`, `argocd-cmd-params-cm` | The whole instance. RBAC changes can lock users out, including whoever is running the change. | as for the `ArgoCD` CR |
+```bash
+scripts/blast-radius.sh <kind> <name> [namespace]
+```
 
-**Shared instances deserve an explicit callout.** On OpenShift the default
-`openshift-gitops` instance is usually shared, and tenant instances are not. If the target
-is shared, say so and name who else is on it — the person asking usually owns one tenant
-and is not thinking about the others.
+It handles `ArgoCD`, `AppProject`, `ApplicationSet`, `Application`, `RolloutManager` and
+the shared ConfigMaps, and is strictly read-only. Exit 3 means no cluster was reachable —
+reason the impact out instead and say it was not verified.
 
-**Operator-managed objects restart on edit.** That restart is itself the blast radius, and
-it is invisible in a diff. If the change is only to take effect later anyway, say so, so
-the user can choose a window.
+Say the number out loud. "This restarts the repo-server serving 47 Applications" lands
+very differently from "this changes one field". An empty result is worth saying too:
+"blast radius: just this Application, nothing else references it".
 
-Where the affected set is empty or one object the user already named, say that plainly
-too — "blast radius: just this Application, nothing else references it" is a useful
-answer and takes one command.
+This applies to **recommendations as well as writes.** If you tell the user to do
+something you are not executing, it still needs its impact stated — see the Report
+Format. Most of the harm from a bad recommendation happens after the session ends.
 
 ### Step 3: Confirm
 

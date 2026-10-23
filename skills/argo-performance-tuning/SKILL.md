@@ -172,16 +172,19 @@ concurrency, then scale out with sharding.
 **Almost every tuning change here patches the `ArgoCD` CR, which is operator-managed and
 usually shared.** The operator restarts the component you touched, and every Application
 on that instance stops reconciling until it is back — a one-field diff hides that
-entirely. Before asking for confirmation, count what is on the instance and say the
-number:
+entirely. Compute the affected set and show it before asking to confirm:
 
 ```bash
-$KCTL get applications.argoproj.io -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"\n"}{end}' | sort | uniq -c
+scripts/blast-radius.sh ArgoCD <name> <namespace>
 ```
 
 `spec.resourceExclusions` and `resourceTrackingMethod` are the widest of these: they
-change what **every** Application on the instance tracks. See the blast-radius table in
-`skills/argo-operations/SKILL.md` for the full set.
+change what **every** Application on the instance tracks.
+
+**This applies to tuning you only recommend, too.** A suggestion to raise a limit or
+enable sharding needs its impact stated even when you are not the one applying it — and
+note any ordering dependency, since enabling a setting while a prerequisite is broken can
+create the very problem being reported.
 
 
 Every change that touches the live cluster follows the same 3-step protocol as

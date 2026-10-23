@@ -12,7 +12,8 @@
         "States the correct location for standalone Argo CD (env on argocd-repo-server / reposerver.parallelism.limit)",
         "Follows Generate -> Preview -> Confirm before suggesting the change be applied",
         "Notes the trade-off that large bursts will take longer to sync",
-        "Recommends monitoring repo-server memory after the change"
+        "Recommends monitoring repo-server memory after the change",
+        "Every recommended action states its IMPACT \u2014 what else is affected if someone acts on it (components that restart, other Applications or tenants affected, whether anything is deleted, and any ordering dependency on another recommendation) \u2014 not only its priority. 'Impact: nothing else is affected' counts; omitting the impact entirely does not. An impact reasoned from manifests rather than verified against a cluster must say so."
       ]
     },
     {
@@ -141,7 +142,8 @@
         "Follows the order of leverage: reduce unnecessary Git/render work first, then align timeouts, then bound concurrency, then scale out with sharding",
         "Explicitly connects the Git rate-limiting to ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT before addressing sharding",
         "Recommends sharding/replica scaling as preparation for the additional 10 clusters, not as the first fix for current sluggishness",
-        "Recommends changing one major setting at a time and monitoring between changes"
+        "Recommends changing one major setting at a time and monitoring between changes",
+        "Every recommended action states its IMPACT \u2014 what else is affected if someone acts on it (components that restart, other Applications or tenants affected, whether anything is deleted, and any ordering dependency on another recommendation) \u2014 not only its priority. 'Impact: nothing else is affected' counts; omitting the impact entirely does not. An impact reasoned from manifests rather than verified against a cluster must say so."
       ]
     },
     {

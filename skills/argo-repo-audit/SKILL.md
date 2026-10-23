@@ -204,6 +204,30 @@ Prioritized list:
 - **Warning** — Missing best practices that increase operational risk
 - **Info** — Suggestions for improved maintainability or performance
 
+**State the impact of acting on each finding, not just its severity.** Severity says how
+bad it is; impact says what changes when someone fixes it. These are repo findings, so
+the impact is usually "what happens on the next sync", and that is exactly what a
+reviewer cannot infer from the finding alone.
+
+```
+Critical — Plain-text password in helm.values (app.yaml:16)
+  Impact: rotating it requires updating the Secret AND re-syncing the Application.
+          The credential should be treated as compromised — it is in git history,
+          so removing it from HEAD is not sufficient.
+
+Warning  — AppProject 'team-a' allows sourceRepos: '*'
+  Impact: tightening this can push existing Applications in the project to
+          InvalidSpecError if any uses a repo outside the new list. Enumerate
+          them before narrowing it.
+```
+
+This skill reads files and does not touch a cluster, so impact is reasoned from the
+manifests — **say so** rather than implying it was verified live. If a cluster happens
+to be reachable and the finding concerns a fan-out object, `scripts/blast-radius.sh`
+will resolve the real affected set.
+
+"Impact: none beyond this file" is a fine answer and should be stated, not omitted.
+
 ## Edge Cases
 
 | Scenario | Behavior |
