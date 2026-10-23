@@ -70,6 +70,49 @@ you run.
 Adding skills for your product? Start with **[docs/adding-a-skill.md](docs/adding-a-skill.md)**.
 Evals are required — the guide explains the bar and why it is set where it is.
 
+## Safety model
+
+The first question most platform teams ask is *"will this let an agent break my cluster?"*
+
+**Every write follows the same protocol, and the agent stops at the gate.**
+
+| Step | What happens |
+|------|--------------|
+| **1. Generate** | Produces the manifest or command and shows it in full. Nothing runs. |
+| **2. Preview** | `kubectl diff` for updates, `--dry-run=server --validate=strict` for creates. Never `--dry-run=client`, which validates nothing and cannot show what an update changes. |
+| **3. Blast radius** | Resolves what *else* the change touches — how many Applications stop reconciling, which tenants share the instance, what gets deleted. A diff shows one object; most Argo CD objects are fan-out points. |
+| **4. Confirm** | Asks explicitly. Destructive operations require typing the resource name. |
+| **5. Verify** | After applying, checks it actually worked and reports the result. |
+
+Read-only work — audits, status checks, backups — skips the gate entirely.
+
+**Recommendations carry impact too, not just urgency.** A skill that tells you to raise a
+memory limit also tells you that doing so restarts the server and interrupts everyone on
+that instance. "How soon" is the easy half; "what else moves" is the half you cannot work
+out from the recommendation alone.
+
+```
+BLOCKER — Delete Rollout/openshift-gitops/example (no containers; hot-loops the controller)
+  Impact: argo-rollouts controller only. The Rollout is invalid so nothing runs from
+          it; no workload is affected. Controller restarts once.
+```
+
+Three skills (`repo-audit`, `cluster-debug`, `performance-tuning` in diagnosis mode) never
+write at all.
+
+## Works with
+
+Skills are plain Markdown with YAML frontmatter, so they are not tied to one agent.
+
+| How | Agents | Command |
+|-----|--------|---------|
+| **Any agent** | 20+ including Codex, Cline, Amp, Cursor, Antigravity | `npx skills add alimobrem/skills-for-argo` |
+| **Claude Code** | plugin with the bundled `argocd` agent | `/plugin marketplace add alimobrem/skills-for-argo` |
+
+`npx skills` is the [vercel-labs/skills](https://github.com/vercel-labs/skills) CLI. It
+reads this repo directly — nothing to publish, and it installs skills into whichever
+agent directories it finds.
+
 ## Install
 
 <details>
@@ -301,20 +344,7 @@ Back up all my Applications and AppProjects to YAML files.
 Rotate the Git credentials for the infra repo.
 ```
 
-<details>
-<summary>Safety model details</summary>
-
-| Step | What happens |
-|------|-------------|
-| Generate | Produces YAML manifest or CLI command, shows it in a code block |
-| Preview | Runs `--dry-run=client`, `kubectl diff`, or `argocd app diff` to show what changes |
-| Confirm | Asks "Apply this? (yes/no)" — does NOT proceed without explicit approval |
-
-Read-only operations (backup, status checks) skip confirmation.
-
-Destructive operations (delete, prune, rollback) require typing the resource name to confirm.
-
-</details>
+See **[Safety model](#safety-model)** for the full protocol.
 
 #### Performance Tuning — Diagnose & Fix Slowness at Scale
 

@@ -268,6 +268,41 @@ secret-shaped strings in test data, so handle it here rather than reporting it u
 
 ---
 
+## Screenshots
+
+Each skill in the README carries a preview showing what the skill actually produces.
+They sell the skill better than prose does, and a product tab without them looks
+unfinished.
+
+They are **hand-written SVG, not screen captures** — deliberately. SVGs stay sharp on
+every display, diff as text in review, never leak a real cluster name or token, and can
+be corrected when the skill's output changes. A PNG of a terminal goes stale invisibly.
+
+Convention, matching the existing set in `assets/screenshots/`:
+
+- `assets/screenshots/<short-name>-preview.svg`, e.g. `audit-preview.svg`
+- `viewBox="0 0 820 <height>"` — 820 wide, height to fit (existing ones run 360–460)
+- A terminal chrome frame: title bar with the three dots, the skill name and the scenario
+- Show a **real** interaction: the prompt a user types, then the salient part of the
+  output. Use genuine field names and genuine error text — an invented error teaches the
+  reader the wrong thing to search for.
+- Call out the insight with a short annotation (`← no oci:// scheme`), which is the part
+  a reader actually takes away.
+- Redact nothing real: use `EXAMPLE-` values and placeholder hostnames, never a live
+  cluster's.
+
+Reference it from the README inside your product's tab:
+
+```markdown
+<p align="center">
+  <img src="assets/screenshots/<short-name>-preview.svg" alt="<Skill> Preview" width="820"/>
+</p>
+```
+
+Render it before committing — `qlmanage -t -s 900 -o /tmp assets/screenshots/x.svg` on
+macOS, or open it in a browser. Several of ours had text overflowing the frame until
+they were actually looked at.
+
 ## Adding a new product area
 
 If your product has no directory yet:
